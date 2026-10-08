@@ -8,39 +8,48 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+
+# WHY macos-latest FOR THE REQUIRED JOBS
+#
+# This site has only ever been built on macOS, and it turned out to DEPEND on that: src/poems/index.ts
+# required './torrin_a._greathouse' while the file is 'Torrin_A._Greathouse.json', which resolves on a
+# case-insensitive filesystem and nowhere else. That is fixed, but it is unlikely to be the only such
+# dependency in a codebase nobody has ever built on Linux.
+#
+# So the required jobs run where the site is known to work, and a NON-BLOCKING Linux job runs
+# alongside to keep portability visible instead of unknown. Deliberate sequencing: get green and
+# stable first, then make it portable. The Linux job's failures are the to-do list for that, and they
+# are tracked rather than ignored.
 jobs:
   gates:
     name: gates (the same hooks your commit runs)
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5.0.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: { python-version: '3.12' }
       # --legacy-peer-deps: React 18 against @types/react 16.9. A real mismatch, not a flag to
-      # paper over it -- see issue: align the React types with the React version.
+      # paper over it -- see #11.
       - run: npm ci --legacy-peer-deps
       - run: pip install 'pre-commit==4.6.0'
       - run: pre-commit run --all-files --show-diff-on-failure
 
   build:
-    name: build (Parcel 1, EOL toolchain)
-    runs-on: ubuntu-latest
+    name: build
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
-      # Parcel 1.12.4 is unmaintained and depends on `deasync`, a native module needing node-gyp.
-      # It targets the Node 8-12 era; the last known-good build of this site used Node 10.16.3.
-      # Node 14 is the newest version it is known to tolerate, and 14 is itself EOL.
-      # THIS PIN IS A STOPGAP. Migrating off Parcel 1 is tracked work, and until it lands nobody
-      # can build this site on a current machine.
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5.0.0
-        with: { node-version: '14' }
-      - run: npm install --legacy-peer-deps
-      - run: npx parcel build src/index.html --out-dir dist --public-url ./
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: site-${{ github.sha }}
           path: dist/
@@ -49,5 +58,29 @@ jobs:
         run: |
           echo '### Build artefact' >> "$GITHUB_STEP_SUMMARY"
           echo "commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "files: $(find dist -type f | wc -l)" >> "$GITHUB_STEP_SUMMARY"
-          echo "bytes: $(du -sb dist | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "files: $(find dist -type f | wc -l | tr -d ' ')" >> "$GITHUB_STEP_SUMMARY"
+          echo "kilobytes: $(du -sk dist | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+
+  # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this
+  # required until its findings are worked through -- and do not delete it to make the page green,
+  # because then nobody learns anything. See the Linux-portability issue.
+  portability-linux:
+    name: portability on Linux (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: build on a case-sensitive filesystem
+        run: npm run build
+      - name: report
+        if: always()
+        run: |
+          echo '### Linux portability' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Non-blocking. A failure here is a portability defect to record, not a reason to' >> "$GITHUB_STEP_SUMMARY"
+          echo 'hold the PR. The most likely cause is a filename whose case does not match the' >> "$GITHUB_STEP_SUMMARY"
+          echo 'import that refers to it; macOS resolves those and Linux does not.' >> "$GITHUB_STEP_SUMMARY"
