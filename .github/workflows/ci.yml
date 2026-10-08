@@ -9,21 +9,28 @@ concurrency:
 permissions:
   contents: read
 
-# WHY macos-latest FOR THE REQUIRED JOBS
+# WHY THE REQUIRED JOBS RUN ON LINUX, AND WHY ONE DOES NOT
 #
-# This site has only ever been built on macOS, and it turned out to DEPEND on that: src/poems/index.ts
-# required './torrin_a._greathouse' while the file is 'Torrin_A._Greathouse.json', which resolves on a
-# case-insensitive filesystem and nowhere else. That is fixed, but it is unlikely to be the only such
-# dependency in a codebase nobody has ever built on Linux.
+# They ran on macos-latest for a few hours, because the site had only ever been built on macOS and
+# turned out to DEPEND on that: src/poems/index.ts required './torrin_a._greathouse' while the file is
+# 'Torrin_A._Greathouse.json', which resolves on a case-insensitive filesystem and nowhere else.
 #
-# So the required jobs run where the site is known to work, and a NON-BLOCKING Linux job runs
-# alongside to keep portability visible instead of unknown. Deliberate sequencing: get green and
-# stable first, then make it portable. The Linux job's failures are the to-do list for that, and they
-# are tracked rather than ignored.
+# That is fixed, and Linux has passed every run since. Two measured reasons to move back:
+#
+#   QUEUE  macOS jobs queued 308-309 seconds repeatedly while the Linux job on the same run queued
+#          3-39s. GitHub annotates it: "jobs targeting macOS arm64 runners may experience longer
+#          queue times."
+#   COST   GitHub-hosted macOS minutes bill at 10x Linux. Irrelevant once this repo is public, and
+#          not irrelevant before that.
+#
+# The non-blocking job is now the macOS one, inverted for the same reason it existed before: the
+# platform we do NOT gate on is the one worth watching, and every deployment to date was built by
+# hand on a Mac. Do not delete it to make the checks page green.
+
 jobs:
   gates:
     name: gates (the same hooks your commit runs)
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -40,7 +47,7 @@ jobs:
 
   build:
     name: build
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -64,9 +71,9 @@ jobs:
   # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this
   # required until its findings are worked through -- and do not delete it to make the page green,
   # because then nobody learns anything. See the Linux-portability issue.
-  portability-linux:
-    name: portability on Linux (non-blocking)
-    runs-on: ubuntu-latest
+  portability-macos:
+    name: portability on macOS (non-blocking)
+    runs-on: macos-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,7 +82,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --legacy-peer-deps
-      - name: build on a case-sensitive filesystem
+      - name: build on a case-INsensitive filesystem
         run: npm run build
       - name: report
         if: always()
