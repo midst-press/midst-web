@@ -72,10 +72,11 @@ jobs:
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: npx playwright install --with-deps chromium
-      # Fixtures are regenerated rather than trusted: their names come from the app's own slug module,
-      # so regenerating proves the committed ones still match what the app will ask for.
-      - run: npm run e2e:fixtures
-      - run: git diff --exit-code -- e2e/fixtures || (echo "::error::committed e2e fixtures do not match the generator -- run npm run e2e:fixtures" && exit 1)
+      # Fixtures are GENERATED here, not committed: they are .midst.zip files that the poem-data hook
+      # refuses outright, and their deflate output is not byte-reproducible across platforms. The
+      # generator derives their names from the app's own slug module, so if that derivation changes the
+      # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
+      # and it holds without storing anything poem-shaped in git.
       - run: npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
