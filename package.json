@@ -8,9 +8,13 @@
     "url": "https://midst.press"
   },
   "scripts": {
+    "build": "parcel build src/index.html --public-url / --no-autoinstall",
+    "check:deps": "node tools/check-unused-deps.mjs",
+    "e2e:build": "MIDST_POEMS_URL=http://127.0.0.1:8099/archive/ MIDST_MEDIA_URL=http://127.0.0.1:8099/archive/ npm run build",
+    "e2e:fixtures": "node tools/make-e2e-fixtures.mjs",
+    "e2e:serve": "npm run e2e:fixtures && npm run e2e:build && node tools/serve-local.mjs --root dist --archive e2e/fixtures/poems --port 8099",
     "start": "parcel src/index.html --no-autoinstall",
-    "build": "parcel build src/index.html --public-url ./ --no-autoinstall",
-    "check:deps": "node tools/check-unused-deps.mjs"
+    "test:e2e": "playwright test"
   },
   "license": "all rights reserved",
   "dependencies": {
@@ -98,6 +102,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.10.0",
+    "@playwright/test": "^1.64.0",
     "@types/mocha": "5.2.7",
     "assert": "2.0.0",
     "depcheck": "1.4.7",

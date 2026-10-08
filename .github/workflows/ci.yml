@@ -68,6 +68,30 @@ jobs:
           echo "files: $(find dist -type f | wc -l | tr -d ' ')" >> "$GITHUB_STEP_SUMMARY"
           echo "kilobytes: $(du -sk dist | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
 
+  e2e:
+    name: end-to-end (does a poem still play?)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npx playwright install --with-deps chromium
+      # Fixtures are GENERATED here, not committed: they are .midst.zip files that the poem-data hook
+      # refuses outright, and their deflate output is not byte-reproducible across platforms. The
+      # generator derives their names from the app's own slug module, so if that derivation changes the
+      # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
+      # and it holds without storing anything poem-shaped in git.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 14
+
   # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this
   # required until its findings are worked through -- and do not delete it to make the page green,
   # because then nobody learns anything. See the Linux-portability issue.
