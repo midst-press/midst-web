@@ -102,7 +102,7 @@
   "devDependencies": {
     "@babel/core": "7.10.0",
     "@types/mocha": "5.2.7",
-    "assert": "2.0.0",
+    "assert": "2.1.0",
     "mocha": "6.2.3",
     "parcel": "1.12.4",
     "parcel-plugin-static-files-copy": "2.6.0",
