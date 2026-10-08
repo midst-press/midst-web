@@ -14,6 +14,13 @@ ignores:
   - typescript                        # tsc --noEmit, run by pre-commit and CI
   - depcheck                          # this check's own engine, run via tools/check-unused-deps.mjs
 
+  # --- Parcel 2 node-builtin polyfills: resolved by the BUNDLER, never imported by us ---
+  - process                           # immer references bare `process` (immer.js:27), so Parcel's
+                                      #   resolver needs the `process/` polyfill package present.
+                                      #   MEASURED with --no-autoinstall: absent -> build fails,
+                                      #   present -> build passes. Without that flag Parcel silently
+                                      #   installs it and the build passes either way.
+
   # --- CSS-only packages: imported from stylesheets, which depcheck does not parse ---
   - normalize.css
   - global.css
