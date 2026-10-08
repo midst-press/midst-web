@@ -15,7 +15,7 @@ const poems = [
   require('./Eddie_Kim'),
   require('./Lily_Yanagimoto'),
   require('./Joshua_Nguyen'),
-  require('./torrin_a._greathouse'),
+  require('./Torrin_A._Greathouse'),
   require('./Sadie_Dupuis'),
   require('./Jared_Harél'),
   require('./Sean_Singer'),
