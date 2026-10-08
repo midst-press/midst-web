@@ -6,6 +6,9 @@ ignores:
   - '@babel/core'                     # Parcel's JS transform chain resolves this itself
 
   # --- tools invoked through npx / the CLI, never imported ---
+  - parcel-bundler                    # the bundler itself on the Parcel 1 toolchain: `parcel build`
+  - parcel                            # the same after the Parcel 2 migration; both listed so this
+                                      #   entry does not need editing when that branch lands
   - prettier                          # formatting, run by pre-commit and by npm scripts
   - typescript                        # tsc --noEmit, run by pre-commit and CI
   - depcheck                          # this check's own engine, run via tools/check-unused-deps.mjs
