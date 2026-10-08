@@ -49,3 +49,9 @@ manifest.json
 # poem data does not live in this repository -- see DATA.md
 *.midst
 static/static/assets/poems/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/
