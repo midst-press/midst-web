@@ -1,4 +1,13 @@
-export const mouseTheta = (evt, el) => {
+/*
+ * Pointer geometry helpers.
+ *
+ * Typed structurally rather than as DOM MouseEvent, because callers pass BOTH native DOM events and
+ * React synthetic events, and React's SyntheticEvent is not assignable to MouseEvent. Naming only
+ * the four coordinates these functions actually read keeps both callers valid without `any`.
+ */
+type PointerLike = Pick<MouseEvent, 'pageX' | 'pageY' | 'clientX' | 'clientY'>
+
+export const mouseTheta = (evt: PointerLike, el: Element) => {
   const rect = el.getBoundingClientRect()
   const deltaX = evt.pageX - rect.left - rect.width / 2
   const deltaY = evt.pageY - rect.top - rect.height / 2
@@ -9,7 +18,7 @@ export const mouseTheta = (evt, el) => {
   return thetaNF
 }
 
-export const isMouseIn = (evt, el, invert = false) => {
+export const isMouseIn = (evt: PointerLike, el: Element, invert = false) => {
   const rect = el.getBoundingClientRect()
   const mouseIn =
     evt.clientX > rect.left &&
@@ -38,7 +47,7 @@ export const isMouseIn = (evt, el, invert = false) => {
   }
 }
 
-export const coords = (evt: any, el: any, inverted = false) => {
+export const coords = (evt: PointerLike, el: Element, inverted = false) => {
   const m = isMouseIn(evt, el, inverted).percent
   return {
     x: m.x >= 0 && m.x <= 1 ? m.x : m.x < 0 ? 0 : m.x > 1 ? 1 : 0,
