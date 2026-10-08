@@ -41,6 +41,16 @@ repos:
           withdrawn. Keep them with the archive and point MIDST_CORPUS at it. See DATA.md.
         files: '(\.midst$|\.midst\.zip$|(^|/)static/static/assets/poems/)'
 
+      - id: one-lockfile-only
+        name: npm is the only package manager; no second lockfile
+        language: fail
+        entry: >-
+          This project uses npm and only npm, and package-lock.json is the one lockfile. A second
+          lockfile silently disagrees with the first: yarn.lock here described Parcel 1 after the
+          migration to Parcel 2, was missing the process polyfill the build needs, and was missing
+          the declared dependency lazy-require entirely -- so `yarn install` built a tree that did
+          not match package.json and nothing reported it. See README and issue #24.
+        files: '(^|/)(yarn\.lock|pnpm-lock\.yaml|bun\.lockb|npm-shrinkwrap\.json)$'
       - id: forbid-logs
         name: logs must never be committed
         language: fail
