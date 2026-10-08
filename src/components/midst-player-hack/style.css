@@ -1,0 +1,727 @@
+.round-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 80px;
+  background: #FF91AF;
+  cursor: pointer;
+  opacity: 0.3;
+  text-align: center;
+  line-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.round-icon svg {
+  display: inline;
+}
+
+.round-icon.active {
+  background: #999;
+}
+
+.big-round-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 80px;
+  background: #ddd;
+  cursor: pointer;
+}
+
+.big-round-icon.active {
+  background: #999;
+}
+
+.double-icon {
+  width: 90px;
+  height: 60px;
+  border-radius: 5px;
+}
+
+.double-icon .round-icon {
+  float: right;
+  width: 35px;
+}
+
+.midst {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #FFF5EE;
+  font-family: Helvetica, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+.title-bar {
+  width: 100vw;
+  height: 25px;
+  -webkit-app-region: drag;
+  font-size: 12px;
+  opacity: 0.3;
+}
+
+.title-bar .title {
+  height: 25px;
+  line-height: 25px;
+  text-align: center;
+}
+
+.about {
+  position: absolute;
+  top: 50vh;
+  left: 50vw;
+  z-index: 99999;
+  width: 0;
+  height: 0;
+  background: #FF91AF;
+  transition: all 250ms;
+  overflow: hidden;
+  text-align: center;
+  font-size: 25px;
+  line-height: 40px;
+  color: rgb(105, 0, 0);
+}
+
+.about.open {
+  width: 450px;
+  height: 450px;
+  margin-top: -225px;
+  padding-top: 70px;
+  margin-left: -225px;
+}
+
+.about .close-x {
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+}
+
+.about .close-x svg {
+  stroke: #FFF5EE;
+}
+
+.about a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.top-toolbar {
+  width: 100vw;
+  height: 65px;
+}
+
+.logo {
+  position: absolute;
+  top: -8px;
+  left: -3px;
+  width: 190px;
+  height: 85px;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0.6;
+}
+
+.logo svg {
+  display: block;
+  position: absolute;
+  top: -52px;
+  left: 0;
+  width: 190px;
+  height: 190px;
+  fill: #FF91AF;
+}
+
+.open-button {
+  margin-right: 30px;
+}
+
+.font-size-up-button {
+  margin-right: 30px;
+}
+
+.focus-mode-toggle.active {
+  background: transparent;
+}
+
+.focus-mode-toggle.active svg {
+  stroke: blue;
+}
+
+.editor {
+  width: 100vw;
+  height: calc(100vh - 25px - 146px);
+  overflow-x: hidden;
+  overflow-y: scroll;
+  transition: all 250ms;
+}
+
+.editor.with-timeline {
+  height: calc(100vh - 25px - 125px);
+}
+
+.editor .editable {
+  width: calc(100% - 540px);
+  height: calc(100% - 140px);
+  padding: 40px 170px 100px 300px;
+  transition: width 250ms;
+  font-family: sans-serif;
+  font-size: 16px !important;
+}
+
+.editor .editable.with-drawer {
+  width: calc(100% - 160px - 190px);
+}
+
+.editor .editable.with-timeline {
+  caret-color: #FFF5EE;
+}
+
+.editor .editable:focus {
+  outline: none;
+}
+
+.editor .editable p {
+  margin: 0;
+  padding: 0;
+}
+
+.editable .bold {
+  font-weight: bold;
+}
+
+.timeline-toggles {
+  position: absolute;
+  bottom: -5px;
+  right: 15px;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.timeline-toggles .round-icon {
+  background: transparent;
+  color: #FF91AF;
+}
+
+.timeline {
+  position: fixed;
+  bottom: 15px;
+  right: 15px;
+  left: calc(100vw - 80px - 25px);
+  z-index: 9998;
+  height: 40px;
+  border-radius: 40px;
+  background: #FF91AF;
+  transition: all 250ms;
+  opacity: 0;
+  text-align: right;
+}
+
+.timeline.open {
+  z-index: 99999;
+  left: 15px;
+  right: 15px;
+  opacity: 1;
+  border-radius: 5px;
+}
+
+.timeline-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 40px;
+  line-height: 40px;
+}
+
+.timeline .round-icon {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  opacity: 1;
+}
+
+.timeline .round-icon svg {
+  color: rgb(253, 237, 242);
+}
+
+.timeline .round-icon.active svg {
+  color: #ff0000;
+}
+
+.drawer {
+  position: fixed;
+  bottom: 15px;
+  right: 15px;
+  z-index: 9998;
+  width: 40px;
+  height: 40px;
+  border-radius: 40px;
+  overflow: hidden;
+  background: #FF91AF;
+  transition: all 250ms;
+  opacity: 0;
+}
+
+.drawer.open {
+  width: 239px;
+  height: calc(100vh - 100px);
+  opacity: 1;
+  border-radius: 5px;
+}
+
+.empty-drawer-message {
+  text-align: center;
+  font-size: 22px;
+  color: rgb(105, 0, 0);
+  padding: 50% 10px 0 10px;
+}
+
+.empty-drawer-message svg {
+  stroke: rgb(105, 0, 0);
+}
+
+.top-toolbar .toolbar-icons {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  height: 40px;
+}
+
+.top-toolbar .toolbar-icons .round-icon {
+  float: right;
+  margin-left: 5px;
+  width: 30px;
+  height: 30px;
+  border-radius: 30px;
+}
+
+.top-toolbar .toolbar-icons .round-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.draft-marker-create {
+  cursor: pointer;
+}
+
+.draft-marker-create.active svg {
+  color: #ff0000;
+}
+
+.draft-marker-create.deactivated {
+  pointer-events: none;
+}
+
+.draft-marker-create.deactivated svg {
+  color: rgb(245, 235, 228);
+}
+
+.draft-marker-create {
+  opacity: 1;
+}
+
+/* .draft-marker-create {
+  opacity: 0;
+  transition: opacity 250ms;
+  pointer-events: none;
+}
+
+.draft-marker-create.visible {
+  opacity: 1;
+  pointer-events: all;
+  cursor: pointer;
+} */
+
+.title-bar,
+.logo,
+.toolbar-icons div:not(.focus-mode-toggle),
+.bottom-toolbar,
+.timeline,
+.drawer {
+  transition: all 250ms;
+}
+
+.focus-mode .title-bar,
+.focus-mode .logo,
+.focus-mode .toolbar-icons div:not(.focus-mode-toggle),
+.focus-mode .bottom-toolbar,
+.focus-mode .timeline,
+.focus-mode .drawer {
+  opacity: 0;
+}
+
+.timeline-toggle {
+  opacity: 1;
+}
+
+.timeline-toggle.deactivated svg {
+  color: rgb(245, 235, 228);
+}
+
+/* .timeline-toggle {
+  opacity: 0;
+  transition: opacity 250ms;
+  pointer-events: none;
+}
+
+.timeline-toggle.visible {
+  opacity: 1;
+  pointer-events: all;
+  cursor: pointer;
+} */
+
+.timeline .draft-marker-create.deactivated svg {
+  color: rgb(236, 124, 154);
+}
+
+.timeline .hem-slider {
+  width: calc(100% - 143px);
+  margin: 20px 0 0 20px;
+  height: 2px;
+  border-radius: 3px;
+  background: rgb(236, 124, 154);
+  border: 0;
+}
+
+.timeline .hem-slider .hem-slider__progress {
+  position: relative;
+  border-radius: 3px;
+  background: rgb(105, 0, 0);
+}
+
+.timeline .hem-slider .hem-slider__progress::after {
+  display: block;
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 10px;
+  border: 2px solid rgb(105, 0, 0);
+  background: white;
+  content: ' ';
+  transition: all 150ms;
+  transform-origin: center;
+}
+
+.timeline .hem-slider:active .hem-slider__progress::after {
+  transform: scaleX(1.2) scaleY(1.2);
+}
+
+.draft-markers {
+  position: absolute;
+  bottom: calc(100% - 10px);
+  left: 20px;
+  width: calc(100% - 180px);
+  height: 50px;
+}
+
+.draft-markers .draft-marker {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgb(105, 0, 0);
+  font-family: Arial, Helvetica, sans-serif;
+  transform: translate(-9px, 0);
+}
+
+.draft-marker-label {
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 39px);
+  font-size: 11px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  width: 80px;
+  height: 20px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  padding: 3px 0;
+  border: 1px solid #FF91AF;
+  border-radius: 20px;
+  background: #fed7db;
+}
+
+.draft-marker-label input {
+  display: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  padding: 3px 0;
+  height: 14px;
+  line-height: 14px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+}
+
+.draft-marker-label input:focus,
+.draft-marker-label input:active {
+  outline: none;
+}
+
+.draft-marker-label span {
+  display: inline;
+}
+
+.draft-marker-label.editing,
+.editing .draft-marker-label {
+  /* height: 26px;
+  padding: 0; */
+}
+
+.draft-marker-label.editing span,
+.editing .draft-marker-label span {
+  display: none;
+}
+
+.draft-marker-label.editing input,
+.editing .draft-marker-label input {
+  display: inline-block;
+}
+
+.draft-markers .draft-marker.active {
+  z-index: 9999;
+}
+
+.draft-markers .draft-marker.active .draft-marker-label {
+
+}
+
+.marker-list-item {
+  position: relative;
+  margin: 10px;
+  padding: 10px;
+  border-bottom: 1px solid rgb(105, 0, 0);
+  cursor: pointer;
+}
+
+.marker-list-item-delete {
+  position: absolute;
+  top: 13px;
+  right: 0;
+}
+
+.marker-list-item-delete svg {
+  width: 14px;
+  height: 14px;
+  color: rgb(105, 0, 0);
+}
+
+.marker-list-controls {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  width: 100%;
+  height: 25px;
+  line-height: 25px;
+  background: rgb(236, 124, 154);
+  text-align: right;
+}
+
+.marker-list-control {
+  display: inline-block;
+  cursor: pointer;
+  margin: 3px;
+  height: 25px;
+  line-height: 25px;
+}
+
+.marker-list-control svg {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  color: rgb(255, 236, 242);
+}
+
+.drawer .draft-marker-label {
+  display: inline;
+  position: static;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgb(105, 0, 0);
+}
+
+.drawer .draft-marker-label input,
+.drawer .draft-marker-label span {
+  margin-left: 14px;
+}
+
+.drawer .draft-marker-label .edit-icon {
+  position: absolute;
+  top: 13px;
+  left: 0;
+}
+
+.drawer .draft-marker-label .edit-icon svg {
+  width: 14px;
+  height: 14px;
+  color: rgb(105, 0, 0);
+}
+
+.drawer .draft-marker-label input {
+  width: 100px;
+  height: 10px;
+  padding: 0;
+  text-align: left;
+  color: rgb(105, 0, 0);
+}
+
+.play-pause-button {
+  width: 19px !important;
+  height: 19px !important;
+  top: 11px !important;
+  right: 82px !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.end-button {
+  width: 19px !important;
+  height: 19px !important;
+  top: 11px !important;
+  right: 47px !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.speed-selector {
+  transform: translate(-3px, 0);
+  position: absolute;
+  right: 7px !important;
+  bottom: 7px !important;
+}
+
+.speed-selector,
+.speed-selector * {
+  user-select: none;
+}
+
+.speed-selector .drop {
+  width: 23px;
+  height: 30px;
+  border: 0;
+  margin-top: -3px;
+  transform: translate(-4px, 2.5px);
+}
+
+.speed-selector .drop .drop__toggle {
+  top: 2.5px;
+  width: 22px;
+  height: 22px;
+  margin: 2px;
+  line-height: 30px;
+  background: transparent;
+  font-family: 'HelveticaNeueLTStd-BdCn';
+  font-size: 16px;
+  text-align: center;
+  color: rgb(253, 237, 242);
+  transform: translate(1px, 0);
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.speed-selector.speed--low .drop .drop__toggle {
+  background-image: url('./speedometer_low.png');
+}
+
+.speed-selector.speed--med .drop .drop__toggle {
+  background-image: url('./speedometer_med.png');
+}
+
+.speed-selector.speed--hi .drop .drop__toggle {
+  background-image: url('./speedometer_hi.png');
+}
+
+.speed-selector .drop .drop__content {
+  position: relative;
+  border: 0;
+  background: #FF91AF;
+  margin-left: 1px;
+  padding: 10px;
+  border-radius: 3px;
+  left: -12px;
+  height: 85px;
+  transform: translate(4px, 0);
+}
+
+.speed-selector .drop .drop__content .speed-icon {
+  float: left;
+  width: 22px;
+  height: 22px;
+  margin-bottom: 10px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.speed-selector .drop .drop__content .speed-icon--low {
+  background-image: url('./speedometer_low.png');
+}
+
+.speed-selector .drop .drop__content .speed-icon--med {
+  background-image: url('./speedometer_med.png');
+}
+
+.speed-selector .drop .drop__content .speed-icon--hi {
+  background-image: url('./speedometer_hi.png');
+}
+
+.speed-selector .hem-slider {
+  position: absolute;
+  top: -7px;
+  left: -3px;
+  height: 100px;
+  margin: 20px 0 0 20px;
+  width: 10px;
+  border-radius: 3px;
+  background: #000;
+  border: 0;
+}
+
+.speed-selector .hem-slider .hem-slider__progress {
+  border-radius: 3px;
+  background: rgb(105, 0, 0);
+}
+
+.speed-selector .hem-slider .hem-slider__progress::after {
+  display: block;
+  position: absolute;
+  right: -1.5px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 10px;
+  border: 2px solid rgb(105, 0, 0);
+  background: white;
+  content: ' ';
+  transition: all 150ms;
+  transform-origin: center;
+}
+
+.speed-selector .hem-slider:active .hem-slider__progress::after {
+  transform: scaleX(1.2) scaleY(1.2);
+}
+
+.timeline .speed-selector .hem-slider .hem-slider__progress {
+  position: absolute;
+  background: rgb(105, 0, 0);
+  width: 100%;
+}
+
+.timeline-button-3 {
+  position: absolute;
+  top: 0;
+  right: 35px;
+}

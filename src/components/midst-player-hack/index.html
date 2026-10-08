@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8'>
+  <title>Midst App</title>
+  <link rel='stylesheet' href='helvetica-neue.css'>
+  <link rel='stylesheet' href='lato.css'>
+  <link rel='stylesheet' href='animate.css'>
+  <link rel='stylesheet' href='style.css'>
+
+  <script>
+    if (typeof module === 'object') {
+      window.module = module;
+      module = undefined;
+    }
+  </script>
+
+  <script src='jquery.js'></script>
+  <script src='react.development.js'></script>
+  <script src='react-dom.development.js'></script>
+  <!-- <script src='react.production.js'></script> -->
+  <!-- <script src='react-dom.production.js'></script> -->
+  <script type='text/javascript' src='rangy-core.js'></script>
+  <script type='text/javascript' src='rangy-selectionsaverestore.js'></script>
+  <script type='text/javascript' src='rangy-classapplier.js'></script>
+
+  <script type='text/javascript'>
+    let savedSel = null
+    let savedSelActiveElement = null
+
+    function saveSelection() {
+      if (savedSel) {
+        rangy.removeMarkers(savedSel)
+      }
+      savedSel = rangy.saveSelection()
+      savedSelActiveElement = document.activeElement
+    }
+
+    function restoreSelection() {
+      if (savedSel) {
+        rangy.restoreSelection(savedSel, true)
+        savedSel = null
+        window.setTimeout(function() {
+          if (savedSelActiveElement && typeof savedSelActiveElement.focus !== undefined) {
+            savedSelActiveElement.focus()
+          }
+        }, 1)
+      }
+    }
+
+    // let rangyBoldApplier
+
+    // function rangyToggleBold() {
+    //   rangyBoldApplier.toggleSelection()
+    // }
+
+    // function rangyApplyBold() {
+    //   document.execCommand('insertText', false, '.')
+    //   rangyBoldApplier.applyToSelection()
+    //   document.execCommand('delete')
+    // }
+
+    // function rangyRemoveBold() {
+    //   rangyBoldApplier.undoToSelection()
+    // }
+
+    // function rangyInitClassApplier() {
+    //   rangyBoldApplier = rangy.createClassApplier('bold', {
+    //     tagNames: ['span', 'a', 'b', 'img', 'p', 'em'],
+    //   })
+    // }
+
+    window.e = window.React.createElement
+    window.remote = window.require('electron').remote
+    window.ipc = window.require('electron').ipcRenderer
+    document.addEventListener('DOMContentLoaded', () => {
+      // rangy.init()
+      // rangyInitClassApplier()
+
+      window.ReactDOM.render(
+        e(Midst),
+        document.getElementById('mount'),
+      )
+    })
+  </script>
+
+  <script src='append-style.js'></script>
+  <script src="Drop.js"></script>
+  <script src='icon-bold.js'></script>
+  <script src='icon-check-square.js'></script>
+  <script src='icon-close-x.js'></script>
+  <script src='icon-drawer.js'></script>
+  <script src='icon-edit.js'></script>
+  <script src='icon-focus.js'></script>
+  <script src='icon-italic.js'></script>
+  <script src='icon-marker.js'></script>
+  <script src='icon-message-circle.js'></script>
+  <script src='icon-minus.js'></script>
+  <script src='icon-open.js'></script>
+  <script src='icon-play.js'></script>
+  <script src='icon-plus.js'></script>
+  <script src='icon-save.js'></script>
+  <script src='icon-settings.js'></script>
+  <script src='icon-square.js'></script>
+  <script src='icon-timeline.js'></script>
+  <script src='icon-trash.js'></script>
+  <script src='icon-volume-2.js'></script>
+  <script src='lodash.js'></script>
+  <script src='Midst.js'></script>
+  <script src='mouse-position.js'></script>
+  <script src='Slider.js'></script>
+</head>
+
+<body>
+  <div id='mount'></div>
+</body>
+
+</html>

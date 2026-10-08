@@ -1,0 +1,1432 @@
+/* http://meyerweb.com/eric/tools/css/reset/ */
+/* v1.0 | 20080212 */
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, tt, var,
+b, u, i, center,
+dl, dt, dd,
+fieldset, form, label, legend,
+ caption {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	outline: 0;
+	font-size: 100%;
+	vertical-align: baseline;
+	background: transparent;
+}
+
+body {
+	line-height: 1;
+}
+
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+
+/* remember to define focus styles! */
+:focus {
+	outline: 0;
+}
+
+/* remember to highlight inserts somehow! */
+ins {
+	text-decoration: none;
+}
+del {
+	text-decoration: line-through;
+}
+
+/* tables still need 'cellspacing="0"' in the markup */
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+br, p { clear:both}
+
+@font-face {
+  font-family: 'futuraregular';
+  src: url('../static/static/assets/futuraregular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'futuralight';
+  src: url('../static/static/assets/futuralight.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'futuramedium';
+  src: url('../static/static/assets/futuramedium.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Futura_Bk_BT_Book';
+  src: url('../static/static/assets/Futura_Bk_BT_Book.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'aileronregular';
+  src: url('../static/static/assets/aileron_regular_macroman/Aileron-Regular-webfont.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: 'futuraregular';
+  background-color: #FFF5EE;
+}
+
+.clearfix::after {
+  content: " ";
+  clear: both;
+  display: table;
+}
+
+.shapes {
+  display: none; /* Shapes will be revealed via JS. */
+}
+
+.midst {
+  position: absolute !important;
+  top: 97px !important;
+  background-color: transparent !important;
+  height: calc(100vh - 136px) !important;
+}
+
+.timeline {
+  bottom: -5px !important;
+}
+
+.site-header {
+  background-color: #FFF5EE;
+}
+
+.site-header h1 {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  width: 250px;
+  height: 77px;
+  background-repeat: no-repeat;
+  font-size: 0;
+  z-index: 99999;
+}
+
+.site-header h1 a {
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+.site-header h1 .logo-svgs {
+  pointer-events: none;
+  transition: fill 250ms;
+}
+
+.site-header h1 .logo-svgs * {
+  pointer-events: none;
+}
+
+.site-header h1 a:hover .logo-svgs svg {
+  fill: rgb(255, 83, 129);
+}
+
+.site-header h1 .logo-svgs .logo-m {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.little-m {
+  transform: translate(-3px, -3px);
+}
+
+.little-m,
+.big-m,
+.logo-idst {
+  transition: opacity 250ms;
+}
+
+.little-m--hidden,
+.big-m--hidden,
+.logo-idst--hidden {
+  opacity: 0;
+}
+
+.site-header h1 .logo-svgs .logo-idst {
+  position: absolute;
+  right: 0;
+  left: 0;
+}
+
+.site-header .poem-credit {
+  position: absolute;
+  top: 35px;
+  left: 170px;
+  right: 170px;
+  text-align: center;
+  font-size: 24px;
+  color: inherit;
+  text-decoration: none;
+  font-style: normal;
+  font-family: 'futuralight';
+  z-index: 9999;
+}
+
+.site-header .poem-credit span {
+  cursor: pointer;
+  font-family: 'futuralight';
+}
+
+.site-header .poem-title:hover {
+  font-style: italic !important;
+}
+
+.site-header .poem-title:hover i {
+  font-style: normal;
+}
+
+.site-header .poem-credit .author-name {
+  color: rgb(230, 132, 158);
+}
+
+.site-header .poem-credit:hover {
+  font-style:normal;
+  cursor: help;
+}
+
+.site-header .poem-credit:hover * {
+  cursor: help;
+}
+
+.process-note {
+  position: absolute;
+  top: -606px;
+  left: 50%;
+  z-index: 99999;
+  margin-left: -300px;
+  width: 600px;
+  height: 600px;
+  background: #fff;
+  border: 1px solid #000;
+  transition: all 300ms;
+}
+
+.process-note__content {
+  height: 510px;
+  overflow: scroll;
+}
+
+.process-note p {
+  font-size:16px;
+  line-height:1.4;
+  margin: 20 10 26 10;
+}
+
+.process-note h1 {
+  font-size:16px;
+  font-style: bold;
+  line-height:1.4;
+  padding-top: 16px;
+  border-bottom: 1px dashed #FF91AF;
+}
+
+.process-note img {
+  display: block;
+  margin: 40px auto;
+  width: 300px;
+  height: auto;
+}
+
+.process-note.open {
+  top: 10px;
+}
+
+.process-note .process-note__content {
+  padding: 30px 40px 30px 40px;
+}
+
+.process-note .process-note__content ul {
+  margin-top: 20px;
+  padding-left: 17px;
+}
+
+.process-note .process-note__content li {
+  padding: 0;
+  margin: 0 0 15px 0;
+  text-indent: 0;
+}
+
+.close-process-note {
+  position: absolute;
+  top: 0;
+  right: 7px;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.site-header #poem-nav {
+  position: fixed;
+  top: 50vh;
+  right: 5px;
+  z-index: 99999;
+  width: 50px;
+  height: 300px;
+  margin-top: -110px;
+  text-align: center;
+  font-size: 30px;
+}
+
+.site-header #poem-nav a {
+  float: left;
+  width: 50px;
+  height: 150px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 20px;
+}
+
+.site-header #poem-nav .arrow {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  background: #FF91AF;
+}
+
+.site-header #poem-nav .arrow.arrow-forward {
+  mask: url(../static/static/assets/arrow_forward.svg) no-repeat 100% 100%;
+  -webkit-mask: url(../static/static/assets/arrow_forward.svg) no-repeat 100% 100%;
+  transform: scale(1.4);
+}
+
+.site-header #poem-nav .arrow.arrow-back {
+  mask: url(../static/static/assets/arrow_back.svg) no-repeat 100% 100%;
+  -webkit-mask: url(../static/static/assets/arrow_back.svg) no-repeat 100% 100%;
+  transform: scale(1.3);
+}
+
+.site-header #poem-nav a.disabled .arrow {
+  background: #000;
+  opacity: 0.1;
+}
+
+.site-header #back-to-toc {
+  position: fixed;
+  top: 75vh;
+  left: 10px;
+  z-index: 99999;
+  transform: rotate(-90deg);
+  transform-origin: top left;
+  width: 50vh;
+  height: 50px;
+  text-align: center;
+  font-size: 20px;
+  font-family: 'futuralight';
+  color: #FF91AF;
+}
+
+.site-header #back-to-toc a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.site-header nav {
+  position: absolute;
+  top: 31px;
+  right: 80px;
+  font-size: 30px;
+}
+
+.site-header nav a {
+  color: #000000;
+  text-align: center;
+  padding: 15px;
+  margin: 0 0 0 9px;
+  text-decoration: none;
+}
+
+.site-header nav a:hover {
+  font-style: italic;
+}
+
+.site-header nav a.active {
+  color: rgb(255, 53, 107);
+}
+
+.site-header nav #mobile-nav-toggle {
+  display: none;
+}
+
+.site-header .about-link--desk {
+  position: fixed;
+  top: 33px;
+  right: 30px;
+  z-index: 99999;
+  margin: 0;
+  padding: 0 5px 0 0;
+  font-size: 30px;
+  text-decoration: none;
+  color: #000;
+  transform: translateX(5px);
+}
+
+.site-header .about-link--mobile {
+  display: none;
+}
+
+.site-header .about-link.active {
+  color: rgb(255, 53, 107);
+}
+
+.site-header .about-link--desk.active {
+  color: rgb(255, 53, 107);
+}
+
+.site-header .about-link--desk.light,
+.site-header .about-link--mobile.light {
+  font-family: 'futuralight';
+  font-size: 24px;
+}
+
+.site-header .nav-links-wrapper--poem {
+  display: none;
+}
+
+.heroine {
+  text-align: center;
+  font-size: 30px;
+  padding: 100px 0 0 0;
+}
+
+.table-of-contents {
+  padding-bottom: 100px;
+}
+
+.table-of-contents .heroine {
+  position: relative;
+  width: 800px;
+  margin: 151px auto 120px auto;
+  padding: 10px 30px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #000;
+}
+
+.table-of-contents .heroine .issue-date {
+  position: absolute;
+  left: -29px;
+  transform: rotate(-90deg);
+  top: 134px;
+  transform-origin: top left;
+  font-size: 20px;
+  font-family: 'futuralight';
+  color: rgb(255, 53, 107);
+}
+
+.table-of-contents .heroine .issue-number {
+  position: absolute;
+  left: 19px;
+  top: -28px;
+  transform-origin: top left;
+  font-size: 20px;
+  font-family: 'futuralight';
+  color: rgb(255, 53, 107);
+}
+
+
+.table-of-contents .heroine .editor-letter-toggle {
+  position: absolute;
+  left: 670px;
+  top: -28px;
+  z-index: 9999;
+  transform-origin: top left;
+  font-size: 20px;
+  font-family: 'futuralight';
+  color: rgb(201, 50, 181);
+  cursor: pointer;
+}
+
+.table-of-contents .heroine .editor-letter-container {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: calc(100% - 120px);
+  height: 1300px;
+  padding:  39px 50px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.table-of-contents .heroine .editor-letter {
+  position: absolute;
+  left: 0;
+  z-index: 99999;
+  height: auto;
+  top: -900px;
+  padding:  39px 50px;
+  font-size: 24px;
+  font-family: 'futuralight';
+  background-color: rgba(247, 177, 237, .96);
+  color: #400404;
+  transition: top 250ms;
+  pointer-events: all;
+}
+
+.table-of-contents .heroine .editor-letter-open {
+  top: 0;
+}
+
+.table-of-contents .heroine .editor-button {
+  transform: rotate(-90deg);
+  position: absolute;
+  top: -22px;
+  left: 48%;
+}
+
+.table-of-contents .heroine .editor-button .hem-chevron-button {
+  background-color: rgba(247, 177, 237, .96);
+}
+
+.table-of-contents h6 {
+  font-size: 16px;
+  margin-bottom: 80px;
+}
+
+.poem-head .poem-line__column {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.poem-head-arrow {
+  display: inline-block;
+  content: " ";
+  width: 0px;
+  height: 0px;
+  border-top: 16px solid transparent;
+  border-bottom: 16px solid transparent;
+  border-left: 16px solid #000;
+  transform: rotate(90deg) scaleX(.6) scaleY(.4);
+  cursor: pointer;
+  opacity: 0.2;
+}
+
+.poem-head-arrow-active {
+  opacity: 1;
+}
+
+.poem-head-arrow-up {
+  transform: rotate(-90deg) scaleX(.6) scaleY(.4);
+}
+
+.table-of-contents .poem-line {
+  position: relative;
+  float: left;
+  width: 100%;
+  font-size: 20px;
+  border-bottom: 1px dashed #FF91AF;
+}
+
+.table-of-contents .poem-line:last-child {
+  border-bottom: none;
+}
+
+.table-of-contents a.poem-highlighted {
+  background-color: #FFFF7D;
+}
+
+.table-of-contents .poem-line__column {
+  float: left;
+  padding: 20px 10px;
+}
+
+.table-of-contents .poem-line:hover {
+  color: rgb(255, 53, 107); /* DARQ PINK  */
+}
+
+.table-of-contents .poem-line .poem-author {
+  width: 35%;
+}
+
+.table-of-contents .poem-line .poem-title {
+  width: 40%;
+  font-style: italic;
+}
+
+.table-of-contents .poem-line .poem-date {
+  width: 10%;
+  font-style: italic;
+}
+
+.table-of-contents .poem-line .poem-badge {
+  position: absolute;
+  top: -5px;
+  right: -25px;
+  padding: 5px;
+  background-color: rgb(255, 53, 107);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.table-of-contents .poem-line .poem-title i {
+  font-style: normal;
+}
+
+.table-of-contents .poem-line:hover .poem-author {
+  font-style: italic;
+}
+
+.table-of-contents .poem-line:hover .poem-title {
+  font-style: normal;
+}
+
+.table-of-contents .poem-line:hover .poem-title i {
+  font-style: italic;
+}
+
+.table-of-contents small {
+  font-size: 14px;
+}
+
+.table-of-contents a {
+  color: #000;
+  text-decoration: none;
+}
+
+.heroine h2 {
+  color: darkred;
+  font-style: italic;
+  font-size: 25px;
+  margin: 0 0 30px;
+}
+
+.heroine p {
+  margin-bottom: 30px;
+}
+
+.heroine.heroine--normal {
+  text-align: left;
+  font-size: 20px;
+  padding: 22vh 14vw 7vh 14vw;
+}
+
+.heroine.heroine--normal.center {
+  text-align: center;
+}
+
+.app-page .heroine {
+  padding-top: 15vh;
+  position: absolute;
+  left: 50%;
+  width: 850px;
+  margin-left: -425px;
+  text-align: center;
+  z-index: 99999999999;
+  pointer-events: none;
+}
+
+.app-page .heroine p {
+  font-size: 18px;
+  line-height: 25px;
+}
+
+.app-page .heroine img {
+  width: 650px;
+  height: auto;
+}
+
+.heroine.heroine--normal p {
+  margin-bottom: 30px;
+  line-height: 1.3;
+}
+
+.heroine.heroine--normal .editor p {
+  margin-bottom: 0;
+}
+
+.site-footer {
+  position: fixed;
+  bottom: 0;
+  left: 30px;
+  z-index: 999999999999999;
+  font-size: 18px;
+}
+
+.site-footer a {
+  color: #000;
+  text-decoration: none;
+}
+
+.site-footer .campaign-monitor-form {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 31px;
+  border-top: 1px solid #333;
+  padding-top: 5px;
+  background: #FFF5EE;
+  font-family: 'futuralight';
+  font-size: 15px;
+}
+
+.site-footer .campaign-monitor-form label {
+  float: left;
+  width: auto;
+  height: 26px;
+  line-height: 26px;
+  margin: 0 10px 0 20px;
+}
+
+.site-footer .campaign-monitor-form input {
+  float: left;
+  background: transparent;
+  border: 1px solid #000;
+  width: 20vw;
+  height: 26px;
+  line-height: 26px;
+  padding: 0 0 0 5px;
+  text-align: left;
+  font-size: 14px;
+  background: #fff;
+  margin: 0 5px;
+}
+
+.site-footer .campaign-monitor-form button {
+  height: 28px;
+  background: pink;
+  border: 1px solid #000;
+  margin: 0 5px;
+  cursor: pointer;
+}
+
+.window-size-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(100vw - 60px);
+  height: 100vh;
+  padding: 0 30px;
+  z-index: 99999999999;
+  background-color: rgba(255, 203, 203, 0.95);
+  text-align: center;
+}
+
+.window-size-popup h2 {
+  margin-top: 60px;
+  font-size: 30px;
+}
+
+.window-size-popup p {
+  margin-top: 30px;
+  font-size: 20px;
+  line-height: 30px;
+}
+
+.home-page {
+  margin: 0 auto;
+  max-width: 800px;
+}
+
+.home-page p {
+  font-family: 'futuralight';
+  line-height: 43px;
+}
+
+.home-page p a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.home-page p.first {
+  padding-top: 70px;
+}
+
+.home-page .campaign-monitor-form label,
+.home-page .campaign-monitor-form input {
+  display: block;
+  margin: 0 auto 40px auto;
+}
+
+.home-page .campaign-monitor-form label {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.home-page .campaign-monitor-form input {
+  width: 300px;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 10px;
+}
+
+.home-page .campaign-monitor-form button {
+  width: 323px;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 10px;
+  cursor: pointer;
+  background: pink;
+}
+
+.nominate-form {
+  position: fixed;
+  top: 150px;
+  width: 100vw;
+  height: calc(100vh - 100px);
+  overflow: auto;
+}
+
+.nominate-form form {
+  display: block;
+  width: 80vw;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.nominate-form form .form-block {
+  margin-bottom: 0;
+}
+
+.nominate-form form .form-block p {
+  font-size: 18px;
+  line-height: 25px;
+}
+
+.nominate-form label {
+  font-size: 14px;
+}
+
+.nominate-form label,
+.nominate-form input,
+.nominate-form textarea,
+.nominate-form button {
+  display: block;
+  width: 100%;
+  height: 40px;
+  line-height: 30px;
+  margin: 0 auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-size: 14px;
+}
+
+.nominate-form label {
+  height: auto;
+}
+
+.nominate-form input,
+.nominate-form textarea {
+  border-bottom: 1px solid #000;
+  color: #999;
+  margin-bottom: 20px;
+}
+
+.nominate-form textarea {
+  height: 80px;
+  resize: none;
+}
+
+.nominate-form button {
+  border: 1px solid #000;
+  cursor: pointer;
+}
+
+.nominate-form button:hover {
+  background: #FF91AF;
+}
+
+.midst.player .main {
+  height: calc(100vh - 40px) !important;
+}
+
+.shape-container {
+  float: left;
+  width: 50px;
+  height: 50px;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.shape-container img {
+  width: 100%;
+  height: auto;
+}
+
+.site-header.post-type-poem nav {
+  display: none;
+}
+
+.body-post-type-poem .editable {
+  padding-left: 130px !important;
+  padding-right: 130px !important;
+}
+
+.site-header.post-type-poem .about-link--desk {
+  display: block;
+}
+
+.issue-one-alert {
+  position: fixed;
+  bottom: 0;
+  right: 10px;
+  padding: 0;
+  margin: 0;
+  height: 37px;
+  line-height: 37px;
+  font-size: 14px;
+}
+
+.timeline {
+  position: absolute;
+}
+
+.timeline .hem-slider {
+  height: 14px;
+  margin-top: 14px;
+  background: transparent;
+}
+
+.timeline .hem-slider::after {
+  display: block;
+  position: absolute;
+  top: 5px;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: 4px;
+  content: " ";
+  background: rgb(236, 124, 154);
+}
+
+.timeline .hem-slider .hem-slider__progress {
+  height: 14px;
+  background: transparent;
+}
+
+.timeline .hem-slider .hem-slider__progress::after {
+  top: 0;
+  z-index: 2;
+}
+
+.timeline .hem-slider .hem-slider__progress::before {
+  display: block;
+  position: absolute;
+  top: 5px;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: 4px;
+  content: " ";
+  background: rgb(105, 0, 0);
+}
+
+.poem-page .heroine.heroine--normal {
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+}
+
+.sliding-poems {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sliding-poems__frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: left 250ms;
+}
+
+.sliding-poems__poem {
+  position: relative;
+  float: left;
+  width: 100vw;
+  height: 100vh;
+  background: url(../static/static/assets/midst-loading.svg) no-repeat center center;
+  background-size: 100px 100px;
+}
+
+.sliding-poems__poem .timeline {
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.sliding-poems__poem--loaded {
+  background: transparent;
+}
+
+.sliding-poems__poem--loaded .timeline {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.sliding-poems__poem .midst main * {
+  overflow: hidden;
+}
+
+.sliding-poems__poem .midst main .editor .editable {
+  /* overflow-y: scroll; */
+}
+
+.editor {
+  box-sizing: border-box;
+  width: 100vw;
+  height: calc(100vh - 201px);
+  padding-top: 2px;
+  text-align: center;
+  padding-left: 61px;
+  padding-right: 61px;
+}
+
+.editor .editable {
+  display: inline-block;
+  width: 200px;
+  max-width: 800px;
+  /* height: calc(100vh - 231px); */
+  height: auto;
+  padding-top: 15px;
+  padding-bottom: 13px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.sliding-poems__poem--loaded .editable {
+  width: auto;
+  padding-right: 20px;
+  padding-left: 0;
+  transform: translateX(20px);
+}
+
+.sliding-poems__poem--franny-choi--cuttings .editor .editable div {
+  display: inline;
+}
+
+.editor .editable p {
+  float: left;
+  clear: both;
+  width: auto;
+}
+
+.editor .editable i {
+  padding-right: 1px;
+}
+
+.editable p,
+.editable a,
+.editable i,
+.editable strong,
+.editable em,
+.editable span {
+  font-size: 16px !important;
+}
+
+.scrolling-area-border {
+  position: absolute;
+  top: 98px;
+  left: 55px;
+  right: 55px;
+  bottom: 103px;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.1;
+  border-top: 1px dashed indigo;
+  border-right: 1px dashed indigo;
+  border-bottom: 1px dashed indigo;
+  border-left: 1px dashed indigo;
+}
+
+/* Issue 1 poem-specific styles */
+/* TODO: Does Redux even render these class names any more? */
+
+.sliding-poems__poem--aja-moore--tgif .editable {
+
+}
+
+.sliding-poems__poem--annelyse-gelman--prosperity .last-frame .editable p:nth-child(0),
+.sliding-poems__poem--annelyse-gelman--prosperity .last-frame .editable p:nth-child(1),
+.sliding-poems__poem--annelyse-gelman--prosperity .last-frame .editable p:nth-child(2),
+.sliding-poems__poem--annelyse-gelman--prosperity .last-frame .editable p:nth-child(3),
+.sliding-poems__poem--annelyse-gelman--prosperity .last-frame .editable p:nth-child(4) {
+  /* display: none; */
+}
+
+.sliding-poems__poem--annelyse-gelman--prosperity .editable em {
+  /* display: none; */
+  padding-right: 2px;
+}
+
+.sliding-poems__poem--eleanor-eli-moss---the-hammer .editor .editable {
+  width: 800px;
+}
+
+.sliding-poems__poem--hedgie-choi--i-get-it-phases .editable {
+}
+
+.sliding-poems__poem--jackson-holbert--poem-about-judges .editable {
+}
+
+.sliding-poems__poem--jackson-holbert--poem-involving-the-sea .editable {
+}
+
+.sliding-poems__poem--jose-hernandez-diaz--the-dahlias-in-autumn .editable {
+}
+
+.sliding-poems__poem--manuel-arturo-abreau--ablation .editable {
+}
+
+.sliding-poems__poem--sarah-matthes--averting-my-eyes .editable {
+}
+
+.sliding-poems__poem--veronica-martin--epilogue-in-summer .editable {
+}
+
+.sliding-poems__poem--zachary-schomburg--2-poems .editable {
+}
+
+/* End Issue 1 poem-specific styles */
+
+.donor-wall {
+  width: calc(100% + 100px);
+  margin-top: 100px;
+  margin-left: -50px;
+  padding-top: 30px;
+  padding-bottom: 100px;
+  border-top: 1px solid #ddd;
+  text-align: center;
+}
+
+.donor-wall h2 {
+  font-weight: normal;
+  font-size: 20px;
+}
+
+.donor-wall ul {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.donor-wall li {
+  display: inline-block;
+  margin: 20px;
+  font-size: 14px;
+  flex: 0 0 20%;
+}
+
+.patreon-logo {
+  display: block;
+  position: fixed;
+  bottom: 3px;
+  right: 5px;
+  width: 28px;
+  height: 28px;
+  background-image: url('../static/static/assets/patreon-logo.png');
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.ko-fi-logo-in-text,
+.patreon-logo-in-text,
+.twitter-logo-in-text,
+.instagram-logo-in-text {
+  float: left;
+  width: 30px;
+  height: 30px;
+  margin-top: 3px;
+  margin-right: 15px;
+  margin-left: 25px;
+  margin-bottom: 30px;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.racc-logo-in-text, 
+.racc-logo-in-text.sm {
+width: 150px; 
+height: 50px; 
+background-size: contain;
+}
+
+
+
+.ko-fi-logo-in-text.sm,
+.patreon-logo-in-text.sm,
+.twitter-logo-in-text.sm,
+.instagram-logo-in-text.sm {
+  width: 20px;
+  height: 20px;
+  margin-left: 0;
+}
+
+
+.racc-logo-in-text {
+  background-image: url('../static/static/assets/racc-logo.svg');
+}
+
+.ko-fi-logo-in-text {
+  background-image: url('../static/static/assets/ko-fi-logo.png');
+}
+
+.patreon-logo-in-text {
+  background-image: url('../static/static/assets/patreon-logo.png');
+}
+
+.instagram-logo-in-text {
+  background-image: url('../static/static/assets/instagram-logo.png');
+}
+
+.twitter-logo-in-text {
+  background-image: url('../static/static/assets/twitter-logo.png');
+}
+
+.funding-page .emoji-heading {
+  margin-top: 80px;
+  font-size: 50px;
+  font-style: normal;
+  text-align: center;
+}
+
+.funding-page .emoji-heading.no-space {
+  margin-top: 0;
+}
+
+@media screen and (max-width: 1024px) {
+  .site-header #mobile-nav-toggle {
+    display: block;
+    position: absolute;
+    top: 36px;
+    right: 20px;
+    z-index: 99999;
+    width: 30px;
+    height: 25px;
+    cursor: pointer;
+  }
+
+  .site-header #mobile-nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 3px;
+    margin-bottom: 7px;
+    background-color: #000;
+  }
+
+  .site-header #mobile-nav-toggle.open {
+    width: 20px;
+  }
+
+  .site-header #mobile-nav-toggle.open span:nth-child(1) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 30px;
+    transform: rotate(45deg);
+    transform-origin: top left;
+  }
+
+  .site-header #mobile-nav-toggle.open span:nth-child(2) {
+    display: none;
+  }
+
+  .site-header #mobile-nav-toggle.open span:nth-child(3) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 30px;
+    transform: rotate(-45deg);
+    transform-origin: top right;
+  }
+
+  .site-header nav {
+    display: none;
+  }
+
+  .site-header nav.open {
+    display: block;
+    top: 0;
+    right: 0;
+    z-index: 99998;
+    width: 250px;
+    height: 350px;
+    padding-top: 90px;
+    background-color: #FFFAFA;
+    border-left: 1px solid #000;
+    border-bottom: 1px solid #000;
+  }
+
+  .site-header nav.open a {
+    display: block;
+    text-align: right;
+  }
+
+  .site-header .about-link--desk {
+    display: none !important;
+  }
+
+  .site-header .about-link--mobile {
+    display: block;
+    font-size: 30px;
+    text-decoration: none;
+    color: #000;
+  }
+
+  .site-header .nav-links-wrapper--poem {
+    display: block;
+  }
+
+  .email-signup {
+    display: none;
+  }
+
+  .midst.player .main {
+    height: 100vh !important;
+  }
+
+  video {
+    width: 70vw;
+    height: auto;
+    margin-left: -5vw;
+  }
+
+  .issue-one-alert {
+    display: none;
+  }
+
+  .donor-wall {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media screen and (max-width: 960px) {
+  .editor .editable {
+    max-width: 500px;
+  }
+
+  .site-header .poem-credit {
+    top: 25px;
+  }
+
+  .poem-credit .author-name,
+  .poem-credit .poem-title {
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .poem-credit .divider {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 650px) {
+  .editor .editable {
+    max-width: 300px;
+  }
+
+  .poem-credit .author-name,
+  .poem-credit .poem-title {
+    font-size: 18px;
+  }
+
+  .process-note {
+    position: absolute;
+    top: -700px;
+    left: 0;
+    z-index: 99999;
+    margin-left: 0;
+    width: 100vw;
+    height: 85vh;
+  }
+
+  .process-note  .process-note__content {
+    padding: 10px;
+  }
+
+  .process-note img {
+    width: calc(100vw - 20px);
+  }
+}
+
+@media screen and (max-width: 450px) {
+  .editor {
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .sliding-poems__poem--loaded  .editable {
+    height: calc(100vh - 172px);
+    max-width: calc(100vw - 20px);
+    transform: translateX(0);
+    padding-left: 20px;
+  }
+
+  #back-to-toc,
+  #poem-nav {
+    display: none;
+  }
+
+  .site-header .poem-credit {
+    top: 0;
+    padding-top: 30px;
+    padding-bottom: 30px;
+    padding-right: 30px;
+    left: 80px;
+    right: 60px;
+  }
+
+  .site-header h1 {
+    width: 70px;
+  }
+
+  .site-header h1 .logo-svgs {
+    transform: scale(1.7) translate(10px, 10px);
+  }
+
+  .poem-credit .author-name,
+  .poem-credit .poem-title {
+    font-size: 16px;
+  }
+
+  .site-header #mobile-nav-toggle {
+    right: 10px;
+  }
+
+  .funding-page p {
+    font-size: 11px;
+  }
+}
