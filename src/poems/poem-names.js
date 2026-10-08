@@ -35,15 +35,19 @@ function authorId(author) {
 /**
  * The title's URL segment.
  *
- * ⚠️ CARRIES A LIVE DEFECT, DELIBERATELY. `/` is stripped GLOBALLY on the fourth line, before
- * `</i>` is removed on the sixth. So a closing italic tag has already become `<i>` by then, and
- * the `<i>` replace above it is first-occurrence-only and has already been spent on the opening
- * tag. A stray `<i>` survives into the URL.
+ * FIXED 2026-10-09: italic tags are stripped globally, and before slashes. Previously `/` was
+ * removed globally FIRST, so `</i>` had already become `<i>`, and the first-occurrence-only `<i>`
+ * replace had already been spent on the opening tag — leaving a stray `<i>` in the URL.
  *
- * Madeleine Mori's poem is the one title in the archive with italics, and it is unreachable in
- * production for exactly this reason — the site asks for `...westworld%3Ci%3E...`. Reproduced
- * rather than corrected, because correcting it here silently changes the URL without renaming the
- * object, which turns one broken poem into a broken poem that is harder to explain.
+ * This one was safe to fix because the OBJECT WAS ALREADY AT THE CORRECT NAME. Measured against the
+ * bucket before changing anything:
+ *
+ *   madeleine-mori--after-watching-westworld-the-left-side-...        200   <- clean slug
+ *   madeleine-mori--after-watching-westworld%3Ci%3E-the-left-...      403   <- what the code asked for
+ *
+ * So the data was right and the code was wrong, and no rename was needed. That is NOT the general
+ * case — see the warning above. The other unreachable poems are NFC/NFD mismatches where the object
+ * really is at the name the uploader typed, and those cannot be fixed here.
  *
  * @param {string} title
  * @returns {string}
@@ -53,9 +57,11 @@ function poemUrl(title) {
     .toLowerCase()
     .replace(/ /g, '-')
     .replace(/,/g, '')
+    // Italic tags come out BEFORE slashes are stripped, and GLOBALLY. Both details matter: the old
+    // order turned `</i>` into `<i>` by removing its slash first, and the old
+    // first-occurrence-only replaces could not clear a second italic span even once reordered.
+    .replace(/<\/?i>/g, '')
     .replace(/\//g, '')
-    .replace('<i>', '')
-    .replace('</i>', '')
     .replace('-:)', '')
     .replace('{::', '')
     .replace('::}', '')

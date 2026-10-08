@@ -218,9 +218,9 @@
   },
   "Madeleine_Mori.json": {
     "authorId": "madeleine-mori",
-    "poemUrl": "after-watching-westworld<i>-the-left-side-of-my-body-malfunctions",
-    "poemId": "madeleine-mori--after-watching-westworld<i>-the-left-side-of-my-body-malfunctions",
-    "timelapse": "madeleine-mori/madeleine-mori--after-watching-westworld<i>-the-left-side-of-my-body-malfunctions.midst.zip",
+    "poemUrl": "after-watching-westworld-the-left-side-of-my-body-malfunctions",
+    "poemId": "madeleine-mori--after-watching-westworld-the-left-side-of-my-body-malfunctions",
+    "timelapse": "madeleine-mori/madeleine-mori--after-watching-westworld-the-left-side-of-my-body-malfunctions.midst.zip",
     "processNote": "madeleine-mori/madeleine-mori.md"
   },
   "Margaret_Yapp.json": {
@@ -414,16 +414,16 @@
   },
   "synthetic: A B / <i>both</i> tags": {
     "authorId": "a-b",
-    "poemUrl": "both<i>-tags",
-    "poemId": "a-b--both<i>-tags",
-    "timelapse": "a-b/a-b--both<i>-tags.midst.zip",
+    "poemUrl": "both-tags",
+    "poemId": "a-b--both-tags",
+    "timelapse": "a-b/a-b--both-tags.midst.zip",
     "processNote": "a-b/a-b.md"
   },
   "synthetic: A B / two <i>x</i> and <i>y</i>": {
     "authorId": "a-b",
-    "poemUrl": "two-x<i>-and-<i>y<i>",
-    "poemId": "a-b--two-x<i>-and-<i>y<i>",
-    "timelapse": "a-b/a-b--two-x<i>-and-<i>y<i>.midst.zip",
+    "poemUrl": "two-x-and-y",
+    "poemId": "a-b--two-x-and-y",
+    "timelapse": "a-b/a-b--two-x-and-y.midst.zip",
     "processNote": "a-b/a-b.md"
   },
   "synthetic: A B / brace {x} and (y) and #1": {
