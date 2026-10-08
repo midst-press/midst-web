@@ -66,6 +66,12 @@ repos:
         entry: node tools/test-poem-names.mjs
         pass_filenames: false
         files: '^(src/poems/[^/]+\.json|src/poems/poem-names\.js|tools/poem-names\.snapshot\.json)$'
+      - id: poem-index-generated
+        name: src/poems/index.ts is generated and consistent with the metadata
+        language: system
+        entry: node tools/generate-poem-index.mjs
+        pass_filenames: false
+        files: '^src/poems/([^/]+\.json|index\.ts)$'
       - id: unused-dependencies
         name: declared but unused dependencies (fails only on NEW ones)
         language: system
