@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+// Are the poems still reachable?
+//
+// Needs no credentials: these objects are served to the site, so a HEAD is exactly what a visitor's
+// browser does. Publishes URLs and status codes ONLY -- never poem content.
+//
+// This exists because `/poem/december` was unreachable for an unknown length of time and nobody
+// found out from the software. The URL the application builds did not match the object that exists:
+// the S3 key is NFD (the accent in "Mónica" as a combining mark) and the app generates NFC. A daily
+// HEAD would have reported it the day it appeared.
+
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { exit, env } from 'node:process';
+
+const BASE =
+  env.MIDST_ASSETS_URL ?? 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/';
+const POEMS = env.MIDST_POEMS_DIR ?? 'src/poems';
+const TIMEOUT_MS = Number(env.MIDST_CANARY_TIMEOUT ?? 45000);
+
+// Transcribed from src/store/reducer.ts. If the slug rules change there, they must change here, and
+// a mismatch is itself worth knowing about: it means the site builds URLs this check does not.
+// NOTE the order: '/' is stripped GLOBALLY *before* '</i>' is removed, so '</i>' becomes '<i>' and
+// the first-occurrence-only replace then leaves a stray '<i>' behind. That is a live defect, and it
+// is reproduced faithfully here rather than corrected, because the canary must build the URL the
+// APPLICATION builds, not the one it ought to.
+function slug(title) {
+  let u = title.toLowerCase();
+  u = u.replaceAll(' ', '-');
+  u = u.replaceAll(',', '');
+  u = u.replaceAll('/', '');
+  for (const first of ['<i>', '</i>', '-:)', '{::', '::}', '{', '}', '(', ')', '#']) {
+    u = u.replace(first, '');
+  }
+  u = u.replace(/-$/, '');
+  u = u.replaceAll('--', '-');
+  u = u.replaceAll('"', '');
+  return u;
+}
+
+const rows = [];
+for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json')).sort()) {
+  const d = JSON.parse(readFileSync(join(POEMS, f), 'utf8'));
+  const authorId = d.author.toLowerCase().replaceAll(' ', '-');
+  const poemId = `${authorId}--${slug(d.title)}`;
+  const folder = d.authorSecondaryFolder || authorId;
+  rows.push({
+    meta: f,
+    author: d.author,
+    title: d.title,
+    zip: `${BASE}${encodeURI(folder)}/${encodeURI(poemId)}.midst.zip`,
+    note: `${BASE}${encodeURI(folder)}/${encodeURI(authorId)}.md`,
+  });
+}
+
+async function head(url) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { method: 'HEAD', signal: ac.signal });
+    return r.status;
+  } catch (e) {
+    return e.name === 'AbortError' ? 'TIMEOUT' : e.constructor.name;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+const bad = [];
+let ok = 0;
+for (const r of rows) {
+  const [z, n] = await Promise.all([head(r.zip), head(r.note)]);
+  if (z === 200) ok += 1;
+  else bad.push({ ...r, status: z, kind: 'timelapse' });
+  if (n !== 200) bad.push({ ...r, status: n, kind: 'process note' });
+}
+
+console.log(`poems declared in ${POEMS}: ${rows.length}`);
+console.log(`timelapses reachable: ${ok}/${rows.length}`);
+
+if (bad.length) {
+  console.log(`\nUNREACHABLE (${bad.length}):`);
+  for (const b of bad) {
+    console.log(`  ${String(b.status).padEnd(9)} ${b.kind.padEnd(13)} ${b.meta}`);
+    console.log(`            ${b.kind === 'timelapse' ? b.zip : b.note}`);
+  }
+  // A missing process note is a degraded page; a missing timelapse is the poem being gone.
+  const fatal = bad.filter((b) => b.kind === 'timelapse');
+  console.log(
+    `\n${fatal.length} poem(s) unreachable, ${bad.length - fatal.length} process note(s) unreachable.`,
+  );
+  exit(fatal.length ? 1 : 0);
+}
+console.log('\nall poems reachable.');
+exit(0);

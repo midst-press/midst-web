@@ -1,0 +1,21 @@
+# Dependencies that are declared, not imported, and that is CORRECT.
+# Every entry carries a reason. An entry without one is not an allowlist entry, it is a shrug.
+ignores:
+  # --- bundler plugins: loaded by Parcel by NAME, never imported from source ---
+  - parcel-plugin-static-files-copy   # copies static/ into dist at build time
+  - '@babel/core'                     # Parcel's JS transform chain resolves this itself
+
+  # --- tools invoked through npx / the CLI, never imported ---
+  - prettier                          # formatting, run by pre-commit and by npm scripts
+  - typescript                        # tsc --noEmit, run by pre-commit and CI
+  - depcheck                          # this check's own engine, run via tools/check-unused-deps.mjs
+
+  # --- CSS-only packages: imported from stylesheets, which depcheck does not parse ---
+  - normalize.css
+  - global.css
+
+ignore-patterns:
+  - dist
+  - .parcel-cache
+  - node_modules
+  - static

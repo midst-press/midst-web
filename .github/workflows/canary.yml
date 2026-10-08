@@ -1,0 +1,33 @@
+# Are the poems still reachable? This needs no credentials: the objects are served to the site.
+# It would have caught the `december` NFD breakage the day it appeared instead of years later.
+# It publishes URLs and status codes only -- never poem content.
+name: poem availability canary
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5.0.0
+        with: { node-version-file: .nvmrc }
+      - name: HEAD every expected poem object
+        id: check
+        run: node tools/poem-canary.mjs
+      - name: open an issue if anything is unreachable
+        if: failure()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const title = 'Poem availability canary failed';
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: ['canary'] });
+            if (existing.data.some(i => i.title === title)) return;
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo, title, labels: ['canary'],
+              body: `One or more poems are not reachable. See the run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` });
