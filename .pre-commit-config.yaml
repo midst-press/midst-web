@@ -3,19 +3,29 @@
 # One config, two callers, so local and CI gates cannot drift apart.
 #
 # Install once per clone:  pre-commit install
+#
+# GENERATED AND VENDORED FILES ARE NOT OURS TO REFORMAT. The player was built by vendoring
+# jQuery, Rangy, React and zip.js directly into the tree, and static/ holds third-party font
+# specimens and worker scripts. Reformatting a minified vendor bundle can change its meaning and
+# will certainly destroy its diffability against upstream. One anchor, aliased by every hook that
+# WRITES, so the list cannot drift between them. Hooks that only VALIDATE (check-json, check-yaml)
+# deliberately still cover these files.
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: &vendored '(^static/|^etc/|^src/components/midst-player-hack/(jquery|rangy-core|rangy-classapplier|rangy-selectionsaverestore|react|react-dom)[^/]*\.js|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
+        exclude: *vendored
       - id: check-merge-conflict
       - id: check-case-conflict        # macOS/Linux collisions; this repo has accented filenames
       - id: check-json
       - id: check-yaml
       - id: mixed-line-ending
         args: [--fix=lf]
+        exclude: *vendored
       - id: detect-private-key
       - id: check-added-large-files
         args: [--maxkb=2048]
@@ -43,13 +53,25 @@ repos:
         language: system
         entry: npx --no-install prettier --write
         files: '\.(ts|tsx|js|jsx|json|css|scss|md|ya?ml)$'
-        exclude: '(package-lock\.json|yarn\.lock)$'
+        exclude: *vendored
       - id: typecheck
         name: tsc --noEmit (the build does NOT typecheck; it sets TS_NODE_TRANSPILE_ONLY)
         language: system
         entry: npx --no-install tsc --noEmit
         pass_filenames: false
         files: '\.(ts|tsx)$'
+      - id: poem-object-names
+        name: derived poem object names still match the bucket (snapshot)
+        language: system
+        entry: node tools/test-poem-names.mjs
+        pass_filenames: false
+        files: '^(src/poems/[^/]+\.json|src/poems/poem-names\.js|tools/poem-names\.snapshot\.json)$'
+      - id: poem-index-generated
+        name: src/poems/index.ts is generated and consistent with the metadata
+        language: system
+        entry: node tools/generate-poem-index.mjs
+        pass_filenames: false
+        files: '^src/poems/([^/]+\.json|index\.ts)$'
       - id: unused-dependencies
         name: declared but unused dependencies (fails only on NEW ones)
         language: system

@@ -17,7 +17,7 @@ function About(): ReactElement {
           Midst publishes poems in the form of interactive timelapses, giving readers and writers unprecedented access to the creative process.
         </p>
         <p>
-         Hit play on any poem in Midst, and you'll see exactly how it was written: blank page to final draft, and every edit in between. 
+         Hit play on any poem in Midst, and you'll see exactly how it was written: blank page to final draft, and every edit in between.
         </p>
         <br />
 
@@ -37,26 +37,26 @@ function About(): ReactElement {
         <p>
           We hope Midst will make poetry more accessible for everyone, regardless of their experience. By seeing <i>how</i> a poem is made, readers can understand that writing and editing are parallel processes; that writing is often nonlinear; that making poems is not a matter of intentionally obfuscating or ‘dressing up’ simple ideas in fancy/symbolic language, but working with language as an expressive medium; that poems do not emerge fully-formed and perfect from a writer’s mind, but are crafted through the act of writing itself.
         </p>
-        <p>  
-          We hold no particular aesthetic allegiance; there is no right or wrong way to make a poem. Rather than centering any particular approach, Midst is dedicated to showcasing the myriad ways contemporary poets work. 
+        <p>
+          We hold no particular aesthetic allegiance; there is no right or wrong way to make a poem. Rather than centering any particular approach, Midst is dedicated to showcasing the myriad ways contemporary poets work.
           </p>
-          <p>  
+          <p>
             Midst is a publishing platform, a not-for-profit software initiative, an educational resource, a time-based art project, a study bridging science and literature, and, above all else, a free public resource for readers and writers, students and teachers, scholars, archivists, and all who are curious about how poems are made.
           </p>
-          <p>  
+          <p>
         We believe that poetry is a process—a way of thinking in language, engaging with language, attending to language. Poems are events. Poems are for everyone.
         </p>
 
         <br />
 
         <h2>Contact</h2>
-       
+
         <p>You can email us at <a href="mailto:team@midst.press">team(at)midst(dot)press</a>.
         </p>
         <p>Please note that Midst has a small, <a href="https://midst.press/funding">volunteer</a>  staff.</p>
         <p>
-          Our software is still in development and we are not currently open to public submissions. You may nominate a poet for inviation to Midst at <a href="https://midst.press/nominate">midst.press/nominate</a>. 
-          
+          Our software is still in development and we are not currently open to public submissions. You may nominate a poet for inviation to Midst at <a href="https://midst.press/nominate">midst.press/nominate</a>.
+
           </p>
 
         <p>
@@ -86,7 +86,7 @@ function About(): ReactElement {
         </p>
       </section>
     </div>
-  ) 
+  )
 }
 
 export default About

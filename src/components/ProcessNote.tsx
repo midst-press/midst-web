@@ -1,3 +1,4 @@
+import { MEDIA_URL } from '../config'
 import React, { ReactElement, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '../store'
@@ -9,7 +10,6 @@ interface IProps {
   match: any
 }
 
-const staticAssetsUrl = 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/'
 
 // TODO: How not to "freeze in" changing state values in event callbacks?
 let proxyProcessNoteOpen: boolean = false
@@ -73,7 +73,7 @@ function ProcessNote(): ReactElement {
       {poem &&
         <div className="process-note__content">
           <div dangerouslySetInnerHTML={{ __html: poem ? poem.processNote : '' }} />
-          <img src={`${staticAssetsUrl}${poem.authorId}/${poem.authorId}.jpg`} />
+          <img src={`${MEDIA_URL}${poem.authorId}/${poem.authorId}.jpg`} />
         </div>
       }
     </div>

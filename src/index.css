@@ -1175,10 +1175,10 @@ body {
   background-size: cover;
 }
 
-.racc-logo-in-text, 
+.racc-logo-in-text,
 .racc-logo-in-text.sm {
-width: 150px; 
-height: 50px; 
+width: 150px;
+height: 50px;
 background-size: contain;
 }
 

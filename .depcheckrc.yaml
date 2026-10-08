@@ -2,13 +2,24 @@
 # Every entry carries a reason. An entry without one is not an allowlist entry, it is a shrug.
 ignores:
   # --- bundler plugins: loaded by Parcel by NAME, never imported from source ---
-  - parcel-plugin-static-files-copy   # copies static/ into dist at build time
+  - parcel-plugin-static-files-copy   # copies static/ into dist at build time (Parcel 1)
+  - parcel-reporter-static-files-copy # the Parcel 2 replacement; named in .parcelrc, not imported
   - '@babel/core'                     # Parcel's JS transform chain resolves this itself
 
   # --- tools invoked through npx / the CLI, never imported ---
+  - parcel-bundler                    # the bundler itself on the Parcel 1 toolchain: `parcel build`
+  - parcel                            # the same after the Parcel 2 migration; both listed so this
+                                      #   entry does not need editing when that branch lands
   - prettier                          # formatting, run by pre-commit and by npm scripts
   - typescript                        # tsc --noEmit, run by pre-commit and CI
   - depcheck                          # this check's own engine, run via tools/check-unused-deps.mjs
+
+  # --- Parcel 2 node-builtin polyfills: resolved by the BUNDLER, never imported by us ---
+  - process                           # immer references bare `process` (immer.js:27), so Parcel's
+                                      #   resolver needs the `process/` polyfill package present.
+                                      #   MEASURED with --no-autoinstall: absent -> build fails,
+                                      #   present -> build passes. Without that flag Parcel silently
+                                      #   installs it and the build passes either way.
 
   # --- CSS-only packages: imported from stylesheets, which depcheck does not parse ---
   - normalize.css

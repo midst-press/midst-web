@@ -15,27 +15,15 @@ import {
 import moment from 'moment'
 import { slugify } from 'voca'
 import poemData from '../poems'
+import * as poemNames from '../poems/poem-names'
 
 function createPoem(data: any) {
-  const authorId = data.author.toLowerCase().replace(/ /g, '-')
-  const url = data.title.toLowerCase()
-    .replace(/ /g, '-')
-    .replace(/\,/g, '')
-    .replace(/\//g, '')
-    .replace('<i>', '')
-    .replace('</i>', '')
-    .replace('-:)', '')
-    .replace('{::', '')
-    .replace('::}', '')
-    .replace('{', '')
-    .replace('}', '')
-    .replace('(', '')
-    .replace(')', '')
-    .replace('#', '')
-    .replace(/-$/, '')
-    .replace(/--/g, '-')
-    .replace(/"/g, '')
-  
+  // Derived by src/poems/poem-names.js, which is the one definition shared with the tooling. It
+  // used to be inlined here and transcribed again in tools/poem-canary.mjs; two copies of the rule
+  // that decides whether a poem can be fetched is one too many.
+  const authorId = poemNames.authorId(data.author)
+  const url = poemNames.poemUrl(data.title)
+
   const poem = {
     author: data.author,
     authorId,

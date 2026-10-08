@@ -12,44 +12,31 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit, env } from 'node:process';
+import names from '../src/poems/poem-names.js';
 
 const BASE =
   env.MIDST_ASSETS_URL ?? 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/';
 const POEMS = env.MIDST_POEMS_DIR ?? 'src/poems';
 const TIMEOUT_MS = Number(env.MIDST_CANARY_TIMEOUT ?? 45000);
 
-// Transcribed from src/store/reducer.ts. If the slug rules change there, they must change here, and
-// a mismatch is itself worth knowing about: it means the site builds URLs this check does not.
-// NOTE the order: '/' is stripped GLOBALLY *before* '</i>' is removed, so '</i>' becomes '<i>' and
-// the first-occurrence-only replace then leaves a stray '<i>' behind. That is a live defect, and it
-// is reproduced faithfully here rather than corrected, because the canary must build the URL the
-// APPLICATION builds, not the one it ought to.
-function slug(title) {
-  let u = title.toLowerCase();
-  u = u.replaceAll(' ', '-');
-  u = u.replaceAll(',', '');
-  u = u.replaceAll('/', '');
-  for (const first of ['<i>', '</i>', '-:)', '{::', '::}', '{', '}', '(', ')', '#']) {
-    u = u.replace(first, '');
-  }
-  u = u.replace(/-$/, '');
-  u = u.replaceAll('--', '-');
-  u = u.replaceAll('"', '');
-  return u;
-}
+// Names come from src/poems/poem-names.js -- the SAME module the application uses. This file used
+// to carry a transcribed copy of the slug rules, which meant a canary that could report every poem
+// healthy while the site asked for names it had stopped agreeing with. There is now one definition,
+// and tools/test-poem-names.mjs pins its output against a committed snapshot.
 
 const rows = [];
-for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json')).sort()) {
+// Only PUBLISHED poems: an unpublished one has no object to find, and a canary that carries a
+// permanent known failure is a canary people learn to ignore. `order.json` is the display order,
+// not a poem.
+for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json') && x !== 'order.json').sort()) {
   const d = JSON.parse(readFileSync(join(POEMS, f), 'utf8'));
-  const authorId = d.author.toLowerCase().replaceAll(' ', '-');
-  const poemId = `${authorId}--${slug(d.title)}`;
-  const folder = d.authorSecondaryFolder || authorId;
+  if (d.published !== true) continue;
   rows.push({
     meta: f,
     author: d.author,
     title: d.title,
-    zip: `${BASE}${encodeURI(folder)}/${encodeURI(poemId)}.midst.zip`,
-    note: `${BASE}${encodeURI(folder)}/${encodeURI(authorId)}.md`,
+    zip: BASE + encodeURI(names.timelapseObjectName(d)),
+    note: BASE + encodeURI(names.processNoteObjectName(d)),
   });
 }
 
