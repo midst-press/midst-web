@@ -31,30 +31,14 @@ const SNAPSHOT = join(here, 'poem-names.snapshot.json')
 
 const names = require(join(POEMS, 'poem-names.js'))
 
-// ---- the reference implementation: src/store/reducer.ts as it shipped, unchanged ----------------
-function referenceAuthorId(author) {
-  return author.toLowerCase().replace(/ /g, '-')
-}
-function referenceUrl(title) {
-  return title
-    .toLowerCase()
-    .replace(/ /g, '-')
-    .replace(/\,/g, '')
-    .replace(/\//g, '')
-    .replace('<i>', '')
-    .replace('</i>', '')
-    .replace('-:)', '')
-    .replace('{::', '')
-    .replace('::}', '')
-    .replace('{', '')
-    .replace('}', '')
-    .replace('(', '')
-    .replace(')', '')
-    .replace('#', '')
-    .replace(/-$/, '')
-    .replace(/--/g, '-')
-    .replace(/"/g, '')
-}
+// The EQUIVALENCE arm is gone, deliberately. It carried a frozen copy of the original inline
+// implementation to prove that extracting it changed nothing -- which it did prove, and that proof
+// is recorded in the commit that extracted it. Keeping it afterwards means keeping a known-defective
+// implementation as a permanent oracle, so every legitimate fix fails against it. It blocked the
+// first real one (the italics defect) within the hour.
+//
+// The snapshot arm is the durable check and does the job that matters: it reports exactly which URLs
+// a change moves, which is the question that decides whether objects need renaming.
 
 // ---- inputs: every poem in the repository, plus titles that exercise each rule ------------------
 const metas = readdirSync(POEMS)
@@ -77,7 +61,6 @@ const SYNTHETIC = [
   { author: 'Ünïcode Nâme', title: 'accents' }, //          non-ASCII author, untouched by the rules
 ]
 
-let equivalenceFailures = 0
 const derived = {}
 
 for (const m of [...metas, ...SYNTHETIC]) {
@@ -89,32 +72,16 @@ for (const m of [...metas, ...SYNTHETIC]) {
     timelapse: names.timelapseObjectName(m),
     processNote: names.processNoteObjectName(m),
   }
-  const want = {
-    authorId: referenceAuthorId(m.author),
-    poemUrl: referenceUrl(m.title),
-  }
-  want.poemId = `${want.authorId}--${want.poemUrl}`
-  if (got.authorId !== want.authorId || got.poemUrl !== want.poemUrl || got.poemId !== want.poemId) {
-    equivalenceFailures += 1
-    console.log(`EQUIVALENCE FAIL  ${key}`)
-    console.log(`   extracted: ${got.poemId}`)
-    console.log(`   shipped:   ${want.poemId}`)
-  }
   derived[key] = got
 }
 
 const total = metas.length + SYNTHETIC.length
 console.log(`cases: ${total}  (${metas.length} real, ${SYNTHETIC.length} synthetic)`)
-console.log(
-  `equivalence with the shipped implementation: ${
-    equivalenceFailures === 0 ? 'identical' : `${equivalenceFailures} DIFFER`
-  }`,
-)
 
 if (argv.includes('--update')) {
   writeFileSync(SNAPSHOT, JSON.stringify(derived, null, 2) + '\n')
   console.log(`snapshot written: ${SNAPSHOT}`)
-  exit(equivalenceFailures ? 1 : 0)
+  exit(0)
 }
 
 if (!existsSync(SNAPSHOT)) {
@@ -148,4 +115,4 @@ fallback added) and the snapshot updated in the SAME change, with the rename rec
 }
 
 console.log(`snapshot matches: ${Object.keys(derived).length} names unchanged.`)
-exit(equivalenceFailures ? 1 : 0)
+exit(0)
