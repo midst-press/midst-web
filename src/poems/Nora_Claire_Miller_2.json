@@ -1,10 +1,11 @@
 {
   "author": "Nora Claire Miller",
   "authorSecondaryFolder": "nora-claire-miller-2",
-  "date": "12/07/2021",
-  "publishDate": "10/15/2024",
-  "highlighted": true,
-  "tags": "",
   "badge": "New!",
+  "date": "12/07/2021",
+  "highlighted": true,
+  "publishDate": "10/15/2024",
+  "published": false,
+  "tags": "",
   "title": "The Chair and the Table"
 }

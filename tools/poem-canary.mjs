@@ -25,8 +25,12 @@ const TIMEOUT_MS = Number(env.MIDST_CANARY_TIMEOUT ?? 45000);
 // and tools/test-poem-names.mjs pins its output against a committed snapshot.
 
 const rows = [];
-for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json')).sort()) {
+// Only PUBLISHED poems: an unpublished one has no object to find, and a canary that carries a
+// permanent known failure is a canary people learn to ignore. `order.json` is the display order,
+// not a poem.
+for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json') && x !== 'order.json').sort()) {
   const d = JSON.parse(readFileSync(join(POEMS, f), 'utf8'));
+  if (d.published !== true) continue;
   rows.push({
     meta: f,
     author: d.author,

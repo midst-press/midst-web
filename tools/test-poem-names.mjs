@@ -58,7 +58,7 @@ function referenceUrl(title) {
 
 // ---- inputs: every poem in the repository, plus titles that exercise each rule ------------------
 const metas = readdirSync(POEMS)
-  .filter((f) => f.endsWith('.json'))
+  .filter((f) => f.endsWith('.json') && f !== 'order.json')
   .sort()
   .map((f) => ({ file: f, ...JSON.parse(readFileSync(join(POEMS, f), 'utf8')) }))
 
