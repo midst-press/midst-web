@@ -35,7 +35,7 @@ function createPoem(data: any) {
     .replace(/-$/, '')
     .replace(/--/g, '-')
     .replace(/"/g, '')
-  
+
   const poem = {
     author: data.author,
     authorId,
