@@ -1,11 +1,11 @@
 {
   "name": "midst",
   "version": "0.0.1",
-  "description": "repo inherited by midst.press",
+  "description": "Poetry in motion as envisaged by midst.press",
   "author": {
-    "name": "erin gil",
-    "email": "info@hem.rocks",
-    "url": "https://hem.rocks"
+    "name": "Annelyse Gelman",
+    "email": "annelysegelman@gmail.com",
+    "url": "https://midst.press"
   },
   "scripts": {
     "start": "parcel src/index.html --no-autoinstall",
