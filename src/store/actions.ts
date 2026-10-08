@@ -1,3 +1,4 @@
+import { POEMS_URL } from '../config'
 import { AnyAction } from 'redux'
 import $ from 'jquery'
 // TODO: Type def file
@@ -16,7 +17,6 @@ import {
   IPoem,
 } from './types'
 
-const staticAssetsUrl = 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/'
 
 // TODO: Should be: ThunkResult<void>. Why doesn't it work?
 const loadPoemData = (poemIndex: number): any =>
@@ -30,9 +30,9 @@ const loadPoemData = (poemIndex: number): any =>
     try {
       const poem: IPoem = poems[poemIndex]
       const folder = poem.authorSecondaryFolder || poem.authorId
-      const processNoteRaw = await $.get(`${staticAssetsUrl}${folder}/${poem.authorId}.md`)
+      const processNoteRaw = await $.get(`${POEMS_URL}${folder}/${poem.authorId}.md`)
       const processNote = insane(marked(processNoteRaw), { allowedTags: ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']})
-      const zipTest = await fetch(`${staticAssetsUrl}${folder}/${poem.poemId}.midst.zip`)
+      const zipTest = await fetch(`${POEMS_URL}${folder}/${poem.poemId}.midst.zip`)
       const reader = new zip.BlobReader(await zipTest.blob())
 
       zip.createReader(reader, (zipReader: any) => {
