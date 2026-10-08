@@ -1,8 +1,8 @@
+import { SHAPES_URL } from '../config'
 import React, { ReactElement, useEffect } from 'react'
 import $ from 'jquery'
 import { useLocation } from 'react-router'
 
-const staticAssetsUrl = 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/site/shapes/'
 
 interface IProps {
   location: any
@@ -86,7 +86,7 @@ function Shapes(): ReactElement {
             key={`${shape}-${color}`}
             className="shape-container"
           >
-            <img src={`${staticAssetsUrl}midst-shape-${shape}-${color}.png`} />
+            <img src={`${SHAPES_URL}midst-shape-${shape}-${color}.png`} />
           </div>
         ))
       )}
