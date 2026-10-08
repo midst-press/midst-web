@@ -24,7 +24,6 @@
     "import-lazy",
     "jquery-ui",
     "js-cookie",
-    "lazy-require",
     "leasot",
     "lines-to-paragraphs",
     "mocha",
