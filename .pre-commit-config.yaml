@@ -60,6 +60,12 @@ repos:
         entry: npx --no-install tsc --noEmit
         pass_filenames: false
         files: '\.(ts|tsx)$'
+      - id: poem-object-names
+        name: derived poem object names still match the bucket (snapshot)
+        language: system
+        entry: node tools/test-poem-names.mjs
+        pass_filenames: false
+        files: '^(src/poems/[^/]+\.json|src/poems/poem-names\.js|tools/poem-names\.snapshot\.json)$'
       - id: unused-dependencies
         name: declared but unused dependencies (fails only on NEW ones)
         language: system
