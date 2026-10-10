@@ -13,7 +13,7 @@
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         exclude: &vendored '(^static/|^etc/|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
