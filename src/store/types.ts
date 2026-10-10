@@ -10,6 +10,20 @@ export interface IMidstTimelineFrame {
   content: string
   lineNumber: number
   timestamp: number
+  cursorPosition?: number
+}
+
+export interface IMidstChange {
+  front: number
+  inserted: string
+  end: number
+  t: string | number
+  pos?: number
+}
+
+export interface IMidstCurrentFile {
+  text: string
+  history: IMidstChange[]
 }
 
 // TODO: Move Midst types to common

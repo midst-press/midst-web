@@ -1,4 +1,5 @@
 import { POEMS_URL } from '../config'
+import { parseMidstFile } from '../components/midst-player-hack/midst-file'
 import { AnyAction } from 'redux'
 import $ from 'jquery'
 // TODO: Type def file
@@ -41,19 +42,23 @@ const loadPoemData = (poemIndex: number): any =>
           entries[0].getData(writer, (blob: Blob) => {
             const reader = new FileReader()
             reader.addEventListener('loadend', (e: any) => {
-              const data = JSON.parse(e.srcElement.result)
-              dispatch({ type: LOAD_POEM_DATA, payload: { poemId: poem.poemId, data, processNote }})
+              try {
+                const data = parseMidstFile(e.srcElement.result)
+                dispatch({ type: LOAD_POEM_DATA, payload: { poemId: poem.poemId, data, processNote }})
+              } catch {
+                console.error('Unable to load Midst file')
+              }
             })
             reader.readAsText(blob)
           })
         })
-      }, (err: Error) => {
-        console.log(err)
+      }, () => {
+        console.error('Unable to read Midst archive')
       })
     }
 
-    catch(err) {
-      console.log(err)
+    catch {
+      console.error('Unable to load Midst data')
     }
   }
 

@@ -31,6 +31,27 @@ const OUT = join(REPO, 'e2e', 'fixtures', 'poems')
 // exercises the slug rules.
 const SUBJECTS = ['Margaret_Yapp', 'Madeleine_Mori']
 
+function currentFormat(snapshots) {
+  let previous = ''
+  const history = snapshots.map(frame => {
+    // C's editor emits HTML without B's line-number attributes.
+    const next = frame.content.replace(/ data-line-number="\d+"/g, '')
+    let front = 0
+    while (front < previous.length && previous[front] === next[front]) front += 1
+    let end = 0
+    while (end < previous.length - front && end < next.length - front
+      && previous[previous.length - end - 1] === next[next.length - end - 1]) end += 1
+    const change = {
+      inserted: next.slice(front, next.length - end), front, end,
+      t: new Date(frame.timestamp).toISOString(),
+      pos: frame.lineNumber === '0' ? next.replace(/<[^>]*>/g, '').length + 1 : previous.replace(/<[^>]*>/g, '').length + 3,
+    }
+    previous = next
+    return change
+  })
+  return `midstVersion: 1\n${JSON.stringify({ text: previous, history })}`
+}
+
 // A deterministic typing sequence. The words are nonsense on purpose -- no poem, not even a pastiche
 // of one. The player's job is to replay keystrokes; what they spell is irrelevant to that.
 const TYPED = 'the quick brown fox'
@@ -123,7 +144,7 @@ for (const subject of SUBJECTS) {
       // `meta` is required: real archives carry it, and the player destructures it on load, so a
       // fixture without it crashes the component before anything renders. Schema read from a real
       // archive -- keys and types only, never its content.
-      JSON.stringify({
+      subject === 'Madeleine_Mori' ? currentFormat(frames(TYPED)) : JSON.stringify({
         editorTimelineFrames: frames(TYPED),
         meta: {
           editorDraftMarkers: [],
@@ -147,7 +168,6 @@ for (const subject of SUBJECTS) {
     'base64',
   )
   writeFileSync(join(OUT, `${names.poemFolder(meta)}/${names.authorId(meta.author)}.jpg`), px)
-  console.log(`  ${objectName}`)
   written += 3
 }
 console.log(`${written} fixture file(s) written under e2e/fixtures/poems/`)

@@ -29,6 +29,36 @@ const poems = SUBJECTS.map((file) => {
 // no poem's text belongs in this repository, not even in a test.
 const TYPED = 'the quick brown fox'
 
+// No external network: use the vendored ZIP reader and stub ancillary scripts/decorations.
+// Refuse poem-data access even if a build accidentally loses its local origins.
+const externalRequests = new WeakMap<object, Map<string, number>>()
+test.beforeEach(async ({ page, baseURL }) => {
+  externalRequests.set(page, new Map())
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url())
+    if (url.origin === new URL(baseURL!).origin) return route.continue()
+    if (url.origin === 'https://d3nlqr52a31o6y.cloudfront.net') {
+      if (url.pathname === '/midst-press/site/scripts/zip.js') {
+        return route.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
+      }
+      if (url.pathname.startsWith('/midst-press/site/shapes/')) {
+        return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg"/>' })
+      }
+    }
+    if ((url.origin === 'https://www.googletagmanager.com' && url.pathname === '/gtag/js')
+      || (url.origin === 'https://js.createsend1.com' && url.pathname === '/javascript/copypastesubscribeformlogic.js')) {
+      return route.fulfill({ contentType: 'application/javascript', body: '' })
+    }
+    const origins = externalRequests.get(page)!
+    const origin = new URL(route.request().url()).origin
+    origins.set(origin, (origins.get(origin) || 0) + 1)
+    return route.abort()
+  })
+})
+test.afterEach(async ({ page }) => {
+  expect(Array.from(externalRequests.get(page)!.entries()), 'no external poem data or unknown resources may be requested').toEqual([])
+})
+
 test.describe('a published poem plays', () => {
   for (const { file, route, scope } of poems) {
     test(`${file}: the player mounts and replays to the end`, async ({ page }) => {
@@ -54,9 +84,18 @@ test.describe('a published poem plays', () => {
       await expect(editor).toContainText(TYPED)
       await expect(editor).toContainText('and again')
       expect(
-        await page.locator(`${scope} .editable p[data-line-number]`).count(),
+        await page.locator(`${scope} .editable p`).count(),
         'both paragraphs should render',
       ).toBeGreaterThanOrEqual(2)
+
+      // Loading at the last frame is not playback. Exercise the timers, reset and stop for B and C.
+      const play = page.locator(`${scope} .play-pause-button`)
+      await play.click()
+      await expect(play).toHaveClass(/playing/)
+      await expect(editor).not.toContainText('and again')
+      await expect(play).not.toHaveClass(/playing/)
+      await expect(editor).toContainText(TYPED)
+      await expect(editor).toContainText('and again')
 
       // 4. Nothing 404ed or 403ed on the way. The production failures this suite exists to prevent
       //    were all 403s on an object whose name did not match what was uploaded.

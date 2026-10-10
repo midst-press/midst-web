@@ -15,7 +15,8 @@ import iconPlay from './icon-play'
 import iconSquare from './icon-square'
 import iconTimeline from './icon-timeline'
 import iconTrash from './icon-trash'
-import { IMidstFile } from '../../store/types'
+import { IMidstCurrentFile, IMidstFile } from '../../store/types'
+import { cursorParagraphIndex, parseMidstFile, playbackFile } from './midst-file'
 import {
   end,
   pause,
@@ -48,7 +49,7 @@ interface IProps {
   hasScrollbar: boolean
   isPlayer: boolean
   MIDST_DATA_URL?: string
-  MIDST_DATA_JS?: IMidstFile
+  MIDST_DATA_JS?: IMidstFile | IMidstCurrentFile
   MIDST_DATA_JS_KEY?: string
 }
 
@@ -182,7 +183,7 @@ class Midst extends React.Component<IProps, any> {
         url: MIDST_DATA_URL,
         success: (res: any) => {
           this.load({
-            data: JSON.parse(res),
+            data: parseMidstFile(res),
           })
         }
       })
@@ -802,6 +803,8 @@ class Midst extends React.Component<IProps, any> {
   }
 
   load(fileData: any) {
+    const data = playbackFile(fileData.data)
+    fileData = { ...fileData, data }
     this.setState({
       appTitle: fileData.fileName ? fileData.fileName.replace(this.FILE_EXT, '') : 'Untitled',
       editorTimelineIndex: fileData.data.editorTimelineFrames.length,
@@ -931,6 +934,14 @@ class Midst extends React.Component<IProps, any> {
 
   getScrollSubject() {
     const currentFrame = this.state.editorTimelineFrames[this.state.editorTimelineIndex]
+    if (currentFrame.cursorPosition !== undefined) {
+      // C uses TipTap document positions: paragraph boundaries cost two units and hard breaks one.
+      const $paragraphs = this.$editable.find('p')
+      const sizes = $paragraphs.toArray().map((paragraph: HTMLElement) =>
+        (paragraph.textContent || '').length + paragraph.querySelectorAll('br').length + 2)
+      const line = cursorParagraphIndex(sizes, currentFrame.cursorPosition)
+      return $paragraphs.eq(line)
+    }
     const currentLineNumber = parseInt(currentFrame.lineNumber)
     const $currentLine = this.$editable.find('[data-line-number="' + currentLineNumber + '"]')
     const $fifthLineAbove = this.$editable.find('[data-line-number="' + (currentLineNumber - 5) + '"]')
