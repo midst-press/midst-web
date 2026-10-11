@@ -17,7 +17,8 @@
 # install script would run on the Studio itself, as the runner account, for every pull request. The
 # build does not need them (measured: the same 109 files either way).
 #
-# Not here yet: the end-to-end suite, which downloads a Playwright browser.
+# The end-to-end suite runs here too (job e2e). Its Chromium is installed into the runner account's
+# Playwright cache, so only the first job downloads it.
 name: ci
 on:
   pull_request:
@@ -64,3 +65,23 @@ jobs:
       - run: npm run build
       - name: record what was built
         run: echo "files=$(find dist -type f | wc -l | tr -d ' ') kilobytes=$(du -sk dist | cut -f1)"
+
+  e2e:
+    name: end-to-end (does a poem still play?)
+    runs-on: stuart-m3ultra-canary
+    steps:
+      - name: Homebrew first on PATH
+        run: |
+          echo /opt/homebrew/sbin >> "$GITHUB_PATH"
+          echo /opt/homebrew/bin >> "$GITHUB_PATH"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: toolchain guard (Homebrew first, current versions)
+        run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
+      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npx playwright install chromium
+      # Jobs on this runner share one host, and CI runs in parallel, so a fixed port could collide.
+      # playwright.config.ts and the e2e npm scripts all read MIDST_E2E_PORT.
+      - name: pick a free port
+        run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
+      # Fixtures are generated, never committed: invented content under real published names.
+      - run: npm run test:e2e
