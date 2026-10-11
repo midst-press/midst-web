@@ -1,7 +1,8 @@
 import { POEMS_URL } from '../config'
 import { parseMidstFile } from '../components/midst-player-hack/midst-file'
+import { fetchAsset } from '../poems/asset-fetch'
+import { processNoteObjectName, timelapseObjectName } from '../poems/poem-names'
 import { AnyAction } from 'redux'
-import $ from 'jquery'
 // TODO: Type def file
 //@ts-ignore
 import marked from 'marked'
@@ -30,10 +31,12 @@ const loadPoemData = (poemIndex: number): any =>
 
     try {
       const poem: IPoem = poems[poemIndex]
-      const folder = poem.authorSecondaryFolder || poem.authorId
-      const processNoteRaw = await $.get(`${POEMS_URL}${folder}/${poem.authorId}.md`)
+      const noteResponse = await fetchAsset(POEMS_URL, processNoteObjectName(poem))
+      if (!noteResponse.ok) throw new Error('Unable to load Midst process note')
+      const processNoteRaw = await noteResponse.text()
       const processNote = insane(marked(processNoteRaw), { allowedTags: ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']})
-      const zipTest = await fetch(`${POEMS_URL}${folder}/${poem.poemId}.midst.zip`)
+      const zipTest = await fetchAsset(POEMS_URL, timelapseObjectName(poem))
+      if (!zipTest.ok) throw new Error('Unable to load Midst timelapse')
       const reader = new zip.BlobReader(await zipTest.blob())
 
       zip.createReader(reader, (zipReader: any) => {

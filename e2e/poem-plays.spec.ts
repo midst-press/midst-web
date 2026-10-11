@@ -1,13 +1,17 @@
 import { test, expect } from '@playwright/test'
 // Bare specifiers, not `node:fs`/`node:path`: this repository pins @types/node 12.12.42, which
 // predates the `node:` prefix, so the prefixed form fails `tsc --noEmit`. See #11.
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 // The same module the application uses to build object names, so the routes under test are derived
 // rather than typed. A human typing one of these is how four poems became unreachable.
 import names from '../src/poems/poem-names.js'
 
-const SUBJECTS = ['Margaret_Yapp', 'Madeleine_Mori']
+const SUBJECTS = ['Margaret_Yapp', 'Madeleine_Mori', 'Jared_Harél', 'Mónica_de_la_Torre']
+const publishedFiles = readdirSync(join(__dirname, '..', 'src', 'poems'))
+  .filter(file => file.endsWith('.json') && file !== 'order.json')
+  .sort((a, b) => a.normalize('NFC') < b.normalize('NFC') ? -1 : a.normalize('NFC') > b.normalize('NFC') ? 1 : 0)
+  .filter(file => JSON.parse(readFileSync(join(__dirname, '..', 'src', 'poems', file), 'utf8')).published === true)
 
 const poems = SUBJECTS.map((file) => {
   const meta = JSON.parse(readFileSync(join(__dirname, '..', 'src', 'poems', `${file}.json`), 'utf8'))
@@ -17,6 +21,8 @@ const poems = SUBJECTS.map((file) => {
   return {
     file,
     meta,
+    number: publishedFiles.findIndex(name => name.normalize('NFC') === `${file}.json`.normalize('NFC')) + 1,
+    keys: [names.processNoteObjectName(meta), names.timelapseObjectName(meta)],
     route: `/poem/${names.poemUrl(meta.title)}/`,
     // The site renders EVERY poem into a sliding carousel, so `.editor` alone matches 50 elements.
     // Scope by the carousel class, which carries the poemId -- so this selector is derived from
@@ -32,11 +38,26 @@ const TYPED = 'the quick brown fox'
 // No external network: use the vendored ZIP reader and stub ancillary scripts/decorations.
 // Refuse poem-data access even if a build accidentally loses its local origins.
 const externalRequests = new WeakMap<object, Map<string, number>>()
+const alternateRequests = new WeakMap<object, Set<string>>()
+function spellingMiss(path: string): boolean {
+  return poems.some(poem => poem.keys.some(key => key !== key.normalize('NFD') && path === '/archive/' + key))
+}
 test.beforeEach(async ({ page, baseURL }) => {
   externalRequests.set(page, new Map())
+  alternateRequests.set(page, new Set())
   await page.route('**/*', route => {
     const url = new URL(route.request().url())
-    if (url.origin === new URL(baseURL!).origin) return route.continue()
+    if (url.origin === new URL(baseURL!).origin) {
+      const path = decodeURIComponent(url.pathname)
+      // The dev server resolves both forms, so intercept NFC first to model S3's strict keys.
+      if (spellingMiss(path)) return route.fulfill({ status: 403, body: '' })
+      for (const poem of poems) {
+        for (const key of poem.keys) {
+          if (key !== key.normalize('NFD') && path === '/archive/' + key.normalize('NFD')) alternateRequests.get(page)!.add(key)
+        }
+      }
+      return route.continue()
+    }
     if (url.origin === 'https://d3nlqr52a31o6y.cloudfront.net') {
       if (url.pathname === '/midst-press/site/scripts/zip.js') {
         return route.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
@@ -60,11 +81,11 @@ test.afterEach(async ({ page }) => {
 })
 
 test.describe('a published poem plays', () => {
-  for (const { file, route, scope } of poems) {
-    test(`${file}: the player mounts and replays to the end`, async ({ page }) => {
+  for (const { number, route, scope, keys } of poems) {
+    test(`poem ${number}: the player mounts and replays to the end`, async ({ page }) => {
       const failures: string[] = []
       page.on('response', (r) => {
-        if (r.status() >= 400) failures.push(`${r.status()} ${r.url()}`)
+        if (r.status() >= 400 && !(r.status() === 403 && spellingMiss(decodeURIComponent(new URL(r.url()).pathname)))) failures.push(`${r.status()} asset request`)
       })
 
       await page.goto(route)
@@ -83,6 +104,10 @@ test.describe('a published poem plays', () => {
       //    archive was parsed rather than only its head.
       await expect(editor).toContainText(TYPED)
       await expect(editor).toContainText('and again')
+
+      for (const key of keys.filter(key => key !== key.normalize('NFD'))) {
+        expect(alternateRequests.get(page)!.has(key), 'both asset types must traverse the alternate-spelling fetch').toBe(true)
+      }
       expect(
         await page.locator(`${scope} .editable p`).count(),
         'both paragraphs should render',

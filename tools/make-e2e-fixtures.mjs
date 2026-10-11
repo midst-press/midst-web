@@ -29,7 +29,7 @@ const OUT = join(REPO, 'e2e', 'fixtures', 'poems')
 // Which poems get a fixture. Deliberately few: the tests assert player BEHAVIOUR, and more poems
 // would make the suite slower without asking a new question. One plain poem, one whose title
 // exercises the slug rules.
-const SUBJECTS = ['Margaret_Yapp', 'Madeleine_Mori']
+const SUBJECTS = ['Margaret_Yapp', 'Madeleine_Mori', 'Jared_Harél', 'Mónica_de_la_Torre']
 
 function currentFormat(snapshots) {
   let previous = ''
