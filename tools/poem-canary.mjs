@@ -2,7 +2,7 @@
 // Are the poems still reachable?
 //
 // Needs no credentials: these objects are served to the site, so a HEAD is exactly what a visitor's
-// browser does. Publishes URLs and status codes ONLY -- never poem content.
+// browser does. Publishes poem numbers and status codes ONLY -- never poem content.
 //
 // This exists because `/poem/december` was unreachable for an unknown length of time and nobody
 // found out from the software. The URL the application builds did not match the object that exists:
@@ -13,6 +13,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit, env } from 'node:process';
 import names from '../src/poems/poem-names.js';
+import assets from '../src/poems/asset-fetch.js';
 
 const BASE =
   env.MIDST_ASSETS_URL ?? 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/';
@@ -28,23 +29,26 @@ const rows = [];
 // Only PUBLISHED poems: an unpublished one has no object to find, and a canary that carries a
 // permanent known failure is a canary people learn to ignore. `order.json` is the display order,
 // not a poem.
-for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json') && x !== 'order.json').sort()) {
+// Sort by canonical spelling for stable numbers across hosts, but retain actual filenames for reads.
+for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json') && x !== 'order.json')
+  .sort((a, b) => a.normalize('NFC') < b.normalize('NFC') ? -1 : a.normalize('NFC') > b.normalize('NFC') ? 1 : 0)) {
   const d = JSON.parse(readFileSync(join(POEMS, f), 'utf8'));
   if (d.published !== true) continue;
   rows.push({
+    number: rows.length + 1,
     meta: f,
     author: d.author,
     title: d.title,
-    zip: BASE + encodeURI(names.timelapseObjectName(d)),
-    note: BASE + encodeURI(names.processNoteObjectName(d)),
+    zip: names.timelapseObjectName(d),
+    note: names.processNoteObjectName(d),
   });
 }
 
-async function head(url) {
+async function head(key) {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), TIMEOUT_MS);
   try {
-    const r = await fetch(url, { method: 'HEAD', signal: ac.signal });
+    const r = await assets.fetchAsset(BASE, key, { method: 'HEAD', signal: ac.signal });
     return r.status;
   } catch (e) {
     return e.name === 'AbortError' ? 'TIMEOUT' : e.constructor.name;
@@ -68,8 +72,7 @@ console.log(`timelapses reachable: ${ok}/${rows.length}`);
 if (bad.length) {
   console.log(`\nUNREACHABLE (${bad.length}):`);
   for (const b of bad) {
-    console.log(`  ${String(b.status).padEnd(9)} ${b.kind.padEnd(13)} ${b.meta}`);
-    console.log(`            ${b.kind === 'timelapse' ? b.zip : b.note}`);
+    console.log(`  poem ${b.number}: ${String(b.status).padEnd(9)} ${b.kind}`);
   }
   // A missing process note is a degraded page; a missing timelapse is the poem being gone.
   const fatal = bad.filter((b) => b.kind === 'timelapse');
