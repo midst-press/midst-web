@@ -3,14 +3,18 @@
 //
 //   npm run coverage
 //
-// runs the e2e suite with MIDST_COVERAGE=1 (e2e/coverage.ts writes Chromium's V8 coverage to
-// coverage/raw/) and then this script, which:
+// runs the unit tests (scripts/coverage-jest-reporter.cjs keeps their raw V8 coverage in
+// coverage/unit-raw/), then the e2e suite with MIDST_COVERAGE=1 (e2e/coverage.ts writes Chromium's
+// V8 coverage to coverage/raw/), and then this script, which:
 //
-//   1. maps the V8 data back to src/ through the build's source maps and writes istanbul JSON
+//   1. maps each layer's V8 data back to src/ through its source maps and writes istanbul JSON
 //      (monocart-coverage-reports does the conversion; that is the only part that is not ours);
 //   2. checks the positive control in e2e/coverage-control.ts and refuses to report without it;
 //   3. prints lines, branches and functions per source file and in total, for three layers:
 //      unit-only, e2e-only and combined.
+//
+// Both layers go through the SAME converter. Jest's own coverage-final.json is not used here: its
+// converter counts every source line as a statement, so its maps cannot be merged with these.
 //
 // NUMBERS ONLY. This prints file paths and counts. It never prints source text, and the raw dumps
 // (which hold the built JavaScript) stay in the git-ignored coverage/ directory.
@@ -21,7 +25,7 @@
 
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { exit } from 'node:process'
 import { CoverageReport } from 'monocart-coverage-reports'
 import libCoverage from 'istanbul-lib-coverage'
@@ -32,12 +36,14 @@ const RAW = join(REPO, 'coverage', 'raw')
 const DIST = join(REPO, 'dist')
 const OUT = join(REPO, 'coverage')
 const E2E_JSON = join(OUT, 'e2e-istanbul.json')
-// Where a unit layer writes its istanbul JSON, when this repository has one (midst-web #14).
+const UNIT_RAW = join(REPO, 'coverage', 'unit-raw')
 const UNIT_JSON = join(OUT, 'unit-istanbul.json')
 const CONTROL = 'e2e/coverage-control.ts'
 
 const isCode = path => /\.(ts|tsx|js|jsx)$/.test(path) && !path.endsWith('.d.ts')
-const counted = path => path.startsWith('src/') && isCode(path)
+// Tests are not the code under test.
+const isTest = path => path.includes('/__tests__/') || /\.test\.[jt]sx?$/.test(path)
+const counted = path => path.startsWith('src/') && isCode(path) && !isTest(path)
 
 function fail(message) {
   console.error(`coverage: ${message}`)
@@ -50,50 +56,24 @@ if (!existsSync(RAW)) fail('no coverage/raw directory. Run `npm run coverage`, w
 const rawFiles = readdirSync(RAW).filter(name => name.endsWith('.json'))
 if (!rawFiles.length) fail('coverage/raw is empty: no test recorded coverage.')
 
-const report = new CoverageReport({
-  name: 'midst-web e2e',
-  logging: 'error',
-  outputDir: join(OUT, 'e2e'),
-  baseDir: REPO,
-  reports: [['json', { file: 'coverage-final.json' }]],
-  // Only what this build served: not the vendored zip reader, not inline analytics snippets.
-  entryFilter: entry => /\/[\w.-]+\.js$/.test(new URL(entry.url).pathname) && existsSync(join(DIST, basename(new URL(entry.url).pathname))),
-  sourceFilter: path => counted(path) || path === CONTROL,
-  // The server that produced these URLs is gone by now; the maps are still in dist/.
-  sourceMapResolver: url => {
-    const file = join(DIST, basename(new URL(url).pathname))
-    return existsSync(file) ? readFileSync(file, 'utf8') : undefined
+// A file no test loaded is not in anything that ran, so it is added with zero hits. That holds in each
+// layer: a file the unit tests never import counts as 0% in the unit column, not as absent.
+// TypeScript is compiled first, with a map back to the original lines, so it can be parsed.
+const all = {
+  dir: [join(REPO, 'src')],
+  filter: path => counted(relative(REPO, path).split('\\').join('/')),
+  transformer: entry => {
+    if (!/\.tsx?$/.test(entry.sourcePath)) return
+    const out = ts.transpileModule(entry.source, {
+      fileName: entry.sourcePath,
+      compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.React, sourceMap: true, inlineSources: true },
+    })
+    entry.source = out.outputText.replace(/\n\/\/# sourceMappingURL=.*$/, '')
+    // TypeScript names the source by its basename; give it the repository path, or the file is
+    // reported under a name that matches nothing and silently drops out of the totals.
+    entry.sourceMap = { ...JSON.parse(out.sourceMapText), sources: [entry.sourcePath] }
   },
-  // A file no test loaded is not in any bundle the browser ran, so it is added here with zero hits.
-  // TypeScript is compiled first, with a map back to the original lines, so it can be parsed.
-  all: {
-    dir: [join(REPO, 'src')],
-    filter: path => counted(relative(REPO, path).split('\\').join('/')),
-    transformer: entry => {
-      if (!/\.tsx?$/.test(entry.sourcePath)) return
-      const out = ts.transpileModule(entry.source, {
-        fileName: entry.sourcePath,
-        compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.React, sourceMap: true, inlineSources: true },
-      })
-      entry.source = out.outputText.replace(/\n\/\/# sourceMappingURL=.*$/, '')
-      // TypeScript names the source by its basename; give it the repository path, or the file is
-      // reported under a name that matches nothing and silently drops out of the totals.
-      entry.sourceMap = { ...JSON.parse(out.sourceMapText), sources: [entry.sourcePath] }
-    },
-  },
-})
-let entries = 0
-for (const name of rawFiles) {
-  const list = JSON.parse(readFileSync(join(RAW, name), 'utf8'))
-  // A test that never loaded a script (it set the page content itself) recorded an empty list.
-  if (!list.length) continue
-  entries += list.length
-  await report.add(list)
 }
-await report.generate()
-
-const produced = join(OUT, 'e2e', 'coverage-final.json')
-if (!existsSync(produced)) fail('the V8 conversion produced no istanbul JSON.')
 
 // Paths resolve to src/... in every layer, or a merge treats one file as two.
 function load(file) {
@@ -104,7 +84,44 @@ function load(file) {
   }
   return map
 }
-const e2eAll = load(produced)
+
+async function convert(name, options, lists) {
+  const outputDir = join(OUT, name)
+  const report = new CoverageReport({ name: `midst-web ${name}`, logging: 'error', outputDir, baseDir: REPO, reports: [['json', { file: 'coverage-final.json' }]], all, ...options })
+  for (const list of lists) await report.add(list)
+  await report.generate()
+  const produced = join(outputDir, 'coverage-final.json')
+  if (!existsSync(produced)) fail(`the V8 conversion of the ${name} layer produced no istanbul JSON.`)
+  const map = load(produced)
+  rmSync(outputDir, { recursive: true, force: true })
+  return map
+}
+
+// A test that never loaded a script (it set the page content itself) recorded an empty list.
+const e2eLists = rawFiles.map(name => JSON.parse(readFileSync(join(RAW, name), 'utf8'))).filter(list => list.length)
+const entries = e2eLists.reduce((sum, list) => sum + list.length, 0)
+const e2eAll = await convert('e2e', {
+  // Only what this build served: not the vendored zip reader, not inline analytics snippets.
+  entryFilter: entry => /\/[\w.-]+\.js$/.test(new URL(entry.url).pathname) && existsSync(join(DIST, basename(new URL(entry.url).pathname))),
+  sourceFilter: path => counted(path) || path === CONTROL,
+  // The server that produced these URLs is gone by now; the maps are still in dist/.
+  sourceMapResolver: url => {
+    const file = join(DIST, basename(new URL(url).pathname))
+    return existsSync(file) ? readFileSync(file, 'utf8') : undefined
+  },
+}, e2eLists)
+
+// The unit layer: what Jest's transform ran, per test file, with the transform's own source map.
+const unitFiles = existsSync(UNIT_RAW) ? readdirSync(UNIT_RAW).filter(name => name.endsWith('.json')) : []
+const unitLists = unitFiles
+  .map(name => JSON.parse(readFileSync(join(UNIT_RAW, name), 'utf8')).filter(entry => counted(entry.path) || entry.path === CONTROL).map(entry => ({
+    url: `${pathToFileURL(join(REPO, entry.path)).href}.unit.js`,
+    source: entry.source.replace(/\n\/\/# sourceMappingURL=.*$/, ''),
+    sourceMap: { ...entry.sourceMap, sources: [entry.path] },
+    functions: entry.functions,
+  })))
+  .filter(list => list.length)
+const unitAll = unitLists.length ? await convert('unit', { sourceFilter: path => counted(path) || path === CONTROL }, unitLists) : null
 
 // ---- 2. positive control -----------------------------------------------------------------------
 
@@ -118,30 +135,77 @@ function functionHits(map, file, name) {
   const ids = Object.keys(data.fnMap).filter(key => data.fnMap[key].line === line)
   return line === 0 || ids.length !== 1 ? undefined : data.f[ids[0]]
 }
-const called = functionHits(e2eAll, CONTROL, 'coverageControlCalled')
-const never = functionHits(e2eAll, CONTROL, 'coverageControlNeverCalled')
-if (called === undefined || never === undefined) {
-  fail(`positive control missing: ${CONTROL} was not measured. The harness page must be loaded by at least one test.`)
+function control(layer, map, loadedBy) {
+  const called = functionHits(map, CONTROL, 'coverageControlCalled')
+  const never = functionHits(map, CONTROL, 'coverageControlNeverCalled')
+  if (called === undefined || never === undefined) {
+    fail(`${layer} positive control missing: ${CONTROL} was not measured. ${loadedBy}`)
+  }
+  if (!(called > 0)) fail(`${layer} positive control failed: the function the module calls reads as never run. Figures withheld.`)
+  if (never !== 0) fail(`${layer} positive control failed: the function nothing calls reads as run. Figures withheld.`)
+  return called
 }
-if (!(called > 0)) fail('positive control failed: the function the harness calls reads as never run. Figures withheld.')
-if (never !== 0) fail('positive control failed: the function nothing calls reads as run. Figures withheld.')
+const called = control('e2e', e2eAll, 'The harness page must be loaded by at least one test.')
+const unitCalled = unitAll ? control('unit', unitAll, 'src/__tests__/coverage-control.test.ts must run.') : 0
 
 // ---- 3. three layers, numbers only -------------------------------------------------------------
 
+// Copies, not references: merging into a map changes the file objects it holds.
 function only(map) {
   const kept = libCoverage.createCoverageMap({})
-  for (const file of map.files()) if (counted(file)) kept.addFileCoverage(map.fileCoverageFor(file))
+  for (const file of map.files()) if (counted(file)) kept.addFileCoverage(JSON.parse(JSON.stringify(map.fileCoverageFor(file).toJSON())))
   return kept
 }
 const e2e = only(e2eAll)
 mkdirSync(OUT, { recursive: true })
 writeFileSync(E2E_JSON, JSON.stringify(e2e.toJSON()))
-rmSync(join(OUT, 'e2e'), { recursive: true, force: true })
+const unit = unitAll ? only(unitAll) : null
+if (unit) {
+  writeFileSync(UNIT_JSON, JSON.stringify(unit.toJSON()))
+}
 
-const unit = existsSync(UNIT_JSON) ? only(load(UNIT_JSON)) : null
+// The two layers run two different builds of one source file (Jest's transform, Parcel's bundle), and
+// each build's source map places the END of a statement, function or branch a little differently.
+// The standard merge identifies an item by its exact start and end, so it would count such an item
+// twice, once per build, and report a function the unit tests ran as half covered. Where a construct
+// BEGINS is the same in both builds, so the e2e item takes the unit item's location when exactly one
+// unit item of the same kind begins there. Whatever is left unmatched is counted, and printed.
+const begins = [['statementMap', item => item], ['fnMap', item => item.decl], ['branchMap', item => item.loc]]
+const at = loc => loc && loc.start ? `${loc.start.line}:${loc.start.column}` : undefined
+function alignTo(reference, other) {
+  let unmatched = 0
+  for (const [prop, where] of begins) {
+    const byStart = new Map()
+    for (const item of Object.values(reference[prop])) {
+      const key = `${item.type || ''}@${at(where(item))}`
+      byStart.set(key, byStart.has(key) ? null : item)
+    }
+    for (const [id, item] of Object.entries(other[prop])) {
+      const match = byStart.get(`${item.type || ''}@${at(where(item))}`)
+      if (match && (prop !== 'branchMap' || match.locations.length === item.locations.length)) other[prop][id] = JSON.parse(JSON.stringify(match))
+      else unmatched += 1
+    }
+  }
+  return unmatched
+}
+// A file only one layer ran keeps that layer's figures: the other layer holds nothing but zeros for
+// it, on a map from yet another build. Only a file both layers ran is merged.
+const ran = (layer, file) => Object.values(layer.fileCoverageFor(file).toJSON().s).some(hits => hits > 0)
+const copy = (layer, file) => JSON.parse(JSON.stringify(layer.fileCoverageFor(file).toJSON()))
 const combined = libCoverage.createCoverageMap({})
-combined.merge(e2e)
-if (unit) combined.merge(unit)
+let unmatched = 0
+let shared = 0
+for (const file of e2e.files()) {
+  if (!unit || !unit.files().includes(file) || !ran(unit, file)) { combined.addFileCoverage(copy(e2e, file)); continue }
+  if (!ran(e2e, file)) { combined.addFileCoverage(copy(unit, file)); continue }
+  const merged = libCoverage.createFileCoverage(copy(unit, file))
+  const other = copy(e2e, file)
+  unmatched += alignTo(merged.toJSON(), other)
+  merged.merge(libCoverage.createFileCoverage(other))
+  combined.addFileCoverage(merged)
+  shared += 1
+}
+for (const file of unit ? unit.files() : []) if (!combined.files().includes(file)) combined.addFileCoverage(copy(unit, file))
 
 const pct = part => part.total === 0 ? '   -  ' : `${part.pct.toFixed(1).padStart(5)}%`
 const cells = summary => `${pct(summary.lines)} ${pct(summary.branches)} ${pct(summary.functions)}`
@@ -172,6 +236,7 @@ for (const file of files) {
 console.log('-'.repeat(heading.length))
 console.log(`${'TOTAL'.padEnd(width)}  ${(unit ? cells(total(unit)) : blank).padEnd(22)}  ${cells(total(e2e)).padEnd(22)}  ${cells(total(combined))}`)
 if (uncounted.length) console.log(`\nnot counted, no statements (${uncounted.length}): ${uncounted.join(', ')}`)
-if (!unit) console.log('\nunit layer: none. This repository has no unit tests yet (midst-web #14), so combined equals e2e.')
-console.log(`positive control: ok (called function ran ${called} time(s); uncalled function ran 0).`)
+if (!unit) console.log('\nunit layer: none recorded (coverage/unit-raw is absent), so combined equals e2e. `npm run coverage` runs the unit tests first.')
+else console.log(`\nunit layer: ${unitFiles.length} test files. ${shared} source files ran in both layers; ${unmatched} items could not be matched between the two builds and count once per build.`)
+console.log(`positive control: ok in ${unit ? 'both layers' : 'the e2e layer'} (called function ran ${called} time(s) in e2e${unit ? `, ${unitCalled} in unit` : ''}; uncalled function ran 0).`)
 console.log('Coverage is what ran, not what was asserted. Reported, not gated.')
