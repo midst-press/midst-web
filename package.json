@@ -188,6 +188,50 @@
       "src/store/reducer.ts",
       "src/store/actions.ts",
       "src/components/midst-player-hack/midst-file.ts"
-    ]
+    ],
+    "coverageThreshold": {
+      "./src/poems/poem-names.js": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/poems/asset-fetch.js": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/poems/index.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/config.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/store/reducer.ts": {
+        "branches": 94,
+        "functions": 100,
+        "lines": 99,
+        "statements": 99
+      },
+      "./src/store/actions.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/components/midst-player-hack/midst-file.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      }
+    }
   }
 }

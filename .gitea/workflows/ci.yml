@@ -45,6 +45,10 @@ jobs:
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
       # --legacy-peer-deps: React 18 against @types/react 16.9; see #11.
       - run: npm ci --legacy-peer-deps --ignore-scripts
+      # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
+      # threshold, so an untested file counts as 0% and any drop fails this step.
+      - name: unit tests with coverage thresholds
+        run: npm test -- --coverage
       - name: read-only checkout of editor main for helper provenance
         env:
           DEPLOY_KEY: ${{ secrets.MIDST_EDITOR_DEPLOY_KEY }}
