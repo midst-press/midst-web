@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { IMidstFile } from '../../store/types'
 import { ChangeObj, reconstructHTML } from './helpers'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
+import '../midst-player-hack/lato.css'
+import '../midst-player-hack/helvetica-neue.css'
 
 const extensions = [StarterKit.configure({
   bulletList: false, orderedList: false, blockquote: false, code: false,
@@ -29,10 +31,35 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     })
   }, [data])
   const maxStep = Math.max(0, history.length - 1)
+  const markers = useMemo(() => {
+    if (!data) return []
+    const raw = data.presentation ? data.presentation.draftMarkers : data.meta.editorDraftMarkers
+    if (!Array.isArray(raw)) return []
+    const count = data.sourceHistoryLength === undefined ? history.length : data.sourceHistoryLength
+    return raw.reduce<Array<{ index: number, label: string }>>((out, marker) => {
+      if (!marker || typeof marker !== 'object') return out
+      const index = data.presentation ? marker.index : marker.timelineIndex
+      if (!Number.isSafeInteger(index) || index < 0 || index >= count) return out
+      const label = typeof marker.name === 'string' && marker.name ? marker.name
+        : typeof marker.defaultName === 'string' && marker.defaultName ? marker.defaultName : 'Draft'
+      out.push({ index, label })
+      return out
+    }, [])
+  }, [data, history.length])
+  const family = data && typeof data.meta.editorFontFamily === 'string' && data.meta.editorFontFamily.trim()
+    ? data.meta.editorFontFamily : 'Helvetica'
+  const size = data && Number.isFinite(data.meta.editorFontSize) && data.meta.editorFontSize > 0
+    ? data.meta.editorFontSize : 14
   const [step, setStep] = useState(maxStep)
   const [playing, setPlaying] = useState(false)
   const glide = useRef<Glide | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const generation = useRef(0)
+  const haltPlayback = useCallback(() => {
+    generation.current += 1
+    if (timer.current) clearInterval(timer.current)
+    timer.current = undefined
+  }, [])
   const editor = useEditor({
     extensions,
     content: '',
@@ -47,15 +74,16 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   }
 
   useEffect(() => {
+    haltPlayback()
     setStep(maxStep)
     setPlaying(false)
     cancelGlide()
-  }, [data, maxStep])
+  }, [data, maxStep, haltPlayback])
 
   useEffect(() => {
     if (!activePlayer || !cursorFollowing) cancelGlide()
-    if (!activePlayer) setPlaying(false)
-  }, [activePlayer, cursorFollowing])
+    if (!activePlayer) { haltPlayback(); setPlaying(false) }
+  }, [activePlayer, cursorFollowing, haltPlayback])
 
   useEffect(() => {
     if (!editor) return
@@ -71,24 +99,31 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       const to = targetScrollTop(point, scroller.getBoundingClientRect(), scroller.scrollTop, scroller.scrollHeight)
       if (to != null) glide.current = glideTo(scroller, to, glide.current)
     }
-    if (step >= maxStep) setPlaying(false)
-  }, [editor, history, step, maxStep, activePlayer, cursorFollowing])
+    if (step >= maxStep) { haltPlayback(); setPlaying(false) }
+  }, [editor, history, step, maxStep, activePlayer, cursorFollowing, haltPlayback])
 
   useEffect(() => {
     if (!playing || !activePlayer || maxStep === 0) return
-    timer.current = setInterval(() => {
-      setStep(value => gliding(glide.current) ? value : Math.min(value + 1, maxStep))
+    const run = ++generation.current
+    const interval = setInterval(() => {
+      if (generation.current !== run) return
+      setStep(value => generation.current !== run || gliding(glide.current) ? value : Math.min(value + 1, maxStep))
     }, 60)
-    return () => { if (timer.current) clearInterval(timer.current) }
+    timer.current = interval
+    return () => { generation.current += 1; clearInterval(interval); if (timer.current === interval) timer.current = undefined }
   }, [playing, activePlayer, maxStep])
 
   useEffect(() => () => {
-    if (timer.current) clearInterval(timer.current)
+    haltPlayback()
     cancelGlide()
-  }, [])
+  }, [haltPlayback])
 
   const playPause = () => {
     if (playing) {
+      haltPlayback()
+      // A timer update may already be queued in React's lower-priority lane. Freeze the frame that
+      // this click saw, so rebasing that queued update cannot advance the slider after pause.
+      setStep(step)
       setPlaying(false)
       return
     }
@@ -102,8 +137,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   return (
     <div className="midst-tiptap-player" data-player="tiptap">
       <div className={`editor${hasScrollbar ? '' : ' editor--hide-scrollbar'}`} style={{
-        fontFamily: data ? data.meta.editorFontFamily : 'Helvetica',
-        fontSize: data ? data.meta.editorFontSize : 14,
+        fontFamily: `${family}, ${family === 'Courier' ? 'monospace' : /Bell|Garamond|Times/.test(family) ? 'serif' : 'sans-serif'}`,
+        fontSize: size,
       }}>
         <EditorContent editor={editor} />
       </div>
@@ -114,10 +149,18 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             onClick={playPause} disabled={!activePlayer || history.length < 2}>
             {playing ? <><span className="pause-rectangle" /><span className="pause-rectangle" /></> : '▶'}
           </button>
+          <div className="timeline-control">
           <input type="range" aria-label="Timeline" className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!activePlayer || history.length < 2}
-            onChange={event => { setPlaying(false); cancelGlide(); setStep(Number(event.target.value)) }} />
+            onChange={event => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(Number(event.target.value)) }} />
+            <div className="draft-markers">
+              {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
+                style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
+                title={marker.label} aria-label={`Jump to ${marker.label}`} disabled={!activePlayer}
+                onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>◆</button>)}
+            </div>
+          </div>
         </div>
       </div>
     </div>

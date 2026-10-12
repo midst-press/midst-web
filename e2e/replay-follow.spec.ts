@@ -6,7 +6,7 @@ import names from '../src/poems/poem-names.js'
 // Website adaptation of midst-editor #21's recorder and verdict. Quiet ticks retain the last target;
 // only a shrink that forces the old scroll position out of range is exempted as a browser clamp.
 type Sample = [number, number, boolean, number, number, boolean, boolean]
-type Rec = { samples: Sample[], viewport: number }
+type Rec = { samples: Sample[], viewport: number, rafIntervals?: number[], layout?: { paragraphFloat: string, documentHeight: number, scrollHeight: number, overflowAnchor: string } }
 const meta = JSON.parse(readFileSync(join(__dirname, '../src/poems/Madeleine_Mori.json'), 'utf8'))
 const scope = `.sliding-poems__poem--${names.poemId(meta.author, meta.title)}`
 
@@ -14,6 +14,14 @@ async function record(page: Page, done: () => Promise<void>): Promise<Rec> {
   await page.evaluate(selector => {
     const g = window as any
     g.followSamples = []
+    g.followRafIntervals = []
+    let previousFrame: number | undefined
+    const frame = (now: number) => {
+      if (previousFrame !== undefined) g.followRafIntervals.push(now - previousFrame)
+      previousFrame = now
+      g.followRaf = requestAnimationFrame(frame)
+    }
+    g.followRaf = requestAnimationFrame(frame)
     let last: string[] = [], target: [number, number] | null = null
     let lastHeight = 0, lastTop = 0
     const start = performance.now()
@@ -23,6 +31,7 @@ async function record(page: Page, done: () => Promise<void>): Promise<Rec> {
       while (s && !(s.scrollHeight > s.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(s).overflowY))) s = s.parentElement
       if (!pm || !s) return
       g.followViewport = s.clientHeight
+      g.followLayout = { paragraphFloat: pm.firstElementChild ? getComputedStyle(pm.firstElementChild).cssFloat : '', documentHeight: pm.getBoundingClientRect().height, scrollHeight: s.scrollHeight, overflowAnchor: getComputedStyle(s).getPropertyValue('overflow-anchor') }
       const maximum = s.scrollHeight - s.clientHeight
       const clamped = s.scrollHeight < lastHeight && lastTop > maximum + 0.5 && Math.abs(s.scrollTop - maximum) < 1
       lastHeight = s.scrollHeight; lastTop = s.scrollTop
@@ -59,7 +68,8 @@ async function record(page: Page, done: () => Promise<void>): Promise<Rec> {
   return page.evaluate(() => {
     const g = window as any
     clearInterval(g.followTimer)
-    return { samples: g.followSamples, viewport: g.followViewport || 0 }
+    cancelAnimationFrame(g.followRaf)
+    return { samples: g.followSamples, viewport: g.followViewport || 0, rafIntervals: g.followRafIntervals, layout: g.followLayout }
   })
 }
 
@@ -98,6 +108,74 @@ function zip(body: string) {
   end.writeUInt32LE(central.length + filename.length, 12); end.writeUInt32LE(local.length + filename.length + bytes.length, 16)
   return Buffer.concat([local, filename, bytes, central, filename, end])
 }
+
+async function serveArchive(page: Page, baseURL: string, archive: Buffer) {
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url())
+    if (url.origin === new URL(baseURL).origin) {
+      if (url.pathname.endsWith('.midst.zip')) return route.fulfill({ body: archive, contentType: 'application/zip' })
+      return route.continue()
+    }
+    if (url.pathname.endsWith('/zip.js')) return route.fulfill({ path: join(__dirname, '../static/static/scripts/zip.js'), contentType: 'application/javascript' })
+    if (url.pathname.includes('/shapes/')) return route.fulfill({ body: '<svg xmlns="http://www.w3.org/2000/svg"/>', contentType: 'image/svg+xml' })
+    return route.fulfill({ body: '', contentType: 'application/javascript' })
+  })
+}
+
+test('presentation reaches rendered paragraphs and draft buttons seek exact unchanged-history indices', async ({ page, baseURL }) => {
+  const contents = ['<p>synthetic first</p>', '<p>synthetic first</p>', '<p>synthetic final</p>']
+  const file = { text: contents[2], history: contents.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000 })),
+    meta: { fontFamily: 'Courier', fontSize: 24, futureField: 7, draftMarkers: [
+      { index: 0, name: 'synthetic first draft', defaultName: 'Draft 1' },
+      { index: 1, name: 'synthetic unchanged draft', defaultName: 'Draft 2' },
+      { index: 2, name: 'synthetic final draft', defaultName: 'Draft 3' },
+      { index: 3, name: 'synthetic outside draft', defaultName: 'Draft 4' },
+    ] } }
+  await serveArchive(page, baseURL!, zip(JSON.stringify(file)))
+  await page.goto(`/poem/${names.poemUrl(meta.title)}/`)
+  const player = page.locator(scope)
+  await expect(player.locator('.editable')).toContainText('synthetic final')
+  const computed = await player.locator('.editable p').evaluate(p => ({ size: getComputedStyle(p).fontSize, family: getComputedStyle(p).fontFamily }))
+  expect(computed.size).toBe('24px')
+  expect(computed.family).toContain('Courier')
+  await expect(player.locator('.draft-marker')).toHaveCount(3)
+  await expect(player.getByRole('button', { name: 'Jump to synthetic outside draft' })).toHaveCount(0)
+  await player.getByRole('button', { name: 'Jump to synthetic unchanged draft', exact: true }).click()
+  await expect(player.getByRole('slider', { name: 'Timeline' })).toHaveValue('1')
+  await expect(player.locator('.editable')).toContainText('synthetic first')
+  await player.getByRole('button', { name: 'Jump to synthetic final draft', exact: true }).click()
+  await expect(player.getByRole('slider', { name: 'Timeline' })).toHaveValue('2')
+  await expect(player.locator('.editable')).toContainText('synthetic final')
+})
+
+test('B font and legacy-index draft markers remain supported', async ({ page, baseURL }) => {
+  const content = '<p>synthetic legacy</p>'
+  const file = { editorTimelineFrames: [0, 1].map(i => ({ content, timestamp: i * 1000, lineNumber: 0 })),
+    meta: { editorFontFamily: 'Times New Roman', editorFontSize: 36, editorHighestEverDraftNumber: 4, editorTitle: 'synthetic title',
+      editorDraftMarkers: [-1, 0, 1, 2].map(timelineIndex => ({ timelineIndex, name: `synthetic ${timelineIndex}`, defaultName: 'Draft' })) } }
+  await serveArchive(page, baseURL!, zip(JSON.stringify(file)))
+  await page.goto(`/poem/${names.poemUrl(meta.title)}/`)
+  const player = page.locator(scope)
+  await expect(player.locator('.editable')).toContainText('synthetic legacy')
+  expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe('36px')
+  await expect(player.locator('.draft-marker')).toHaveCount(2)
+  await player.getByRole('button', { name: 'Jump to synthetic 0', exact: true }).click()
+  await expect(player.getByRole('slider', { name: 'Timeline' })).toHaveValue('0')
+})
+
+test('static C history has no valid draft index and rendering defaults handle unusable presentation values', async ({ page, baseURL }) => {
+  for (const presentation of [undefined, { fontSize: 0, fontFamily: '' }, { fontSize: -1, fontFamily: ' ' }, { fontSize: 17.5, fontFamily: 'SYNTHETIC_UNKNOWN_FONT' }]) {
+    const file = { text: '<p>synthetic static</p>', history: [], meta: { ...presentation, draftMarkers: [{ index: 0, name: 'synthetic invalid index', defaultName: 'Draft' }] } }
+    await serveArchive(page, baseURL!, zip(JSON.stringify(file)))
+    await page.goto(`/poem/${names.poemUrl(meta.title)}/`)
+    const player = page.locator(scope)
+    await expect(player.locator('.editable')).toContainText('synthetic static')
+    await expect(player.locator('.draft-marker')).toHaveCount(0)
+    await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled()
+    const expected = presentation && presentation.fontSize > 0 ? presentation.fontSize : 14
+    expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe(`${expected}px`)
+  }
+})
 
 test('follow verdict rejects quiet offscreen writing, instant jumps and writing during a glide', () => {
   const run = (visible: boolean, tops: number[], edits: number[] = [0]): Rec => ({ viewport: 600, samples: tops.map((top, i) => [1, 0, visible, top, i * 20, edits.includes(i), false]) })
@@ -150,16 +228,7 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
     snapshots.push(html())
   }
   const archive = zip('midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: 0 })) }))
-  await page.route('**/*', route => {
-    const url = new URL(route.request().url())
-    if (url.origin === new URL(baseURL!).origin) {
-      if (url.pathname.endsWith('.midst.zip')) return route.fulfill({ body: archive, contentType: 'application/zip' })
-      return route.continue()
-    }
-    if (url.pathname.endsWith('/zip.js')) return route.fulfill({ path: join(__dirname, '../static/static/scripts/zip.js'), contentType: 'application/javascript' })
-    if (url.pathname.includes('/shapes/')) return route.fulfill({ body: '<svg xmlns="http://www.w3.org/2000/svg"/>', contentType: 'image/svg+xml' })
-    return route.fulfill({ body: '', contentType: 'application/javascript' })
-  })
+  await serveArchive(page, baseURL!, archive)
   await page.goto(`/poem/${names.poemUrl(meta.title)}/`)
   const player = page.locator(scope)
   await expect(player.locator('.editable p')).toHaveCount(150)
@@ -170,6 +239,8 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
     await page.waitForTimeout(1700)
   })
   const result = verdict(rec)
+  const intervals = (rec.rafIntervals || []).slice().sort((a, b) => a - b)
+  console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, layout: rec.layout }))
   if (process.env.FOLLOW_DEBUG) console.log(JSON.stringify({ result, jumps: rec.samples.map((s, i) => ({ s, previous: rec.samples[i - 1] })).filter(({ s, previous }) => previous && Math.abs(s[3] - previous[3]) > rec.viewport / 3) }))
   expect(result.settled, 'no settled writing measured').toBeGreaterThan(0)
   expect(result.viewport, 'no scroll container measured').toBeGreaterThan(0)

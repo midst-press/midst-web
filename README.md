@@ -125,3 +125,13 @@ timer lifecycle. Cursor-following and scrollbar metadata overrides remain suppor
 The synthetic follow tests cover end/middle writing jumps at 600px and 720px page
 heights. The recorder also checks quiet final edits and distinguishes a forced browser
 clamp from a voluntary jump. Real poem content is never needed for these CI tests.
+
+Presentation follows midst-format `docs/META.md` at
+`d0ed7fa6e3393836a53dd0d89ae5481a73b27a4e`: C's optional font family, CSS-pixel font
+size and draft markers reach the player. Unknown metadata and out-of-range markers
+remain in the loaded data; only in-range integer marker indices are displayed. The
+synthetic frame used for a static document does not create a source history index.
+Marker names stay in the reader UI, never diagnostics. Missing/unusable rendering
+values fall back to Helvetica/14; other positive finite sizes remain supported.
+Existing vendored font faces are included. A CSS family declaration with a generic
+fallback does not certify availability of Bell/Garamond or grant new font licenses.
