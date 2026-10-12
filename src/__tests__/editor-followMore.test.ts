@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
-// Copied from midst-editor src/__tests__/followMore.test.ts at 463ed6c, with only the import path changed.
-// MidstPlayer/follow.ts and helpers.ts are byte-identical copies of the editor's files (held by the
-// editor-helpers-identical hook), so the editor's tests are the tests for them. Keep in step with it.
+// Copied from midst-editor src/__tests__/followMore.test.ts, with only the import path changed.
+// MidstPlayer/follow.ts and helpers.ts are byte-identical copies of the editor's files, so the editor's
+// tests are the tests for them. The editor-helpers-identical hook holds this copy to its original.
 import {
   ease,
   glideMs,
