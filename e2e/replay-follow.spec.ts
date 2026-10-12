@@ -256,7 +256,7 @@ test('follow verdict rejects quiet offscreen writing, instant jumps and writing 
   expect(verdict(arrivedLate)).toMatchObject({ unfollowed: 0, offscreenEdits: 2 })
 })
 
-test('recorder observes quiet offscreen writing and distinguishes forced clamps from voluntary jumps', async ({ page }) => {
+test('@frame-budget recorder observes quiet offscreen writing and distinguishes forced clamps from voluntary jumps', async ({ page }) => {
   const controlled = async (count: number) => page.setContent(`<div class="${scope.slice(1)}"><div style="height:600px;overflow-y:auto"><div class="editable">${Array.from({ length: count }, (_, i) => `<p style="height:20px;margin:0">line ${i}</p>`).join('')}</div></div></div>`)
   await controlled(150)
   const quiet = await record(page, async () => {
