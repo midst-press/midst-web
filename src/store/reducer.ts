@@ -5,6 +5,7 @@ import produce from 'immer'
 // to satisfy linter grouping
 import {
   LOAD_POEM_DATA,
+  LOAD_POEM_FAILED,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
@@ -82,9 +83,17 @@ const reducer = (
         const poem = draftState.poems.find(poem => poem.poemId === poemId)
         if (poem) {
           poem.loaded = true
+          poem.loadFailure = null
           poem.data = data
           poem.processNote = processNote
         }
+      })
+
+    // `loaded` stays false, so returning to the poem tries again.
+    case LOAD_POEM_FAILED:
+      return produce(state, draftState => {
+        const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
+        if (poem) poem.loadFailure = payload.reason
       })
 
     case REVERSE_SORT_ORDER:

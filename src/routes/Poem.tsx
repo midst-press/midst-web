@@ -4,9 +4,22 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { loadPoemData } from '../store/actions'
-import { IPoem } from '../store/types'
+import { IPoem, PoemLoadFailure } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 import { useParams } from 'react-router'
+
+// What a reader is told when a poem does not load. Only `network` and `server` can pass on their own,
+// so only they suggest trying again. `missing` and `refused` share one sentence: the poems host answers
+// 403 for a file that is not there (see asset-fetch.js), so the browser cannot tell the two apart.
+const NOT_FOUND_OR_REFUSED = 'Unable to find the poem, but it is possible that access was refused.'
+export const LOAD_FAILURE_MESSAGES: { [reason in PoemLoadFailure]: string } = {
+  missing: NOT_FOUND_OR_REFUSED,
+  refused: NOT_FOUND_OR_REFUSED,
+  network: 'Unable to reach the poem. Check your connection and try again.',
+  server: 'The poem could not be fetched. Please try again later.',
+  damaged: 'The poem\'s file is damaged and cannot be played.',
+  unknown: 'This poem could not be loaded.',
+}
 
 function Poem(): ReactElement {
   const { poemUrl } = useParams()
@@ -53,12 +66,18 @@ function Poem(): ReactElement {
                 className={`
                   sliding-poems__poem
                   sliding-poems__poem--${poem.loaded ? 'loaded' : ''}
+                  ${poem.loadFailure && !poem.loaded ? 'sliding-poems__poem--failed' : ''}
                   sliding-poems__poem--${poem.poemId}
                 `}
                 data-trigger={poem.trigger ? 'true' : 'false'}
                 key={poem.poemId}
               >
                 <div className="scrolling-area-border" />
+
+                {poem.loadFailure && !poem.loaded &&
+                  <p className="sliding-poems__failure" role="alert">
+                    {LOAD_FAILURE_MESSAGES[poem.loadFailure] || LOAD_FAILURE_MESSAGES.unknown}
+                  </p>}
 
                  {poem.data && <MidstPlayer
                    activePlayer={i === currentPoemIndex}

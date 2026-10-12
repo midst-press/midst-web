@@ -47,6 +47,14 @@ export interface IMidstFile {
   }
 }
 
+// Why a poem did not load, in terms the page can put to a reader. Never the underlying error text:
+// parser and network diagnostics can quote a poet's work.
+//   missing  the server has no such file (404)        refused  the server refused it (403)
+//   network  the request never got an answer          server   any other failed answer
+//   damaged  the file arrived but is not a playable Midst archive
+//   unknown  anything else
+export type PoemLoadFailure = 'missing' | 'refused' | 'network' | 'server' | 'damaged' | 'unknown'
+
 export interface IPoem {
   author: string
   authorId: string
@@ -60,6 +68,7 @@ export interface IPoem {
   hidden?: boolean
   highlighted: boolean
   loaded: boolean
+  loadFailure?: PoemLoadFailure | null
   poemId: string
   processNote: string
   slug: string
@@ -78,14 +87,20 @@ export interface IState {
 }
 
 export const LOAD_POEM_DATA = 'LOAD_POEM_DATA'
+export const LOAD_POEM_FAILED = 'LOAD_POEM_FAILED'
 export const REVERSE_SORT_ORDER = 'REVERSE_SORT_ORDER'
 export const SET_MOBILE_NAV_OPEN = 'SET_MOBILE_NAV_OPEN'
 export const SET_PROCESS_NOTE_OPEN = 'SET_PROCESS_NOTE_OPEN'
 export const SET_SORT_TERM = 'SET_SORT_TERM'
 
 export interface ILoadPoemData extends AnyAction {
-  payload: { poemId: string, data: IMidstFile}
-  type: typeof SET_MOBILE_NAV_OPEN
+  payload: { poemId: string, data: IMidstFile, processNote: string }
+  type: typeof LOAD_POEM_DATA
+}
+
+export interface ILoadPoemFailed extends AnyAction {
+  payload: { poemId: string, reason: PoemLoadFailure }
+  type: typeof LOAD_POEM_FAILED
 }
 
 export interface ISetMobileNavOpen extends AnyAction {
