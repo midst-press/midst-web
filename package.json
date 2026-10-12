@@ -16,7 +16,10 @@
     "e2e:serve": "npm run e2e:fixtures && npm run e2e:build && node tools/serve-local.mjs --root dist --archive e2e/fixtures/poems --port ${MIDST_E2E_PORT:-8099} --host 127.0.0.1",
     "start": "parcel src/index.html --no-autoinstall",
     "test:e2e": "playwright test",
-    "e2e:frame-budget": "playwright test --grep \"@frame-budget\""
+    "e2e:frame-budget": "playwright test --grep \"@frame-budget\"",
+    "e2e:frame-budget:attest": "node tools/frame-budget-attest.mjs",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "license": "all rights reserved",
   "dependencies": {
@@ -108,16 +111,17 @@
   "devDependencies": {
     "@babel/core": "7.10.0",
     "@playwright/test": "^1.64.0",
-    "@types/mocha": "5.2.7",
     "assert": "2.1.0",
     "depcheck": "1.4.7",
     "istanbul-lib-coverage": "3.2.2",
-    "mocha": "6.2.3",
+    "jest": "^30.5.2",
+    "jest-environment-jsdom": "^30.5.2",
     "monocart-coverage-reports": "2.13.2",
     "parcel": "2.16.4",
     "parcel-reporter-static-files-copy": "1.5.3",
     "prettier": "1.18.2",
     "process": "^0.11.10",
+    "ts-jest": "^29.4.14",
     "typescript": "4.6.3"
   },
   "overrides": {
@@ -151,5 +155,101 @@
     ">0.3%",
     "last 2 versions",
     "not dead"
-  ]
+  ],
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/src/**/__tests__/**/*.test.ts"
+    ],
+    "transform": {
+      "^.+\\.[tj]sx?$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "module": "commonjs",
+            "target": "es2019",
+            "jsx": "react",
+            "allowJs": true,
+            "esModuleInterop": true,
+            "resolveJsonModule": true,
+            "isolatedModules": true
+          }
+        }
+      ]
+    },
+    "coverageProvider": "v8",
+    "coverageReporters": [
+      "text",
+      "json-summary",
+      "json"
+    ],
+    "collectCoverageFrom": [
+      "src/poems/poem-names.js",
+      "src/poems/asset-fetch.js",
+      "src/poems/index.ts",
+      "src/config.ts",
+      "src/store/reducer.ts",
+      "src/store/actions.ts",
+      "src/components/midst-player-hack/midst-file.ts",
+      "src/components/MidstPlayer/follow.ts",
+      "src/components/MidstPlayer/helpers.ts"
+    ],
+    "coverageThreshold": {
+      "./src/poems/poem-names.js": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/poems/asset-fetch.js": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/poems/index.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/config.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/store/reducer.ts": {
+        "branches": 94,
+        "functions": 100,
+        "lines": 99,
+        "statements": 99
+      },
+      "./src/store/actions.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/components/midst-player-hack/midst-file.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/components/MidstPlayer/follow.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/components/MidstPlayer/helpers.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      }
+    },
+    "coverageDirectory": "coverage/unit"
+  }
 }

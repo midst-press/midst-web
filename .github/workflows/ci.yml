@@ -52,6 +52,10 @@ jobs:
       # --legacy-peer-deps: React 18 against @types/react 16.9. A real mismatch, not a flag to
       # paper over it -- see #11.
       - run: npm ci --legacy-peer-deps
+      # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
+      # threshold, so an untested file counts as 0% and any drop fails this step.
+      - name: unit tests with coverage thresholds
+        run: npm test -- --coverage
       - run: pip install 'pre-commit==4.6.2'
       - run: pre-commit run --all-files --show-diff-on-failure
 
