@@ -18,6 +18,7 @@ import {
   SET_SORT_TERM,
 
   IPoem,
+  PoemLoadFailure,
 } from './types'
 
 
@@ -29,26 +30,36 @@ const loadPoemData = (poemIndex: number): any =>
 
     // Every failure ends here: a fixed console message (parser and network diagnostics can quote a
     // poet's work) and an action, so the page can say the poem did not load.
-    const fail = (message: string) => {
+    const fail = (message: string, reason: PoemLoadFailure) => {
       console.error(message)
-      if (poem) dispatch({ type: LOAD_POEM_FAILED, payload: { poemId: poem.poemId }})
+      if (poem) dispatch({ type: LOAD_POEM_FAILED, payload: { poemId: poem.poemId, reason }})
+    }
+
+    // One of the poem's two files, or a thrown `{ reason }` saying why not.
+    const get = async (name: string) => {
+      let response
+      try {
+        response = await fetchAsset(POEMS_URL, name)
+      } catch {
+        throw { reason: 'network' }
+      }
+      if (!response.ok) throw { reason: response.status === 404 ? 'missing' : response.status === 403 ? 'refused' : 'server' }
+      return response
     }
 
     try {
       const zip = (window as any).zip
       zip.workerScriptsPath = '/static/workers/'
 
-      const noteResponse = await fetchAsset(POEMS_URL, processNoteObjectName(poem))
-      if (!noteResponse.ok) throw new Error('Unable to load Midst process note')
+      const noteResponse = await get(processNoteObjectName(poem))
       const processNoteRaw = await noteResponse.text()
       const processNote = insane(marked(processNoteRaw), { allowedTags: ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']})
-      const zipTest = await fetchAsset(POEMS_URL, timelapseObjectName(poem))
-      if (!zipTest.ok) throw new Error('Unable to load Midst timelapse')
+      const zipTest = await get(timelapseObjectName(poem))
       const reader = new zip.BlobReader(await zipTest.blob())
 
       zip.createReader(reader, (zipReader: any) => {
         zipReader.getEntries((entries: any) => {
-          if (!entries.length) return fail('Unable to read Midst archive')
+          if (!entries.length) return fail('Unable to read Midst archive', 'damaged')
           const writer = new zip.BlobWriter()
           entries[0].getData(writer, (blob: Blob) => {
             const reader = new FileReader()
@@ -57,7 +68,7 @@ const loadPoemData = (poemIndex: number): any =>
               try {
                 data = parseMidstFile(e.srcElement.result)
               } catch {
-                return fail('Unable to load Midst file')
+                return fail('Unable to load Midst file', 'damaged')
               }
               dispatch({ type: LOAD_POEM_DATA, payload: { poemId: poem.poemId, data, processNote }})
             })
@@ -65,12 +76,12 @@ const loadPoemData = (poemIndex: number): any =>
           })
         })
       }, () => {
-        fail('Unable to read Midst archive')
+        fail('Unable to read Midst archive', 'damaged')
       })
     }
 
-    catch {
-      fail('Unable to load Midst data')
+    catch (e: any) {
+      fail('Unable to load Midst data', (e && e.reason) || 'unknown')
     }
   }
 

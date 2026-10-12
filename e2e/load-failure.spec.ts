@@ -27,32 +27,40 @@ async function serve(page: Page, baseURL: string, broken: (path: string) => { st
   })
 }
 
-async function expectFailureShown(page: Page) {
+async function expectFailureShown(page: Page, message: string) {
   const slot = page.locator(scope)
-  await expect(slot.getByRole('alert'), 'the page must say the poem did not load').toHaveText(/could not be loaded/)
+  await expect(slot.getByRole('alert'), 'the page must say why the poem did not load').toHaveText(message)
   await expect(slot.locator('.editor')).toHaveCount(0)
   await expect(slot, 'the loading mark must stop').toHaveClass(/sliding-poems__poem--failed/)
 }
 
-const cases: Array<[string, (path: string) => { status: number, body: string } | 'abort' | null]> = [
-  ['the timelapse is refused (403)', path => path.endsWith('.midst.zip') ? { status: 403, body: '' } : null],
-  ['the process note is refused (403)', path => path.startsWith('/archive/') && path.endsWith('.md') ? { status: 403, body: '' } : null],
-  ['the timelapse request fails in transport', path => path.endsWith('.midst.zip') ? 'abort' : null],
-  ['the timelapse is not a zip archive', path => path.endsWith('.midst.zip') ? { status: 200, body: 'not an archive' } : null],
+const archive = (path: string, suffix: string) => path.startsWith('/archive/') && path.endsWith(suffix)
+const answer = (suffix: string, status: number, body = '') => (path: string) => archive(path, suffix) ? { status, body } : null
+
+// Each failure and the sentence the reader gets for it (src/routes/Poem.tsx LOAD_FAILURE_MESSAGES).
+const cases: Array<[string, (path: string) => { status: number, body: string } | 'abort' | null, string]> = [
+  ['the timelapse is missing (404)', answer('.midst.zip', 404), 'Unable to find the poem.'],
+  ['the process note is missing (404)', answer('.md', 404), 'Unable to find the poem.'],
+  ['the timelapse is refused (403)', answer('.midst.zip', 403), 'Access to the poem was refused.'],
+  ['the process note is refused (403)', answer('.md', 403), 'Access to the poem was refused.'],
+  ['the server fails (500)', answer('.midst.zip', 500), 'The poem could not be fetched. Please try again later.'],
+  ['the timelapse request fails in transport', path => archive(path, '.midst.zip') ? 'abort' : null,
+    'Unable to reach the poem. Check your connection and try again.'],
+  ['the timelapse is not a zip archive', answer('.midst.zip', 200, 'not an archive'), 'The poem\'s file is damaged and cannot be played.'],
 ]
 
-for (const [name, broken] of cases) {
+for (const [name, broken, message] of cases) {
   test(`a load failure is shown: ${name}`, async ({ page, baseURL }) => {
     await serve(page, baseURL!, broken)
     await page.goto(route)
-    await expectFailureShown(page)
+    await expectFailureShown(page, message)
   })
 }
 
 test('a load failure is shown: the zip reader script did not load', async ({ page, baseURL }) => {
   await serve(page, baseURL!, () => null, false)
   await page.goto(route)
-  await expectFailureShown(page)
+  await expectFailureShown(page, 'This poem could not be loaded.')
 })
 
 test('control: with nothing broken the same page shows the player and no failure', async ({ page, baseURL }) => {

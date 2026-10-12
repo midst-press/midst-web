@@ -198,28 +198,28 @@ describe('LOAD_POEM_DATA', () => {
 
 describe('LOAD_POEM_FAILED', () => {
   const poemId = 'kj,-wm--cc-title'
-  const failed = { type: LOAD_POEM_FAILED, payload: { poemId } }
+  const failed = { type: LOAD_POEM_FAILED, payload: { poemId, reason: 'missing' } }
 
   it('marks the matching poem only, and leaves it unloaded so it can be tried again', () => {
     const next = reducer(initialState, failed)
     const target = next.poems.find(poem => poem.poemId === poemId)
-    expect(target?.loadFailed).toBe(true)
+    expect(target?.loadFailure).toBe('missing')
     expect(target?.loaded).toBe(false)
     expect(target?.data).toBeNull()
     next.poems.filter(poem => poem.poemId !== poemId).forEach(poem => {
       expect(poem).toBe(initialState.poems.find(p => p.poemId === poem.poemId))
-      expect(poem.loadFailed).toBeUndefined()
+      expect(poem.loadFailure).toBeUndefined()
     })
   })
 
   it('does not mutate the input state', () => {
     reducer(initialState, failed)
-    expect(initialState.poems.find(poem => poem.poemId === poemId)?.loadFailed).toBeUndefined()
+    expect(initialState.poems.find(poem => poem.poemId === poemId)?.loadFailure).toBeUndefined()
   })
 
   it('changes nothing for an unknown poemId', () => {
-    const next = reducer(initialState, { type: LOAD_POEM_FAILED, payload: { poemId: 'no-one--nothing' } })
-    expect(next.poems.every(poem => poem.loadFailed === undefined)).toBe(true)
+    const next = reducer(initialState, { type: LOAD_POEM_FAILED, payload: { poemId: 'no-one--nothing', reason: 'missing' } })
+    expect(next.poems.every(poem => poem.loadFailure === undefined)).toBe(true)
   })
 
   it('a later successful load clears the failure', () => {
@@ -228,7 +228,7 @@ describe('LOAD_POEM_FAILED', () => {
       payload: { poemId, data: { text: 'invented' }, processNote: '' },
     })
     const target = loaded.poems.find(poem => poem.poemId === poemId)
-    expect(target?.loadFailed).toBe(false)
+    expect(target?.loadFailure).toBeNull()
     expect(target?.loaded).toBe(true)
   })
 })

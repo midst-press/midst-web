@@ -47,6 +47,14 @@ export interface IMidstFile {
   }
 }
 
+// Why a poem did not load, in terms the page can put to a reader. Never the underlying error text:
+// parser and network diagnostics can quote a poet's work.
+//   missing  the server has no such file (404)        refused  the server refused it (403)
+//   network  the request never got an answer          server   any other failed answer
+//   damaged  the file arrived but is not a playable Midst archive
+//   unknown  anything else
+export type PoemLoadFailure = 'missing' | 'refused' | 'network' | 'server' | 'damaged' | 'unknown'
+
 export interface IPoem {
   author: string
   authorId: string
@@ -60,7 +68,7 @@ export interface IPoem {
   hidden?: boolean
   highlighted: boolean
   loaded: boolean
-  loadFailed?: boolean
+  loadFailure?: PoemLoadFailure | null
   poemId: string
   processNote: string
   slug: string
@@ -91,7 +99,7 @@ export interface ILoadPoemData extends AnyAction {
 }
 
 export interface ILoadPoemFailed extends AnyAction {
-  payload: { poemId: string }
+  payload: { poemId: string, reason: PoemLoadFailure }
   type: typeof LOAD_POEM_FAILED
 }
 

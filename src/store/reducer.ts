@@ -83,7 +83,7 @@ const reducer = (
         const poem = draftState.poems.find(poem => poem.poemId === poemId)
         if (poem) {
           poem.loaded = true
-          poem.loadFailed = false
+          poem.loadFailure = null
           poem.data = data
           poem.processNote = processNote
         }
@@ -93,7 +93,7 @@ const reducer = (
     case LOAD_POEM_FAILED:
       return produce(state, draftState => {
         const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
-        if (poem) poem.loadFailed = true
+        if (poem) poem.loadFailure = payload.reason
       })
 
     case REVERSE_SORT_ORDER:

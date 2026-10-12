@@ -48,8 +48,9 @@ const okResponse = (note = 'zq note') => ({
 // A failed request still has a readable body (S3 answers 403 with an error document). Only the
 // check of `ok` keeps that body from being used as a process note or opened as an archive, so these
 // fakes must NOT throw when read: a fake that threw would pass the tests with the check removed.
-const badResponse = () => ({
+const badResponse = (status = 403) => ({
   ok: false,
+  status,
   text: async () => '<Error><Code>AccessDenied</Code></Error>',
   blob: async () => fakeBlob,
 })
@@ -57,7 +58,7 @@ const badResponse = () => ({
 const stateWith = (poems: any[]) => () => ({ app: { poems } })
 
 // What every failed load of poemB must dispatch, and nothing else: the page shows it (#34).
-const failedB = [[{ type: LOAD_POEM_FAILED, payload: { poemId: 'zq-xv--kj-wm' } }]]
+const failedB = (reason: string) => [[{ type: LOAD_POEM_FAILED, payload: { poemId: 'zq-xv--kj-wm', reason } }]]
 
 beforeEach(() => {
   fileText = validText
@@ -203,7 +204,7 @@ describe('loadPoemData failures before unzip', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(1)
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('refused'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
   })
 
@@ -215,7 +216,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(2)
     expect(zip.createReader).not.toHaveBeenCalled()
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('refused'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
   })
 
@@ -226,8 +227,44 @@ describe('loadPoemData failures before unzip', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(1)
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('network'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+  })
+
+  it.each([
+    [404, 'missing'],
+    [403, 'refused'],
+    [500, 'server'],
+    [429, 'server'],
+  ])('status %i on the note is reported as %s', async (status, reason) => {
+    mockFetchAsset.mockResolvedValueOnce(badResponse(status))
+    const dispatch = jest.fn()
+
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+
+    expect(dispatch.mock.calls).toEqual(failedB(reason))
+  })
+
+  it.each([
+    [404, 'missing'],
+    [403, 'refused'],
+    [503, 'server'],
+  ])('status %i on the timelapse is reported as %s', async (status, reason) => {
+    mockFetchAsset.mockResolvedValueOnce(okResponse()).mockResolvedValueOnce(badResponse(status))
+    const dispatch = jest.fn()
+
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+
+    expect(dispatch.mock.calls).toEqual(failedB(reason))
+  })
+
+  it('network error on the timelapse is reported as network', async () => {
+    mockFetchAsset.mockResolvedValueOnce(okResponse()).mockRejectedValueOnce(new Error('network down'))
+    const dispatch = jest.fn()
+
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+
+    expect(dispatch.mock.calls).toEqual(failedB('network'))
   })
 
   it('out-of-range index: no fetch, no dispatch', async () => {
@@ -250,7 +287,7 @@ describe('loadPoemData failures during unzip and parse', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(zip.createReader).toHaveBeenCalledTimes(1)
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
     expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive']])
   })
 
@@ -264,7 +301,7 @@ describe('loadPoemData failures during unzip and parse', () => {
 
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst file']])
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain('QZXSENTINEL')
     expect(JSON.stringify(dispatch.mock.calls)).not.toContain('QZXSENTINEL')
@@ -278,7 +315,7 @@ describe('loadPoemData failures during unzip and parse', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(zip.BlobWriter).not.toHaveBeenCalled()
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
     expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive']])
   })
 
@@ -288,7 +325,7 @@ describe('loadPoemData failures during unzip and parse', () => {
 
     await loadPoemData(1)(dispatch, stateWith([poemA, poemB]))
 
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('refused'))
   })
 })
 
@@ -300,7 +337,7 @@ describe('window.zip missing', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(mockFetchAsset).not.toHaveBeenCalled()
-    expect(dispatch.mock.calls).toEqual(failedB)
+    expect(dispatch.mock.calls).toEqual(failedB('unknown'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
   })
 })
