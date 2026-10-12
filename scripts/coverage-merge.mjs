@@ -113,8 +113,19 @@ const e2eAll = await convert('e2e', {
 
 // The unit layer: what Jest's transform ran, per test file, with the transform's own source map.
 const unitFiles = existsSync(UNIT_RAW) ? readdirSync(UNIT_RAW).filter(name => name.endsWith('.json')) : []
-const unitLists = unitFiles
-  .map(name => JSON.parse(readFileSync(join(UNIT_RAW, name), 'utf8')).filter(entry => counted(entry.path) || entry.path === CONTROL).map(entry => ({
+// V8 gives positions in the text that ran. If a test runner ever puts a wrapper in front of that text,
+// every range lands late and is credited to the wrong code, with no error. The control's two functions
+// are where we know exactly what a range must start with.
+function rangesStartOnTheirFunctions(entry) {
+  const named = entry.functions.filter(fn => fn.functionName.startsWith('coverageControl'))
+  return named.length === 2 && named.every(fn => entry.source.startsWith(`function ${fn.functionName}(`, fn.ranges[0].startOffset))
+}
+const unitRaw = unitFiles.map(name => JSON.parse(readFileSync(join(UNIT_RAW, name), 'utf8')))
+for (const entry of unitRaw.flat()) {
+  if (entry.path === CONTROL && !rangesStartOnTheirFunctions(entry)) fail('unit positive control failed: the recorded ranges do not start where the control\'s functions start. Figures withheld.')
+}
+const unitLists = unitRaw
+  .map(list => list.filter(entry => counted(entry.path) || entry.path === CONTROL).map(entry => ({
     url: `${pathToFileURL(join(REPO, entry.path)).href}.unit.js`,
     source: entry.source.replace(/\n\/\/# sourceMappingURL=.*$/, ''),
     sourceMap: { ...entry.sourceMap, sources: [entry.path] },
@@ -135,14 +146,30 @@ function functionHits(map, file, name) {
   const ids = Object.keys(data.fnMap).filter(key => data.fnMap[key].line === line)
   return line === 0 || ids.length !== 1 ? undefined : data.f[ids[0]]
 }
+// The statement inside each function is checked as well as the function. Ranges that are all shifted
+// by the same amount (an offset the conversion did not account for) can leave a function's own count
+// right while crediting the statements inside it to the wrong place.
+function statementHits(map, file, text) {
+  if (!map.files().includes(file)) return undefined
+  const lines = readFileSync(join(REPO, file), 'utf8').split('\n')
+  if (lines.filter(line => line.includes(text)).length !== 1) return undefined
+  const line = lines.findIndex(found => found.includes(text)) + 1
+  const data = map.fileCoverageFor(file).toJSON()
+  const ids = Object.keys(data.statementMap).filter(key => data.statementMap[key].start.line === line)
+  return ids.length !== 1 ? undefined : data.s[ids[0]]
+}
 function control(layer, map, loadedBy) {
   const called = functionHits(map, CONTROL, 'coverageControlCalled')
   const never = functionHits(map, CONTROL, 'coverageControlNeverCalled')
-  if (called === undefined || never === undefined) {
+  const calledBody = statementHits(map, CONTROL, 'return 1')
+  const neverBody = statementHits(map, CONTROL, 'return 2')
+  if ([called, never, calledBody, neverBody].includes(undefined)) {
     fail(`${layer} positive control missing: ${CONTROL} was not measured. ${loadedBy}`)
   }
   if (!(called > 0)) fail(`${layer} positive control failed: the function the module calls reads as never run. Figures withheld.`)
   if (never !== 0) fail(`${layer} positive control failed: the function nothing calls reads as run. Figures withheld.`)
+  if (!(calledBody > 0)) fail(`${layer} positive control failed: the statement inside the called function reads as never run. Figures withheld.`)
+  if (neverBody !== 0) fail(`${layer} positive control failed: the statement inside the uncalled function reads as run. Figures withheld.`)
   return called
 }
 const called = control('e2e', e2eAll, 'The harness page must be loaded by at least one test.')

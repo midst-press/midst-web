@@ -22,9 +22,9 @@ class RawV8Reporter {
       entries.push({
         path,
         functions: result.functions,
+        // V8's offsets are positions in this text: Jest 30 compiles the transformed code as it is,
+        // with no wrapper in front. The merge's statement-level control fails if that ever changes.
         source: codeTransformResult.code,
-        // Jest runs each module inside a function wrapper; V8's offsets include it.
-        wrapperLength: codeTransformResult.wrapperLength || 0,
         sourceMap: codeTransformResult.sourceMapPath ? JSON.parse(readFileSync(codeTransformResult.sourceMapPath, 'utf8')) : null,
       })
     }
