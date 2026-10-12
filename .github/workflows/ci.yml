@@ -35,13 +35,24 @@ jobs:
       MIDST_EDITOR_ROOT: ${{ github.workspace }}/.editor-provenance
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # A short-lived token from the midst-press-ci-read GitHub App (Contents: read), scoped to the one repo
+      # read here. The app belongs to the organisation, not to a person, and its key does not expire.
+      - name: token to read midst-editor
+        id: editor-read
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.MIDST_READ_APP_ID }}
+          private-key: ${{ secrets.MIDST_READ_APP_KEY }}
+          owner: midst-press
+          repositories: midst-editor
+          permission-contents: read
       - name: read-only checkout of editor main for helper provenance
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: midst-press/midst-editor
           ref: main
           path: .editor-provenance
-          token: ${{ secrets.MIDST_REPO_READ_TOKEN }}
+          token: ${{ steps.editor-read.outputs.token }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
