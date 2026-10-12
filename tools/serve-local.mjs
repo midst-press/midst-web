@@ -7,13 +7,19 @@
 // README's .htaccess was meant to serve -- which is also why that instruction is stale now the
 // site is on S3 behind CloudFront.
 //
-//   node serve-midst.mjs [--root DIR] [--port N] [--host 0.0.0.0]
+//   node serve-midst.mjs [--root DIR] [--port N] [--host 0.0.0.0] [--prepare COMMAND]
+//
+// --prepare is for the end-to-end suite. The port is taken FIRST and held while COMMAND (the
+// fixtures and the build) runs; until it finishes every request gets 503. Binding only after the
+// build left minutes in which another job on the same host could take the port (issue #35). If the
+// port is already taken, this exits 3 before anything is built.
 //
 // Binding to 0.0.0.0 exposes this to everything that can reach the machine, which here means the
 // LAN and the Tailscale network. That is deliberate and was asked for. It serves static files from
 // one directory: no upload, no directory listing, no execution.
 
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { join, resolve, extname, normalize, sep } from 'node:path';
 import { argv, exit } from 'node:process';
@@ -29,11 +35,15 @@ const HOST = arg('host', '0.0.0.0');
 // Serve the poem archive under /archive/ so a locally-built bundle can read poems from disk.
 // Same origin as the page, so no CORS and no second server.
 const ARCHIVE = arg('archive', '');
+const PREPARE = arg('prepare', '');
 
-if (!existsSync(join(ROOT, 'index.html'))) {
+const requireIndex = () => {
+  if (existsSync(join(ROOT, 'index.html'))) return;
   console.error(`No index.html under ${ROOT}. Build first:  npm run build`);
   exit(2);
-}
+};
+if (!PREPARE) requireIndex();
+let ready = !PREPARE;
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -86,6 +96,11 @@ const server = createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { allow: 'GET, HEAD' }).end('method not allowed\n');
     return log(405);
+  }
+
+  if (!ready) {
+    res.writeHead(503, { 'retry-after': '1', 'cache-control': 'no-store' }).end('preparing\n');
+    return log(503, 'preparing');
   }
 
   // /archive/<folder>/<file> -> the poem archive on disk, with NFC/NFD tolerance.
@@ -149,9 +164,41 @@ const server = createServer((req, res) => {
   log(200, fellBack ? 'index.html (SPA route)' : '');
 });
 
+server.on('error', (err) => {
+  if (err.code !== 'EADDRINUSE') throw err;
+  console.error(`port ${PORT} on ${HOST} is already in use; nothing was prepared or served`);
+  exit(3);
+});
+
 server.listen(PORT, HOST, () => {
   console.log(`serving ${ROOT}`);
-  console.log(`  bound to ${HOST}:${PORT} — reachable from the LAN and over Tailscale`);
+  console.log(`  bound to ${HOST}:${server.address().port} — reachable from the LAN and over Tailscale`);
   console.log(`  single-page-app fallback ON: unknown paths return index.html`);
   console.log(`  poems are still fetched from CloudFront, so the four known-broken ones stay broken`);
+  if (!PREPARE) return;
+
+  console.log(`  preparing (503 until done): ${PREPARE}`);
+  // Its own process group, signalled as a group: the command is a shell line (`a && b`), so the
+  // shell is the parent and the build is its child. Signalling the shell alone leaves the build
+  // running, and still writing dist/, after this server has gone.
+  const prepare = spawn(PREPARE, { shell: true, stdio: 'inherit', detached: true });
+  const stopWith = (signal) => () => {
+    try {
+      process.kill(-prepare.pid, signal);
+    } catch {
+      // the group has already gone
+    }
+    exit(1);
+  };
+  process.on('SIGTERM', stopWith('SIGTERM'));
+  process.on('SIGINT', stopWith('SIGINT'));
+  prepare.on('exit', (code, signal) => {
+    if (code !== 0) {
+      console.error(`prepare failed (${signal ?? 'exit ' + code}); stopping`);
+      exit(4);
+    }
+    requireIndex();
+    ready = true;
+    console.log('  prepared; serving');
+  });
 });
