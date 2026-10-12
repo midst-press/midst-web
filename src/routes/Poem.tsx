@@ -63,7 +63,7 @@ function Poem(): ReactElement {
 
                 {poem.loadFailed && !poem.loaded &&
                   <p className="sliding-poems__failure" role="alert">
-                    This poem could not be loaded. Please try again later.
+                    This poem could not be loaded.
                   </p>}
 
                  {poem.data && <MidstPlayer
