@@ -6,19 +6,29 @@ import names from '../src/poems/poem-names.js'
 // Website adaptation of midst-editor #21's recorder and verdict. Quiet ticks retain the last target;
 // only a shrink that forces the old scroll position out of range is exempted as a browser clamp.
 type Sample = [number, number, boolean, number, number, boolean, boolean]
-type Rec = { samples: Sample[], viewport: number, rafIntervals?: number[], layout?: { paragraphFloat: string, documentHeight: number, scrollHeight: number, overflowAnchor: string } }
+type Rec = { samples: Sample[], viewport: number, rafIntervals?: number[], framePositions?: Array<[number, number, boolean]>, layout?: { paragraphFloat: string, documentHeight: number, scrollHeight: number, overflowAnchor: string } }
 const meta = JSON.parse(readFileSync(join(__dirname, '../src/poems/Madeleine_Mori.json'), 'utf8'))
 const scope = `.sliding-poems__poem--${names.poemId(meta.author, meta.title)}`
 
-async function record(page: Page, done: () => Promise<void>): Promise<Rec> {
+async function record(page: Page, done: () => Promise<void>, selector = scope): Promise<Rec> {
   await page.evaluate(selector => {
     const g = window as any
     g.followSamples = []
     g.followRafIntervals = []
+    g.followFramePositions = []
+    g.followScroller = null
+    let frameHeight = 0, frameTop = 0
     let previousFrame: number | undefined
     const frame = (now: number) => {
       if (previousFrame !== undefined) g.followRafIntervals.push(now - previousFrame)
       previousFrame = now
+      const scroller = g.followScroller as HTMLElement | null
+      if (scroller) {
+        const maximum = scroller.scrollHeight - scroller.clientHeight
+        const clamped = scroller.scrollHeight < frameHeight && frameTop > maximum + 0.5 && Math.abs(scroller.scrollTop - maximum) < 1
+        g.followFramePositions.push([scroller.scrollTop, now, clamped])
+        frameHeight = scroller.scrollHeight; frameTop = scroller.scrollTop
+      }
       g.followRaf = requestAnimationFrame(frame)
     }
     g.followRaf = requestAnimationFrame(frame)
@@ -30,6 +40,7 @@ async function record(page: Page, done: () => Promise<void>): Promise<Rec> {
       let s = pm
       while (s && !(s.scrollHeight > s.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(s).overflowY))) s = s.parentElement
       if (!pm || !s) return
+      g.followScroller = s
       g.followViewport = s.clientHeight
       g.followLayout = { paragraphFloat: pm.firstElementChild ? getComputedStyle(pm.firstElementChild).cssFloat : '', documentHeight: pm.getBoundingClientRect().height, scrollHeight: s.scrollHeight, overflowAnchor: getComputedStyle(s).getPropertyValue('overflow-anchor') }
       const maximum = s.scrollHeight - s.clientHeight
@@ -63,17 +74,17 @@ async function record(page: Page, done: () => Promise<void>): Promise<Rec> {
       }
       g.followSamples.push([target[0], target[1], rect.top >= box.top && rect.bottom <= box.bottom, s.scrollTop, performance.now() - start, changed, clamped])
     }, 20)
-  }, scope)
+  }, selector)
   await done()
   return page.evaluate(() => {
     const g = window as any
     clearInterval(g.followTimer)
     cancelAnimationFrame(g.followRaf)
-    return { samples: g.followSamples, viewport: g.followViewport || 0, rafIntervals: g.followRafIntervals, layout: g.followLayout }
+    return { samples: g.followSamples, viewport: g.followViewport || 0, rafIntervals: g.followRafIntervals, framePositions: g.followFramePositions, layout: g.followLayout }
   })
 }
 
-function verdict({ samples, viewport }: Rec) {
+function verdict({ samples, viewport, framePositions = [] }: Rec) {
   const stretches: Sample[][] = []
   for (const sample of samples) {
     const current = stretches[stretches.length - 1], previous = current && current[current.length - 1]
@@ -83,17 +94,28 @@ function verdict({ samples, viewport }: Rec) {
   const settled = stretches.filter(s => s[s.length - 1][4] - s[0][4] > 500)
   const moving = samples.map((s, i) => i > 0 && !s[6] && Math.abs(s[3] - samples[i - 1][3]) > 0.5)
   let abrupt = 0, instant = 0, wroteWhileGliding = 0
-  for (let i = 1; i < samples.length; i++) if (moving[i] && Math.abs(samples[i][3] - samples[i - 1][3]) > viewport / 3) abrupt++
+  // The original limit is a third of the view per 20ms, not per arbitrarily delayed sample.
+  for (let i = 1; i < samples.length; i++) {
+    const elapsed = samples[i][4] - samples[i - 1][4]
+    if (moving[i] && (elapsed <= 0 || Math.abs(samples[i][3] - samples[i - 1][3]) * 20 / elapsed > viewport / 3)) abrupt++
+  }
+  // Separately catch real display steps: a slow renderer must not be cleared by time averaging.
+  const frameAbrupt = framePositions.filter((f, i) => i > 0 && !f[2] && Math.abs(f[0] - framePositions[i - 1][0]) > viewport / 3).length
   let i = 1
   while (i < samples.length) {
     if (!moving[i]) { i++; continue }
     let j = i
     while (j + 1 < samples.length && moving[j + 1]) j++
-    if (Math.abs(samples[j][3] - samples[i - 1][3]) > 50 && j - i + 1 < 3) instant++
+    if (Math.abs(samples[j][3] - samples[i - 1][3]) > 50 && samples[j][4] - samples[i - 1][4] < 60) instant++
     for (let m = i + 1; m < j; m++) if (samples[m][5]) wroteWhileGliding++
     i = j + 1
   }
-  return { settled: settled.length, viewport, unfollowed: settled.filter(s => !s[s.length - 1][2]).length, abrupt, instant, wroteWhileGliding }
+  const offscreenEdits = stretches.reduce((total, stretch) => {
+    let first = true
+    for (const sample of stretch) if (sample[5]) { if (!first && !sample[2]) total++; first = false }
+    return total
+  }, 0)
+  return { settled: settled.length, settledTargets: Array.from(new Set(settled.map(s => s[0][0]))), viewport, unfollowed: settled.filter(s => !s[s.length - 1][2]).length, offscreenEdits, abrupt, frameAbrupt, instant, wroteWhileGliding }
 }
 
 function zip(body: string) {
@@ -186,6 +208,13 @@ test('follow verdict rejects quiet offscreen writing, instant jumps and writing 
   expect(verdict(run(true, glide)).wroteWhileGliding).toBe(0)
   expect(verdict(run(true, glide, [0, 5])).wroteWhileGliding).toBe(1)
   expect(verdict(run(true, [...Array(30).fill(0), ...Array(30).fill(400)])).abrupt).toBe(1)
+  // Late sampling of a genuinely smooth glide is not an instant move. Independent rendered-frame
+  // data still rejects a real 400px display step, even though its average sampled speed is small.
+  const late = run(true, Array.from({ length: 30 }, (_, i) => Math.min(400, i * 100)))
+  late.samples.forEach((sample, i) => { sample[4] = i * 100 })
+  expect(verdict(late)).toMatchObject({ abrupt: 0, instant: 0 })
+  expect(verdict({ ...late, framePositions: [[0, 0, false], [400, 100, false]] }).frameAbrupt).toBe(1)
+  expect(verdict(run(false, Array(60).fill(0), [0, 5, 10])).offscreenEdits).toBe(2)
 })
 
 test('recorder observes quiet offscreen writing and distinguishes forced clamps from voluntary jumps', async ({ page }) => {
@@ -216,8 +245,7 @@ test('recorder observes quiet offscreen writing and distinguishes forced clamps 
   expect(verdict(await scenario(1200, null))).toMatchObject({ instant: 0, abrupt: 0 })
 })
 
-for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }) => {
-  await page.setViewportSize({ width: 1280, height })
+function jumpingFile(position: string) {
   const lines = Array.from({ length: 150 }, (_, i) => `synthetic line ${i}`)
   const html = () => lines.map(line => `<p>${line}</p>`).join('')
   const snapshots = [html()]
@@ -227,7 +255,31 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
     lines[target] = line.slice(0, at) + 'z' + line.slice(at)
     snapshots.push(html())
   }
-  const archive = zip('midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: 0 })) }))
+  return 'midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: 0 })) })
+}
+
+for (const position of ['end', 'middle']) test(`actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
+  const raw = jumpingFile(position)
+  await serveArchive(page, baseURL!, zip(raw))
+  await page.goto('/legacy-harness.html')
+  await page.waitForFunction(() => typeof (window as any).mountLegacyReplay === 'function')
+  await page.evaluate(file => (window as any).mountLegacyReplay(file), raw)
+  const control = page.locator('#legacy-control')
+  await expect(control.locator('.editable p')).toHaveCount(150)
+  const rec = await record(page, async () => {
+    await control.locator('.play-pause-button').click()
+    await expect(control.locator('.play-pause-button')).toHaveClass(/playing/)
+    await expect(control.locator('.play-pause-button')).not.toHaveClass(/playing/, { timeout: 60000 })
+    await page.waitForTimeout(1700)
+  }, '#legacy-control')
+  const result = verdict(rec)
+  expect(result.settledTargets).toEqual(expect.arrayContaining([140, 4, 110, 20]))
+  expect(result.unfollowed, 'the actual legacy player must discriminate the follow guard').toBeGreaterThan(0)
+})
+
+for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 1280, height })
+  const archive = zip(jumpingFile(position))
   await serveArchive(page, baseURL!, archive)
   await page.goto(`/poem/${names.poemUrl(meta.title)}/`)
   const player = page.locator(scope)
@@ -240,9 +292,11 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
   })
   const result = verdict(rec)
   const intervals = (rec.rafIntervals || []).slice().sort((a, b) => a - b)
-  console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, layout: rec.layout }))
+  const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
+  console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, sampler: { medianMs: sampler.length ? sampler[Math.floor(sampler.length / 2)] : null, maxMs: sampler.length ? sampler[sampler.length - 1] : null }, layout: rec.layout }))
   if (process.env.FOLLOW_DEBUG) console.log(JSON.stringify({ result, jumps: rec.samples.map((s, i) => ({ s, previous: rec.samples[i - 1] })).filter(({ s, previous }) => previous && Math.abs(s[3] - previous[3]) > rec.viewport / 3) }))
-  expect(result.settled, 'no settled writing measured').toBeGreaterThan(0)
+  expect(result.settledTargets, 'every writing target must have been judged').toEqual(expect.arrayContaining([140, 4, 110, 20]))
   expect(result.viewport, 'no scroll container measured').toBeGreaterThan(0)
-  expect(result).toMatchObject({ unfollowed: 0, abrupt: 0, instant: 0, wroteWhileGliding: 0 })
+  expect(rec.framePositions!.length, 'rendered-frame measurement must run').toBeGreaterThan(0)
+  expect(result).toMatchObject({ unfollowed: 0, offscreenEdits: 0, abrupt: 0, frameAbrupt: 0, instant: 0, wroteWhileGliding: 0 })
 })

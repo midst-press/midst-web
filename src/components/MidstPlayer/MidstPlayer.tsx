@@ -121,8 +121,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   const playPause = () => {
     if (playing) {
       haltPlayback()
-      // A timer update may already be queued in React's lower-priority lane. Freeze the frame that
-      // this click saw, so rebasing that queued update cannot advance the slider after pause.
+      // Freeze the frame this click saw as well as invalidating pending timer callbacks.
       setStep(step)
       setPlaying(false)
       return

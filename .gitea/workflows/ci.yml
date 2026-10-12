@@ -35,8 +35,6 @@ defaults:
 jobs:
   gates:
     runs-on: stuart-m3ultra-canary
-    env:
-      MIDST_EDITOR_ROOT: ${{ runner.temp }}/midst-editor-provenance
     steps:
       - name: Homebrew first on PATH
         run: |
@@ -53,6 +51,8 @@ jobs:
         run: |
           test -n "$DEPLOY_KEY"
           umask 077
+          MIDST_EDITOR_ROOT="$(mktemp -d "$RUNNER_TEMP/midst-editor-provenance.XXXXXX")"
+          printf 'MIDST_EDITOR_ROOT=%s\n' "$MIDST_EDITOR_ROOT" >> "$GITHUB_ENV"
           EDITOR_KEY="$(mktemp "$RUNNER_TEMP/midst-editor-key.XXXXXX")"
           trap 'rm -f "$EDITOR_KEY"' EXIT
           printf '%s\n' "$DEPLOY_KEY" > "$EDITOR_KEY"
