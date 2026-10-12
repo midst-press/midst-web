@@ -6,7 +6,7 @@ import names from '../src/poems/poem-names.js'
 // Website adaptation of midst-editor #21's recorder and verdict. Quiet ticks retain the last target;
 // only a shrink that forces the old scroll position out of range is exempted as a browser clamp.
 type Sample = [number, number, boolean, number, number, boolean, boolean]
-type Rec = { samples: Sample[], viewport: number, rafIntervals?: number[], framePositions?: Array<[number, number, boolean]>, layout?: { paragraphFloat: string, documentHeight: number, scrollHeight: number, overflowAnchor: string } }
+type Rec = { samples: Sample[], viewport: number, rafIntervals?: number[], framePositions?: Array<[number, number, boolean]>, layout?: { paragraphFloat: string, documentHeight: number, scrollHeight: number, overflowAnchor: string }, longTasks?: { count: number, top5: Array<{ duration: number, startTime: number }> }, cacheValid?: { cachedSH: number, cachedCH: number, directSH: number, directCH: number, match: boolean } | null }
 const meta = JSON.parse(readFileSync(join(__dirname, '../src/poems/Madeleine_Mori.json'), 'utf8'))
 const scope = `.sliding-poems__poem--${names.poemId(meta.author, meta.title)}`
 // Motion measurement must not include continuous screenshot/DOM trace capture overhead.
@@ -21,16 +21,39 @@ async function record(page: Page, done: () => Promise<void>, selector = scope): 
     g.followFramePositions = []
     g.followScroller = null
     let frameHeight = 0, frameTop = 0
+    // DIAGNOSTIC: log long tasks
+    g.followLongTasks = []
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          g.followLongTasks.push({ duration: entry.duration, startTime: entry.startTime })
+        }
+      }).observe({ type: 'longtask', buffered: true })
+    } catch {}
     let previousFrame: number | undefined
+    // ResizeObserver caches layout sizes; per-frame reads only scrollTop (no forced reflow).
+    g.cachedScrollHeight = 0; g.cachedClientHeight = 0
+    let roScroll: ResizeObserver | null = null, roContent: ResizeObserver | null = null
+    const setupRO = (scroller: HTMLElement) => {
+      if (roScroll) return
+      g.cachedClientHeight = scroller.clientHeight
+      const content = scroller.firstElementChild as HTMLElement | null
+      if (content) g.cachedScrollHeight = content.scrollHeight
+      roScroll = new ResizeObserver(() => { g.cachedClientHeight = scroller.clientHeight })
+      roScroll.observe(scroller)
+      if (content) { roContent = new ResizeObserver(() => { g.cachedScrollHeight = content.scrollHeight }); roContent.observe(content) }
+      g.roScroll = roScroll; g.roContent = roContent
+    }
     const frame = (now: number) => {
       if (previousFrame !== undefined) g.followRafIntervals.push(now - previousFrame)
       previousFrame = now
       const scroller = g.followScroller as HTMLElement | null
       if (scroller) {
-        const maximum = scroller.scrollHeight - scroller.clientHeight
-        const clamped = scroller.scrollHeight < frameHeight && frameTop > maximum + 0.5 && Math.abs(scroller.scrollTop - maximum) < 1
+        if (!roScroll) setupRO(scroller)
+        const maximum = g.cachedScrollHeight - g.cachedClientHeight
+        const clamped = g.cachedScrollHeight < frameHeight && frameTop > maximum + 0.5 && Math.abs(scroller.scrollTop - maximum) < 1
         g.followFramePositions.push([scroller.scrollTop, now, clamped])
-        frameHeight = scroller.scrollHeight; frameTop = scroller.scrollTop
+        frameHeight = g.cachedScrollHeight; frameTop = scroller.scrollTop
       }
       g.followRaf = requestAnimationFrame(frame)
     }
@@ -83,7 +106,18 @@ async function record(page: Page, done: () => Promise<void>, selector = scope): 
     const g = window as any
     clearInterval(g.followTimer)
     cancelAnimationFrame(g.followRaf)
-    return { samples: g.followSamples, viewport: g.followViewport || 0, rafIntervals: g.followRafIntervals, framePositions: g.followFramePositions, layout: g.followLayout }
+    if (g.roScroll) g.roScroll.disconnect()
+    if (g.roContent) g.roContent.disconnect()
+    const scroller = g.followScroller as HTMLElement | null
+    let cacheValid = null
+    if (scroller) {
+      const content = scroller.firstElementChild as HTMLElement | null
+      const directSH = content ? content.scrollHeight : scroller.scrollHeight
+      const directCH = scroller.clientHeight
+      cacheValid = { cachedSH: g.cachedScrollHeight, cachedCH: g.cachedClientHeight, directSH, directCH, match: g.cachedScrollHeight === directSH && g.cachedClientHeight === directCH }
+    }
+    const lt = (g.followLongTasks || []).sort((a: any, b: any) => b.duration - a.duration)
+    return { samples: g.followSamples, viewport: g.followViewport || 0, rafIntervals: g.followRafIntervals, framePositions: g.followFramePositions, layout: g.followLayout, longTasks: { count: lt.length, top5: lt.slice(0, 5) }, cacheValid }
   })
 }
 
@@ -299,12 +333,14 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
   const intervals = (rec.rafIntervals || []).slice().sort((a, b) => a - b)
   const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
   await testInfo.attach('follow-motion', { body: Buffer.from(JSON.stringify(rec)), contentType: 'application/json' })
-  console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, sampler: { medianMs: sampler.length ? sampler[Math.floor(sampler.length / 2)] : null, maxMs: sampler.length ? sampler[sampler.length - 1] : null }, layout: rec.layout }))
+  console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, sampler: { medianMs: sampler.length ? sampler[Math.floor(sampler.length / 2)] : null, maxMs: sampler.length ? sampler[sampler.length - 1] : null }, layout: rec.layout, longTasks: rec.longTasks, cacheValid: rec.cacheValid }))
   if (process.env.FOLLOW_DEBUG) console.log(JSON.stringify({ result, jumps: rec.samples.map((s, i) => ({ s, previous: rec.samples[i - 1] })).filter(({ s, previous }) => previous && Math.abs(s[3] - previous[3]) > rec.viewport / 3) }))
   expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
   expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(result.settledTargets, 'every writing target must have been judged').toEqual(expect.arrayContaining([140, 4, 110, 20]))
   expect(result.viewport, 'no scroll container measured').toBeGreaterThan(0)
   expect(rec.framePositions!.length, 'rendered-frame measurement must run').toBeGreaterThan(0)
+  expect(rec.cacheValid, 'positive control: ResizeObserver cache must be verified').not.toBeNull()
+  expect(rec.cacheValid!.match, `positive control: cached sizes must match direct reads (cached SH=${rec.cacheValid!.cachedSH} CH=${rec.cacheValid!.cachedCH}, direct SH=${rec.cacheValid!.directSH} CH=${rec.cacheValid!.directCH})`).toBe(true)
   expect(result).toMatchObject({ unfollowed: 0, offscreenEdits: 0, abrupt: 0, frameAbrupt: 0, instant: 0, wroteWhileGliding: 0 })
 })
