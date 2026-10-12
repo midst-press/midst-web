@@ -30,6 +30,7 @@ import { exit } from 'node:process'
 import { CoverageReport } from 'monocart-coverage-reports'
 import libCoverage from 'istanbul-lib-coverage'
 import ts from 'typescript'
+import { controlFailures } from './coverage-control-check.mjs'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RAW = join(REPO, 'coverage', 'raw')
@@ -166,10 +167,8 @@ function control(layer, map, loadedBy) {
   if ([called, never, calledBody, neverBody].includes(undefined)) {
     fail(`${layer} positive control missing: ${CONTROL} was not measured. ${loadedBy}`)
   }
-  if (!(called > 0)) fail(`${layer} positive control failed: the function the module calls reads as never run. Figures withheld.`)
-  if (never !== 0) fail(`${layer} positive control failed: the function nothing calls reads as run. Figures withheld.`)
-  if (!(calledBody > 0)) fail(`${layer} positive control failed: the statement inside the called function reads as never run. Figures withheld.`)
-  if (neverBody !== 0) fail(`${layer} positive control failed: the statement inside the uncalled function reads as run. Figures withheld.`)
+  const failed = controlFailures({ called, never, calledBody, neverBody })
+  if (failed.length) fail(`${layer} positive control failed: ${failed.join('; ')}. Figures withheld.`)
   return called
 }
 const called = control('e2e', e2eAll, 'The harness page must be loaded by at least one test.')
