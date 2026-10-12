@@ -129,6 +129,9 @@ jobs:
   portability-macos:
     name: portability on macOS (non-blocking)
     runs-on: macos-latest
+    # macOS minutes bill at 10x on the free plan, and this job never blocks. Run it on pushes to main only,
+    # not on every PR update (Stuart, 13 Oct).
+    if: github.event_name == 'push'
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
