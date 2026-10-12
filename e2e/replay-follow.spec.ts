@@ -9,6 +9,9 @@ type Sample = [number, number, boolean, number, number, boolean, boolean]
 type Rec = { samples: Sample[], viewport: number, rafIntervals?: number[], framePositions?: Array<[number, number, boolean]>, layout?: { paragraphFloat: string, documentHeight: number, scrollHeight: number, overflowAnchor: string } }
 const meta = JSON.parse(readFileSync(join(__dirname, '../src/poems/Madeleine_Mori.json'), 'utf8'))
 const scope = `.sliding-poems__poem--${names.poemId(meta.author, meta.title)}`
+// Motion measurement must not include continuous screenshot/DOM trace capture overhead.
+// Numeric recordings below are retained as attachments; failure screenshots still run afterward.
+test.use({ trace: 'off' })
 
 async function record(page: Page, done: () => Promise<void>, selector = scope): Promise<Rec> {
   await page.evaluate(selector => {
@@ -214,7 +217,9 @@ test('follow verdict rejects quiet offscreen writing, instant jumps and writing 
   late.samples.forEach((sample, i) => { sample[4] = i * 100 })
   expect(verdict(late)).toMatchObject({ abrupt: 0, instant: 0 })
   expect(verdict({ ...late, framePositions: [[0, 0, false], [400, 100, false]] }).frameAbrupt).toBe(1)
-  expect(verdict(run(false, Array(60).fill(0), [0, 5, 10])).offscreenEdits).toBe(2)
+  const arrivedLate = run(false, Array(60).fill(0), [0, 5, 10])
+  arrivedLate.samples[arrivedLate.samples.length - 1][2] = true
+  expect(verdict(arrivedLate)).toMatchObject({ unfollowed: 0, offscreenEdits: 2 })
 })
 
 test('recorder observes quiet offscreen writing and distinguishes forced clamps from voluntary jumps', async ({ page }) => {
@@ -277,7 +282,7 @@ for (const position of ['end', 'middle']) test(`actual legacy runtime rejects th
   expect(result.unfollowed, 'the actual legacy player must discriminate the follow guard').toBeGreaterThan(0)
 })
 
-for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }) => {
+for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }, testInfo) => {
   await page.setViewportSize({ width: 1280, height })
   const archive = zip(jumpingFile(position))
   await serveArchive(page, baseURL!, archive)
@@ -293,8 +298,11 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
   const result = verdict(rec)
   const intervals = (rec.rafIntervals || []).slice().sort((a, b) => a - b)
   const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
+  await testInfo.attach('follow-motion', { body: Buffer.from(JSON.stringify(rec)), contentType: 'application/json' })
   console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, sampler: { medianMs: sampler.length ? sampler[Math.floor(sampler.length / 2)] : null, maxMs: sampler.length ? sampler[sampler.length - 1] : null }, layout: rec.layout }))
   if (process.env.FOLLOW_DEBUG) console.log(JSON.stringify({ result, jumps: rec.samples.map((s, i) => ({ s, previous: rec.samples[i - 1] })).filter(({ s, previous }) => previous && Math.abs(s[3] - previous[3]) > rec.viewport / 3) }))
+  expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(result.settledTargets, 'every writing target must have been judged').toEqual(expect.arrayContaining([140, 4, 110, 20]))
   expect(result.viewport, 'no scroll container measured').toBeGreaterThan(0)
   expect(rec.framePositions!.length, 'rendered-frame measurement must run').toBeGreaterThan(0)
