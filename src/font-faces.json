@@ -1,0 +1,283 @@
+[
+  {
+    "family": "futuraregular",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "futuraregular.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "futuralight",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "futuralight.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "futuramedium",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "futuramedium.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "Futura_Bk_BT_Book",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "Futura_Bk_BT_Book.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "aileronregular",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "Aileron-Regular-webfont.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "latoblack",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-black-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-black-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "latoblack_italic",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-blackitalic-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-blackitalic-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "Lato",
+    "weight": "bold",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-bold-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-bold-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "Lato",
+    "weight": "bold",
+    "style": "italic",
+    "sources": [
+      {
+        "file": "lato-bolditalic-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-bolditalic-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "latohairline",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-hairline-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-hairline-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "latohairline_italic",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-hairlineitalic-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-hairlineitalic-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "Lato",
+    "weight": "normal",
+    "style": "italic",
+    "sources": [
+      {
+        "file": "lato-italic-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-italic-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "latolight",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-light-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-light-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "latolight_italic",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-lightitalic-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-lightitalic-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "Lato",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "lato-regular-webfont.woff2",
+        "format": "woff2"
+      },
+      {
+        "file": "lato-regular-webfont.woff",
+        "format": "woff"
+      }
+    ]
+  },
+  {
+    "family": "HelveticaNeueLTStd-Lt",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "31E044_0_0.eot",
+        "format": "embedded-opentype"
+      },
+      {
+        "file": "31E044_0_0.woff",
+        "format": "woff"
+      },
+      {
+        "file": "31E044_0_0.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "HelveticaNeueLTStd-Bd",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "31E044_1_0.eot",
+        "format": "embedded-opentype"
+      },
+      {
+        "file": "31E044_1_0.woff",
+        "format": "woff"
+      },
+      {
+        "file": "31E044_1_0.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "HelveticaNeueLTStd-Md",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "31E044_2_0.eot",
+        "format": "embedded-opentype"
+      },
+      {
+        "file": "31E044_2_0.woff",
+        "format": "woff"
+      },
+      {
+        "file": "31E044_2_0.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "HelveticaNeueLTStd-BdCn",
+    "weight": "normal",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "31E044_3_0.eot",
+        "format": "embedded-opentype"
+      },
+      {
+        "file": "31E044_3_0.woff",
+        "format": "woff"
+      },
+      {
+        "file": "31E044_3_0.ttf",
+        "format": "truetype"
+      }
+    ]
+  }
+]
