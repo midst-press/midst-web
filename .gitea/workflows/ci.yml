@@ -49,6 +49,8 @@ jobs:
       # threshold, so an untested file counts as 0% and any drop fails this step.
       - name: unit tests with coverage thresholds
         run: npm test -- --coverage
+      - name: the coverage control's messages each fire
+        run: npm run test:coverage-control
       - name: read-only checkout of editor main for helper provenance
         env:
           DEPLOY_KEY: ${{ secrets.MIDST_EDITOR_DEPLOY_KEY }}

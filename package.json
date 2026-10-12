@@ -19,7 +19,8 @@
     "e2e:frame-budget": "playwright test --grep \"@frame-budget\"",
     "e2e:frame-budget:attest": "node tools/frame-budget-attest.mjs",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:coverage-control": "node --test scripts/coverage-control-check.test.mjs"
   },
   "license": "all rights reserved",
   "dependencies": {
