@@ -279,9 +279,17 @@ test('@frame-budget recorder observes quiet offscreen writing and distinguishes 
       await page.waitForTimeout(200)
     })
   }
-  const voluntary = verdict(await scenario(0, 300))
-  expect(voluntary.instant + voluntary.abrupt).toBeGreaterThan(0)
-  expect(verdict(await scenario(1200, null))).toMatchObject({ instant: 0, abrupt: 0 })
+  const voluntary = await scenario(0, 300)
+  const sampler = voluntary.samples.slice(1).map((s, i) => s[4] - voluntary.samples[i][4]).sort((a, b) => a - b)
+  expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
+  const voluntaryResult = verdict(voluntary)
+  expect(voluntaryResult.instant + voluntaryResult.abrupt).toBeGreaterThan(0)
+  const forced = await scenario(1200, null)
+  const forcedSampler = forced.samples.slice(1).map((s, i) => s[4] - forced.samples[i][4]).sort((a, b) => a - b)
+  expect(forcedSampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(forcedSampler[forcedSampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
+  expect(verdict(forced)).toMatchObject({ instant: 0, abrupt: 0 })
 })
 
 function jumpingFile(position: string) {

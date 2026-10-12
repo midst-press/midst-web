@@ -89,8 +89,8 @@ for (const suite of report.suites ?? []) {
       if (!res) continue
       const m = spec.title.match(/height (\d+)/)
       const p = spec.title.match(/:\s*(end|middle)/)
-      const height = m?.[1] ?? '?'
-      const position = p?.[1] ?? '?'
+      const height = m?.[1] ?? 'recorder'
+      const position = p?.[1] ?? 'n/a'
       // Find the follow-motion attachment
       const att = (res.attachments ?? []).find(a => a.name === 'follow-motion')
       let timing = null
@@ -106,11 +106,11 @@ for (const suite of report.suites ?? []) {
         height,
         position,
         status: res.status === 'passed' ? 'PASS' : 'FAIL',
-        samplerMedian: s?.median != null ? s.median.toFixed(1) : '?',
-        samplerMax: s?.max != null ? s.max.toFixed(1) : '?',
-        rafMax: r.length ? Math.max(...r).toFixed(1) : '?',
-        abrupt: timing ? verdictAbrupt(timing) : '?',
-        cacheMatch: timing?.cacheValid?.match ? 'yes' : 'no',
+        samplerMedian: s?.median != null ? s.median.toFixed(1) : 'n/a',
+        samplerMax: s?.max != null ? s.max.toFixed(1) : 'n/a',
+        rafMax: r.length ? Math.max(...r).toFixed(1) : 'n/a',
+        abrupt: timing ? verdictAbrupt(timing) : 'n/a',
+        cacheMatch: timing?.cacheValid?.match ? 'yes' : (timing ? 'no' : 'n/a'),
       })
     }
   }
@@ -131,7 +131,7 @@ for (const [h, p] of [['600','end'], ['600','middle'], ['720','end'], ['720','mi
 
 // Refuse if any WRITING-JUMP row lacks timing data (recorder test may not have it)
 for (const r of rows) {
-  if (r.height !== '?' && (r.samplerMax === '?' || r.cacheMatch === '?')) {
+  if (r.height !== 'recorder' && (r.samplerMax === 'n/a' || r.cacheMatch === 'n/a')) {
     console.error(`REFUSED: test ${r.height}/${r.position} has no timing data.`)
     process.exit(1)
   }
