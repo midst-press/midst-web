@@ -113,7 +113,9 @@ unchanged frames. Seeking reconstructs only the selected replacement.
 
 `follow.ts` and `helpers.ts` are copied byte-for-byte from midst-editor main. All writing
 hooks exclude these copies from formatting, and the provenance hook compares them with
-a freshly fetched editor main. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
+a freshly fetched editor main. The same hook holds the editor's tests for them, copied to
+`src/__tests__/editor-*.test.ts`: each must equal its original apart from a header note and
+the import path. To bring a copy up to date, copy the original and reapply those two. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
 after fetching its `origin/main`. CI checks out editor main through scoped read-only
 access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea and `MIDST_REPO_READ_TOKEN` on GitHub.
 
