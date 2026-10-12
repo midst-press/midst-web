@@ -45,6 +45,18 @@ repos:
         entry: node --test tools/test-check-editor-helpers.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-editor-helpers\.mjs$'
+      - id: import-case
+        name: relative imports are spelled exactly as git names the file (macOS hides this; Linux does not)
+        language: system
+        entry: node tools/check-import-case.mjs
+        pass_filenames: false
+        always_run: true
+      - id: import-case-self-test
+        name: the import-case check reports a wrong-case import, and only that
+        language: system
+        entry: node --test tools/test-check-import-case.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?check-import-case\.mjs$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail
