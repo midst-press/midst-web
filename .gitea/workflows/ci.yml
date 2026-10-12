@@ -51,6 +51,10 @@ jobs:
         run: npm test -- --coverage
       - name: the coverage control's messages each fire
         run: npm run test:coverage-control
+      # The e2e server must hold its port from the start and fail early when it is taken (#35).
+      # No dependencies: node's own test runner.
+      - name: e2e server holds its port
+        run: node --test tools/test-serve-local.mjs
       - name: read-only checkout of editor main for helper provenance
         env:
           DEPLOY_KEY: ${{ secrets.MIDST_EDITOR_DEPLOY_KEY }}
@@ -101,6 +105,8 @@ jobs:
       - run: npx playwright install chromium
       # Jobs on this runner share one host, and CI runs in parallel, so a fixed port could collide.
       # playwright.config.ts and the e2e npm scripts all read MIDST_E2E_PORT.
+      # The port is free when picked and is bound a moment later, when Playwright starts e2e:serve,
+      # which takes it BEFORE building and exits 3 at once if another job got there first (#35).
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
