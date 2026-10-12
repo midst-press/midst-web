@@ -30,9 +30,11 @@ function verdictAbrupt(rec) {
   return abrupt
 }
 
-// Refuse on FOLLOW_DEBUG (produces extra stdout lines that become phantom rows)
+// Refuse on FOLLOW_DEBUG: an attestation should be of the run as CI and reviewers run it, and FOLLOW_DEBUG
+// adds diagnostic work and output to the follow tests. (Rows come from the JSON reporter and the tests'
+// attachments, so the extra output no longer breaks parsing; the refusal is about what is being attested.)
 if (process.env.FOLLOW_DEBUG) {
-  console.error('REFUSED: FOLLOW_DEBUG is set. It produces extra stdout lines that break row matching.')
+  console.error('REFUSED: FOLLOW_DEBUG is set. Attest the run as CI and reviewers run it: unset FOLLOW_DEBUG.')
   process.exit(1)
 }
 
@@ -110,7 +112,9 @@ for (const suite of report.suites ?? []) {
         samplerMax: s?.max != null ? s.max.toFixed(1) : 'n/a',
         rafMax: r.length ? Math.max(...r).toFixed(1) : 'n/a',
         abrupt: timing ? verdictAbrupt(timing) : 'n/a',
-        cacheMatch: timing?.cacheValid?.match ? 'yes' : (timing ? 'no' : 'n/a'),
+        // 'n/a' when the test recorded no cache check at all (not only when it recorded no timing), so the
+        // no-timing-data refusal below can fire for it (#30).
+        cacheMatch: timing?.cacheValid ? (timing.cacheValid.match ? 'yes' : 'no') : 'n/a',
       })
     }
   }

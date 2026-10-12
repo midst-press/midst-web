@@ -47,6 +47,8 @@ jobs:
       - run: npm ci --legacy-peer-deps --ignore-scripts
       # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
       # threshold, so an untested file counts as 0% and any drop fails this step.
+      # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
+      # branch are line 118, the function's closing brace, which Jest's V8 converter counts and nothing can run.
       - name: unit tests with coverage thresholds
         run: npm test -- --coverage
       # The e2e server must hold its port from the start and fail early when it is taken (#35).
