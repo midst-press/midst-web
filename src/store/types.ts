@@ -60,6 +60,7 @@ export interface IPoem {
   hidden?: boolean
   highlighted: boolean
   loaded: boolean
+  loadFailed?: boolean
   poemId: string
   processNote: string
   slug: string
@@ -78,14 +79,20 @@ export interface IState {
 }
 
 export const LOAD_POEM_DATA = 'LOAD_POEM_DATA'
+export const LOAD_POEM_FAILED = 'LOAD_POEM_FAILED'
 export const REVERSE_SORT_ORDER = 'REVERSE_SORT_ORDER'
 export const SET_MOBILE_NAV_OPEN = 'SET_MOBILE_NAV_OPEN'
 export const SET_PROCESS_NOTE_OPEN = 'SET_PROCESS_NOTE_OPEN'
 export const SET_SORT_TERM = 'SET_SORT_TERM'
 
 export interface ILoadPoemData extends AnyAction {
-  payload: { poemId: string, data: IMidstFile}
-  type: typeof SET_MOBILE_NAV_OPEN
+  payload: { poemId: string, data: IMidstFile, processNote: string }
+  type: typeof LOAD_POEM_DATA
+}
+
+export interface ILoadPoemFailed extends AnyAction {
+  payload: { poemId: string }
+  type: typeof LOAD_POEM_FAILED
 }
 
 export interface ISetMobileNavOpen extends AnyAction {

@@ -53,12 +53,18 @@ function Poem(): ReactElement {
                 className={`
                   sliding-poems__poem
                   sliding-poems__poem--${poem.loaded ? 'loaded' : ''}
+                  ${poem.loadFailed && !poem.loaded ? 'sliding-poems__poem--failed' : ''}
                   sliding-poems__poem--${poem.poemId}
                 `}
                 data-trigger={poem.trigger ? 'true' : 'false'}
                 key={poem.poemId}
               >
                 <div className="scrolling-area-border" />
+
+                {poem.loadFailed && !poem.loaded &&
+                  <p className="sliding-poems__failure" role="alert">
+                    This poem could not be loaded. Please try again later.
+                  </p>}
 
                  {poem.data && <MidstPlayer
                    activePlayer={i === currentPoemIndex}

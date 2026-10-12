@@ -11,6 +11,7 @@ import marked from 'marked'
 import insane from 'insane'
 import {
   LOAD_POEM_DATA,
+  LOAD_POEM_FAILED,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
@@ -24,13 +25,19 @@ import {
 const loadPoemData = (poemIndex: number): any =>
   // TODO: Above should be: ThunkResult<void>, then `any` is not needed here
   async (dispatch: any, getState: any) => {
-    let poems = [].concat(getState().app.poems)
+    const poem: IPoem = getState().app.poems[poemIndex]
 
-    const zip = (window as any).zip
-    zip.workerScriptsPath = '/static/workers/'
+    // Every failure ends here: a fixed console message (parser and network diagnostics can quote a
+    // poet's work) and an action, so the page can say the poem did not load.
+    const fail = (message: string) => {
+      console.error(message)
+      if (poem) dispatch({ type: LOAD_POEM_FAILED, payload: { poemId: poem.poemId }})
+    }
 
     try {
-      const poem: IPoem = poems[poemIndex]
+      const zip = (window as any).zip
+      zip.workerScriptsPath = '/static/workers/'
+
       const noteResponse = await fetchAsset(POEMS_URL, processNoteObjectName(poem))
       if (!noteResponse.ok) throw new Error('Unable to load Midst process note')
       const processNoteRaw = await noteResponse.text()
@@ -41,27 +48,29 @@ const loadPoemData = (poemIndex: number): any =>
 
       zip.createReader(reader, (zipReader: any) => {
         zipReader.getEntries((entries: any) => {
+          if (!entries.length) return fail('Unable to read Midst archive')
           const writer = new zip.BlobWriter()
           entries[0].getData(writer, (blob: Blob) => {
             const reader = new FileReader()
             reader.addEventListener('loadend', (e: any) => {
+              let data
               try {
-                const data = parseMidstFile(e.srcElement.result)
-                dispatch({ type: LOAD_POEM_DATA, payload: { poemId: poem.poemId, data, processNote }})
+                data = parseMidstFile(e.srcElement.result)
               } catch {
-                console.error('Unable to load Midst file')
+                return fail('Unable to load Midst file')
               }
+              dispatch({ type: LOAD_POEM_DATA, payload: { poemId: poem.poemId, data, processNote }})
             })
             reader.readAsText(blob)
           })
         })
       }, () => {
-        console.error('Unable to read Midst archive')
+        fail('Unable to read Midst archive')
       })
     }
 
     catch {
-      console.error('Unable to load Midst data')
+      fail('Unable to load Midst data')
     }
   }
 

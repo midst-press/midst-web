@@ -1,6 +1,7 @@
 import { initialState, reducer } from '../store/reducer'
 import {
   LOAD_POEM_DATA,
+  LOAD_POEM_FAILED,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
@@ -192,6 +193,43 @@ describe('LOAD_POEM_DATA', () => {
     expect(next.poems.every(poem => !poem.loaded)).toBe(true)
     expect(titles(next)).toEqual(MOCK_ORDER)
     expect(next.poems.map(poem => poem.data)).toEqual([null, null, null])
+  })
+})
+
+describe('LOAD_POEM_FAILED', () => {
+  const poemId = 'kj,-wm--cc-title'
+  const failed = { type: LOAD_POEM_FAILED, payload: { poemId } }
+
+  it('marks the matching poem only, and leaves it unloaded so it can be tried again', () => {
+    const next = reducer(initialState, failed)
+    const target = next.poems.find(poem => poem.poemId === poemId)
+    expect(target?.loadFailed).toBe(true)
+    expect(target?.loaded).toBe(false)
+    expect(target?.data).toBeNull()
+    next.poems.filter(poem => poem.poemId !== poemId).forEach(poem => {
+      expect(poem).toBe(initialState.poems.find(p => p.poemId === poem.poemId))
+      expect(poem.loadFailed).toBeUndefined()
+    })
+  })
+
+  it('does not mutate the input state', () => {
+    reducer(initialState, failed)
+    expect(initialState.poems.find(poem => poem.poemId === poemId)?.loadFailed).toBeUndefined()
+  })
+
+  it('changes nothing for an unknown poemId', () => {
+    const next = reducer(initialState, { type: LOAD_POEM_FAILED, payload: { poemId: 'no-one--nothing' } })
+    expect(next.poems.every(poem => poem.loadFailed === undefined)).toBe(true)
+  })
+
+  it('a later successful load clears the failure', () => {
+    const loaded = reducer(reducer(initialState, failed), {
+      type: LOAD_POEM_DATA,
+      payload: { poemId, data: { text: 'invented' }, processNote: '' },
+    })
+    const target = loaded.poems.find(poem => poem.poemId === poemId)
+    expect(target?.loadFailed).toBe(false)
+    expect(target?.loaded).toBe(true)
   })
 })
 

@@ -987,6 +987,16 @@ body {
   background: transparent;
 }
 
+/* A poem that did not load: stop the loading mark and say so. */
+.sliding-poems__poem--failed {
+  background: transparent;
+}
+
+.sliding-poems__failure {
+  padding-top: 30vh;
+  text-align: center;
+}
+
 .sliding-poems__poem--loaded .timeline {
   opacity: 1;
   pointer-events: all;
