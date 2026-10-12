@@ -9,10 +9,12 @@ import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 import { useParams } from 'react-router'
 
 // What a reader is told when a poem does not load. Only `network` and `server` can pass on their own,
-// so only they suggest trying again.
+// so only they suggest trying again. `missing` and `refused` share one sentence: the poems host answers
+// 403 for a file that is not there (see asset-fetch.js), so the browser cannot tell the two apart.
+const NOT_FOUND_OR_REFUSED = 'Unable to find the poem, but it is possible that access was refused.'
 export const LOAD_FAILURE_MESSAGES: { [reason in PoemLoadFailure]: string } = {
-  missing: 'Unable to find the poem.',
-  refused: 'Access to the poem was refused.',
+  missing: NOT_FOUND_OR_REFUSED,
+  refused: NOT_FOUND_OR_REFUSED,
   network: 'Unable to reach the poem. Check your connection and try again.',
   server: 'The poem could not be fetched. Please try again later.',
   damaged: 'The poem\'s file is damaged and cannot be played.',
