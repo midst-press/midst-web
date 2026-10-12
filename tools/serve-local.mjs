@@ -178,9 +178,16 @@ server.listen(PORT, HOST, () => {
   if (!PREPARE) return;
 
   console.log(`  preparing (503 until done): ${PREPARE}`);
-  const prepare = spawn(PREPARE, { shell: true, stdio: 'inherit' });
+  // Its own process group, signalled as a group: the command is a shell line (`a && b`), so the
+  // shell is the parent and the build is its child. Signalling the shell alone leaves the build
+  // running, and still writing dist/, after this server has gone.
+  const prepare = spawn(PREPARE, { shell: true, stdio: 'inherit', detached: true });
   const stopWith = (signal) => () => {
-    prepare.kill(signal);
+    try {
+      process.kill(-prepare.pid, signal);
+    } catch {
+      // the group has already gone
+    }
     exit(1);
   };
   process.on('SIGTERM', stopWith('SIGTERM'));

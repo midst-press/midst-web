@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,7 +145,9 @@ writeFileSync(process.argv[2], String(process.pid));
 setInterval(() => {}, 1000);
 `,
   );
-  const prepare = `exec ${NODE} ${JSON.stringify(script)} ${JSON.stringify(pidFile)}`;
+  // The same shape as the real prepare (`npm run … && npm run …`): a compound command, so the shell
+  // stays as the parent and the step itself is its child. Signalling only the shell would miss it.
+  const prepare = `${NODE} ${JSON.stringify(script)} ${JSON.stringify(pidFile)} && true`;
   const s = start(['--root', dir, '--port', '0', '--prepare', prepare]);
   t.after(() => s.child.kill('SIGKILL'));
   await within(5000, 'the server to bind', s.port);
@@ -156,8 +158,16 @@ setInterval(() => {}, 1000);
       while (!existsSync(pidFile)) await new Promise((resolve) => setTimeout(resolve, 20));
     })(),
   );
-  const { readFileSync } = await import('node:fs');
   const pid = Number(readFileSync(pidFile, 'utf8'));
+  // If the server fails to stop it, do not leave it behind: a leaked step keeps this run's output
+  // open and the runner never finishes.
+  t.after(() => {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {
+      // already gone, which is what the test wants
+    }
+  });
 
   s.child.kill('SIGTERM');
   await within(5000, 'the server to exit', s.exited);
