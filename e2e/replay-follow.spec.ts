@@ -316,7 +316,7 @@ for (const position of ['end', 'middle']) test(`actual legacy runtime rejects th
   expect(result.unfollowed, 'the actual legacy player must discriminate the follow guard').toBeGreaterThan(0)
 })
 
-for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }, testInfo) => {
+for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`@frame-budget writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }, testInfo) => {
   await page.setViewportSize({ width: 1280, height })
   const archive = zip(jumpingFile(position))
   await serveArchive(page, baseURL!, archive)

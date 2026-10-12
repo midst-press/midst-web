@@ -98,4 +98,21 @@ jobs:
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
-      - run: npm run test:e2e
+      # Frame-budget tests need a GUI session to get a real frame rate. Run them when available;
+      # otherwise skip visibly (never silently) and require a local run.
+      - name: check for GUI session
+        id: gui
+        run: |
+          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
+            echo "has_gui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_gui=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: run e2e (with frame-budget tests)
+        if: steps.gui.outputs.has_gui == 'true'
+        run: npm run test:e2e
+      - name: run e2e (frame-budget tests skipped — no GUI session)
+        if: steps.gui.outputs.has_gui != 'true'
+        run: |
+          echo "::warning::frame-budget e2e SKIPPED: runner has no GUI session; run npm run e2e:frame-budget locally"
+          npx playwright test --grep-invert "@frame-budget"
