@@ -135,3 +135,33 @@ Marker names stay in the reader UI, never diagnostics. Missing/unusable renderin
 values fall back to Helvetica/14; other positive finite sizes remain supported.
 Existing vendored font faces are included. A CSS family declaration with a generic
 fallback does not certify availability of Bell/Garamond or grant new font licenses.
+
+## Coverage: what the tests execute
+
+```
+npm run coverage
+```
+
+Runs the end-to-end suite with `MIDST_COVERAGE=1` and prints lines, branches and functions for every
+code file under `src/`, and in total. It is opt-in: an ordinary `npm run test:e2e` records nothing
+and is no slower.
+
+- **How.** `e2e/coverage.ts` records Chromium's own V8 coverage for each test's page.
+  `scripts/coverage-merge.mjs` maps it back to `src/` through the build's source maps with
+  `monocart-coverage-reports`, writes istanbul JSON to `coverage/e2e-istanbul.json`, and prints the
+  table. Output is git-ignored.
+- **A different build.** Under `MIDST_COVERAGE` the e2e build is not minified (`--no-optimize`),
+  because a minified bundle cannot be mapped back function by function. So the coverage run does
+  not test the build that ships; the ordinary e2e run does.
+- **Three layers.** Unit-only, e2e-only and combined. This repository has no unit tests yet, so the
+  unit columns are empty and combined equals e2e. A unit layer writes
+  `coverage/unit-istanbul.json` and is merged in.
+- **Every file counts.** A file no test loads is listed at 0%, not left out.
+- **The control.** `e2e/coverage-control.ts` holds one function the harness page calls and one
+  nothing calls. The script withholds every figure unless it sees exactly that.
+- **Numbers only.** It prints file paths and percentages, never source text. The raw recordings in
+  `coverage/raw/` hold the built JavaScript and stay on disk.
+
+What it does not measure: `asset-canary`, `asset-fetch` and `midst-file` specs run `src/` code in
+Node, not in a page, so what they execute is not counted here. Coverage is what ran, not what was
+asserted, and no figure is used as a gate.

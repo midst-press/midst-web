@@ -5,6 +5,7 @@ import { parseMidstFile } from '../src/components/midst-player-hack/midst-file'
 import MidstPlayer from '../src/components/MidstPlayer/MidstPlayer'
 import { IMidstFile } from '../src/store/types'
 import '../src/index.css'
+import './coverage-control'
 
 // Separate e2e entry: the production build never includes this legacy-control API or runtime.
 ;(window as any).mountLegacyReplay = (raw: string) => {

@@ -1,4 +1,5 @@
-import { test, expect, Page } from '@playwright/test'
+import { Page } from '@playwright/test'
+import { test, expect } from './coverage'
 
 const player = '#player-options-control'
 const options = { activePlayer: true, cursorFollowing: true, hasScrollbar: true }
