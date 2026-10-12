@@ -46,7 +46,8 @@ describe('poems index', () => {
   it('lists exactly the published files in order.json order', () => {
     expect(records).toHaveLength(expectedStems.length)
     for (let i = 0; i < expectedStems.length; i += 1) {
-      // Message names the index and file only, never a value.
+      // The message names the index and file. On a failure Jest also prints the differing fields of the
+      // record: published metadata that is already in this repository.
       expect({ index: i, file: expectedStems[i], record: records[i] }).toEqual({
         index: i,
         file: expectedStems[i],

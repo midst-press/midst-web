@@ -109,11 +109,10 @@
   "devDependencies": {
     "@babel/core": "7.10.0",
     "@playwright/test": "^1.64.0",
-    "@types/mocha": "5.2.7",
     "assert": "2.1.0",
     "depcheck": "1.4.7",
     "jest": "^30.5.2",
-    "mocha": "6.2.3",
+    "jest-environment-jsdom": "^30.5.2",
     "parcel": "2.16.4",
     "parcel-reporter-static-files-copy": "1.5.3",
     "prettier": "1.18.2",
@@ -177,7 +176,8 @@
     "coverageProvider": "v8",
     "coverageReporters": [
       "text",
-      "json-summary"
+      "json-summary",
+      "json"
     ],
     "collectCoverageFrom": [
       "src/poems/poem-names.js",
@@ -186,7 +186,9 @@
       "src/config.ts",
       "src/store/reducer.ts",
       "src/store/actions.ts",
-      "src/components/midst-player-hack/midst-file.ts"
+      "src/components/midst-player-hack/midst-file.ts",
+      "src/components/MidstPlayer/follow.ts",
+      "src/components/MidstPlayer/helpers.ts"
     ],
     "coverageThreshold": {
       "./src/poems/poem-names.js": {
@@ -230,7 +232,20 @@
         "functions": 100,
         "lines": 100,
         "statements": 100
+      },
+      "./src/components/MidstPlayer/follow.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/components/MidstPlayer/helpers.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
       }
-    }
+    },
+    "coverageDirectory": "coverage/unit"
   }
 }
