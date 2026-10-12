@@ -49,6 +49,25 @@ test('C without recorded edits remains a static playable document', () => {
   const file = parseMidstFile('midstVersion: 1\n' + JSON.stringify({ text: '<p></p>', history: [] }))
   expect(file.editorTimelineFrames).toHaveLength(1)
   expect(file.editorTimelineFrames[0].content).toBe('<p></p>')
+  expect(file.sourceHistoryLength).toBe(0)
+})
+
+test('C presentation preserves unknown values and out-of-range drafts without dropping unchanged frames', () => {
+  const meta = { fontFamily: 'Courier', fontSize: 24, highestDraftNumber: 8,
+    title: 'synthetic title', author: 'synthetic author', futureField: { x: 1 },
+    draftMarkers: [-1, 0, 1, 2].map(index => ({ index, name: 'synthetic draft', defaultName: 'Draft 1' })) }
+  const history = [{ front: 0, end: 0, inserted: '<p>x</p>', t }, { front: 8, end: 0, inserted: '', t }]
+  const file = parseMidstFile(JSON.stringify({ text: '<p>x</p>', history, meta }))
+  expect(file.presentation).toEqual(meta)
+  expect(file.sourceHistoryLength).toBe(2)
+  expect(file.editorTimelineFrames.map(frame => frame.content)).toEqual(['<p>x</p>', '<p>x</p>'])
+  expect(file.meta.editorFontFamily).toBe('Courier')
+  expect(file.meta.editorFontSize).toBe(24)
+  for (const value of [-1, 0, 17.5, 999]) {
+    const loaded = playbackFile({ text: '', history: [], meta: { fontSize: value } })
+    expect(loaded.presentation!.fontSize).toBe(value)
+  }
+  expect(playbackFile({ text: '', history: [] }).meta).toMatchObject({ editorFontFamily: 'Helvetica', editorFontSize: 14 })
 })
 
 test('invalid histories and future versions refuse without echoing input', () => {

@@ -39,12 +39,17 @@ export function playbackFile(data: IMidstFile | IMidstCurrentFile): IMidstFile {
   if (frames.length && content !== data.text) return invalidFile()
   // An empty history is a static document, not a zero-length slider timeline.
   if (!frames.length) frames.push({ content: data.text, timestamp: 0, lineNumber: 0, cursorPosition: 0 })
+  const presentation = data.meta && typeof data.meta === 'object' && !Array.isArray(data.meta) ? data.meta : {}
   return {
     editorTimelineFrames: frames,
+    // Keep raw metadata, including unknown keys and out-of-range markers, separate from rendering
+    // fallbacks. A static document's synthetic frame must not make history index 0 a valid marker.
+    presentation,
+    sourceHistoryLength: data.history.length,
     meta: {
       editorDraftMarkers: [],
-      editorFontFamily: 'Helvetica',
-      editorFontSize: 14,
+      editorFontFamily: typeof presentation.fontFamily === 'string' ? presentation.fontFamily : 'Helvetica',
+      editorFontSize: typeof presentation.fontSize === 'number' ? presentation.fontSize : 14,
       editorHighestEverDraftNumber: 0,
       editorTitle: 'Untitled',
     },

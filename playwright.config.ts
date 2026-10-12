@@ -31,6 +31,9 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: BASE,
+    // A display-less macOS runner delivered RAF at 10–12Hz, turning wall-clock glides into jumps.
+    // Remove that headless cap; elapsed-time and rendered-frame checks still enforce gentleness.
+    launchOptions: { args: ['--disable-frame-rate-limit', '--disable-gpu-vsync'] },
     // Kept on retry only: a trace of a passing run is noise, a trace of a failure is the whole
     // reason you can diagnose CI without a Mac in front of you.
     trace: 'retain-on-failure',

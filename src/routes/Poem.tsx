@@ -4,8 +4,8 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { loadPoemData } from '../store/actions'
-import { IPoem, IMidstFile } from '../store/types'
-import Midst from '../components/midst-player-hack/Midst'
+import { IPoem } from '../store/types'
+import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 import { useParams } from 'react-router'
 
 function Poem(): ReactElement {
@@ -60,14 +60,12 @@ function Poem(): ReactElement {
               >
                 <div className="scrolling-area-border" />
 
-                <Midst
-                  activePlayer={i === currentPoemIndex}
-                  appCursorFollowing={poem.cursorFollowing !== undefined ? poem.cursorFollowing : true}
-                  hasScrollbar={poem.hasScrollbar !== undefined ? poem.hasScrollbar : true}
-                  isPlayer={true}
-                  MIDST_DATA_JS_KEY={poem.data ? poem.poemId : undefined}
-                  MIDST_DATA_JS={poem.data as IMidstFile}
-                />
+                 {poem.data && <MidstPlayer
+                   activePlayer={i === currentPoemIndex}
+                   cursorFollowing={poem.cursorFollowing !== undefined ? poem.cursorFollowing : true}
+                   hasScrollbar={poem.hasScrollbar !== undefined ? poem.hasScrollbar : true}
+                   data={poem.data}
+                 />}
               </div>
             )}
           </div>

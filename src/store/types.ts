@@ -24,17 +24,26 @@ export interface IMidstChange {
 export interface IMidstCurrentFile {
   text: string
   history: IMidstChange[]
+  meta?: { [key: string]: unknown }
+}
+
+export interface IMidstDraftMarker {
+  timelineIndex: number
+  name: string
+  defaultName: string
 }
 
 // TODO: Move Midst types to common
 export interface IMidstFile {
   editorTimelineFrames: IMidstTimelineFrame[]
+  presentation?: { [key: string]: unknown }
+  sourceHistoryLength?: number
   meta: {
 		editorFontFamily: string
 		editorFontSize: number
 		editorHighestEverDraftNumber: number
 		editorTitle: string
-    editorDraftMarkers: []
+		editorDraftMarkers: IMidstDraftMarker[]
   }
 }
 

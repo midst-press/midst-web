@@ -122,6 +122,21 @@ test.describe('a published poem plays', () => {
       await expect(editor).toContainText(TYPED)
       await expect(editor).toContainText('and again')
 
+      const timeline = page.locator(`${scope} input[type=range]`)
+      await timeline.focus()
+      await timeline.press('ArrowLeft')
+      await expect(page).toHaveURL(new RegExp(route.replace(/\/$/, '') + '/?$'))
+      await expect(editor).not.toContainText('and again')
+      await timeline.press('End')
+      await expect(editor).toContainText('and again')
+      await play.click()
+      await expect(play).toHaveClass(/playing/)
+      await play.click()
+      await expect(play).not.toHaveClass(/playing/)
+      const pausedStep = await timeline.inputValue()
+      await page.waitForTimeout(300)
+      await expect(timeline).toHaveValue(pausedStep)
+
       // 4. Nothing 404ed or 403ed on the way. The production failures this suite exists to prevent
       //    were all 403s on an object whose name did not match what was uploaded.
       expect(failures, `requests failed:\n${failures.join('\n')}`).toEqual([])

@@ -16,7 +16,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^static/|^etc/|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^static/|^etc/|^src/components/MidstPlayer/(follow|helpers)\.ts$|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
@@ -33,6 +33,12 @@ repos:
   # ---- local guards. These enforce policy mechanically rather than by discipline. ----
   - repo: local
     hooks:
+      - id: editor-helpers-identical
+        name: copied player helpers match midst-editor main
+        language: system
+        entry: node tools/check-editor-helpers.mjs
+        pass_filenames: false
+        always_run: true
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail

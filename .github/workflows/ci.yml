@@ -31,8 +31,18 @@ jobs:
   gates:
     name: gates (the same hooks your commit runs)
     runs-on: ubuntu-latest
+    env:
+      MIDST_EDITOR_ROOT: ${{ github.workspace }}/.editor-provenance
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: read-only checkout of editor main for helper provenance
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: midst-press/midst-editor
+          ref: main
+          path: .editor-provenance
+          token: ${{ secrets.MIDST_REPO_READ_TOKEN }}
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
