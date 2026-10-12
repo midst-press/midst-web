@@ -1,4 +1,5 @@
-import { test, expect, Page } from '@playwright/test'
+import { Page } from '@playwright/test'
+import { test, expect } from './coverage'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import names from '../src/poems/poem-names.js'
@@ -256,7 +257,7 @@ test('follow verdict rejects quiet offscreen writing, instant jumps and writing 
   expect(verdict(arrivedLate)).toMatchObject({ unfollowed: 0, offscreenEdits: 2 })
 })
 
-test('recorder observes quiet offscreen writing and distinguishes forced clamps from voluntary jumps', async ({ page }) => {
+test('@frame-budget recorder observes quiet offscreen writing and distinguishes forced clamps from voluntary jumps', async ({ page }) => {
   const controlled = async (count: number) => page.setContent(`<div class="${scope.slice(1)}"><div style="height:600px;overflow-y:auto"><div class="editable">${Array.from({ length: count }, (_, i) => `<p style="height:20px;margin:0">line ${i}</p>`).join('')}</div></div></div>`)
   await controlled(150)
   const quiet = await record(page, async () => {
@@ -279,9 +280,17 @@ test('recorder observes quiet offscreen writing and distinguishes forced clamps 
       await page.waitForTimeout(200)
     })
   }
-  const voluntary = verdict(await scenario(0, 300))
-  expect(voluntary.instant + voluntary.abrupt).toBeGreaterThan(0)
-  expect(verdict(await scenario(1200, null))).toMatchObject({ instant: 0, abrupt: 0 })
+  const voluntary = await scenario(0, 300)
+  const sampler = voluntary.samples.slice(1).map((s, i) => s[4] - voluntary.samples[i][4]).sort((a, b) => a - b)
+  expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
+  const voluntaryResult = verdict(voluntary)
+  expect(voluntaryResult.instant + voluntaryResult.abrupt).toBeGreaterThan(0)
+  const forced = await scenario(1200, null)
+  const forcedSampler = forced.samples.slice(1).map((s, i) => s[4] - forced.samples[i][4]).sort((a, b) => a - b)
+  expect(forcedSampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(forcedSampler[forcedSampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
+  expect(verdict(forced)).toMatchObject({ instant: 0, abrupt: 0 })
 })
 
 function jumpingFile(position: string) {

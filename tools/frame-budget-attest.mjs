@@ -30,9 +30,11 @@ function verdictAbrupt(rec) {
   return abrupt
 }
 
-// Refuse on FOLLOW_DEBUG (produces extra stdout lines that become phantom rows)
+// Refuse on FOLLOW_DEBUG: an attestation should be of the run as CI and reviewers run it, and FOLLOW_DEBUG
+// adds diagnostic work and output to the follow tests. (Rows come from the JSON reporter and the tests'
+// attachments, so the extra output no longer breaks parsing; the refusal is about what is being attested.)
 if (process.env.FOLLOW_DEBUG) {
-  console.error('REFUSED: FOLLOW_DEBUG is set. It produces extra stdout lines that break row matching.')
+  console.error('REFUSED: FOLLOW_DEBUG is set. Attest the run as CI and reviewers run it: unset FOLLOW_DEBUG.')
   process.exit(1)
 }
 
@@ -89,8 +91,8 @@ for (const suite of report.suites ?? []) {
       if (!res) continue
       const m = spec.title.match(/height (\d+)/)
       const p = spec.title.match(/:\s*(end|middle)/)
-      const height = m?.[1] ?? '?'
-      const position = p?.[1] ?? '?'
+      const height = m?.[1] ?? 'recorder'
+      const position = p?.[1] ?? 'n/a'
       // Find the follow-motion attachment
       const att = (res.attachments ?? []).find(a => a.name === 'follow-motion')
       let timing = null
@@ -106,32 +108,34 @@ for (const suite of report.suites ?? []) {
         height,
         position,
         status: res.status === 'passed' ? 'PASS' : 'FAIL',
-        samplerMedian: s?.median != null ? s.median.toFixed(1) : '?',
-        samplerMax: s?.max != null ? s.max.toFixed(1) : '?',
-        rafMax: r.length ? Math.max(...r).toFixed(1) : '?',
-        abrupt: timing ? verdictAbrupt(timing) : '?',
-        cacheMatch: timing?.cacheValid?.match ? 'yes' : 'no',
+        samplerMedian: s?.median != null ? s.median.toFixed(1) : 'n/a',
+        samplerMax: s?.max != null ? s.max.toFixed(1) : 'n/a',
+        rafMax: r.length ? Math.max(...r).toFixed(1) : 'n/a',
+        abrupt: timing ? verdictAbrupt(timing) : 'n/a',
+        // 'n/a' when the test recorded no cache check at all (not only when it recorded no timing), so the
+        // no-timing-data refusal below can fire for it (#30).
+        cacheMatch: timing?.cacheValid ? (timing.cacheValid.match ? 'yes' : 'no') : 'n/a',
       })
     }
   }
 }
 
-// Refuse if wrong number of tests (expected 4: 2 heights × 2 positions)
-const expected = [['600','end'], ['600','middle'], ['720','end'], ['720','middle']]
-if (rows.length !== expected.length) {
-  console.error(`REFUSED: expected ${expected.length} tests, got ${rows.length}.`)
+// Refuse if wrong number of tests (expected 5: 4 writing-jumps + 1 recorder)
+if (rows.length !== 5) {
+  console.error(`REFUSED: expected 5 tests, got ${rows.length}.`)
   process.exit(1)
 }
-for (const [h, p] of expected) {
+// The four writing-jump tests must be present
+for (const [h, p] of [['600','end'], ['600','middle'], ['720','end'], ['720','middle']]) {
   if (!rows.find(r => r.height === h && r.position === p)) {
     console.error(`REFUSED: missing test for height ${h}, position ${p}.`)
     process.exit(1)
   }
 }
 
-// Refuse if any row lacks timing data
+// Refuse if any WRITING-JUMP row lacks timing data (recorder test may not have it)
 for (const r of rows) {
-  if (r.samplerMax === '?' || r.cacheMatch === '?') {
+  if (r.height !== 'recorder' && (r.samplerMax === 'n/a' || r.cacheMatch === 'n/a')) {
     console.error(`REFUSED: test ${r.height}/${r.position} has no timing data.`)
     process.exit(1)
   }
