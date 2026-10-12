@@ -58,6 +58,10 @@ jobs:
       # branch are line 118, the function's closing brace, which Jest's V8 converter counts and nothing can run.
       - name: unit tests with coverage thresholds
         run: npm test -- --coverage
+      # The e2e server must hold its port from the start and fail early when it is taken (#35).
+      # No dependencies: node's own test runner.
+      - name: e2e server holds its port
+        run: node --test tools/test-serve-local.mjs
       - run: pip install 'pre-commit==4.6.2'
       - run: pre-commit run --all-files --show-diff-on-failure
 
