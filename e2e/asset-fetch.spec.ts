@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { assetUrls, fetchAsset } from '../src/poems/asset-fetch'
 
 const base = 'http://127.0.0.1/archive/'
-const key = 'synthétique/synthétique--x.midst.zip'
+const key = 'synth\u00e9tique/synth\u00e9tique--x.midst.zip'
 const variants = assetUrls(base, key)
 
 test('asset candidates preserve original spelling and deduplicate Unicode forms', () => {
@@ -10,7 +10,7 @@ test('asset candidates preserve original spelling and deduplicate Unicode forms'
   const decomposed = key.normalize('NFD')
   expect(assetUrls(base, decomposed)).toEqual([base + encodeURI(decomposed), base + encodeURI(key)])
   expect(assetUrls(base, 'ascii/x.zip')).toEqual([base + 'ascii/x.zip'])
-  expect(assetUrls(base, 'synthétique/synthétique--x.zip')).toHaveLength(3)
+  expect(assetUrls(base, 'synth\u00e9tique/synthe\u0301tique--x.zip')).toHaveLength(3)
 })
 
 test('existing success is returned without retry or reading content', async () => {
