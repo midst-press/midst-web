@@ -288,13 +288,19 @@ function jumpingFile(position: string) {
   const lines = Array.from({ length: 150 }, (_, i) => `synthetic line ${i}`)
   const html = () => lines.map(line => `<p>${line}</p>`).join('')
   const snapshots = [html()]
+  // Each change's `pos` is where the cursor really is after it, in TipTap document positions (a paragraph
+  // costs its text length plus 2, its open and close), so the legacy control follows the right line and
+  // is judged on HOW it follows, not on pointing at the top of the poem (#33).
+  const positions = [0]
   for (const target of [140, 4, 110, 20]) for (let n = 0; n < 12; n++) {
     const line = lines[target]
     const at = position === 'end' ? line.length : 5
     lines[target] = line.slice(0, at) + 'z' + line.slice(at)
     snapshots.push(html())
+    const before = lines.slice(0, target).reduce((sum, text) => sum + text.length + 2, 0)
+    positions.push(before + 1 + at + 1)
   }
-  return 'midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: 0 })) })
+  return 'midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: positions[i] })) })
 }
 
 for (const position of ['end', 'middle']) test(`actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
