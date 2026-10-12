@@ -109,7 +109,6 @@
   "devDependencies": {
     "@babel/core": "7.10.0",
     "@playwright/test": "^1.64.0",
-    "@types/jest": "^30.0.0",
     "@types/mocha": "5.2.7",
     "assert": "2.1.0",
     "depcheck": "1.4.7",

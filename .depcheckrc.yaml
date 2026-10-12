@@ -25,7 +25,6 @@ ignores:
   # --- unit tests: run through the "jest" block in package.json, which nothing imports ---
   - jest                              # the unit-test runner (npm test)
   - ts-jest                           # named in jest.transform, to run TypeScript and the CommonJS .js modules
-  - "@types/jest"                     # types for describe/it/expect in src/__tests__
 
   # --- CSS-only packages: imported from stylesheets, which depcheck does not parse ---
   - normalize.css
