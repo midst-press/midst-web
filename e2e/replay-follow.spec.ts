@@ -1,4 +1,5 @@
-import { test, expect, Page } from '@playwright/test'
+import { Page } from '@playwright/test'
+import { test, expect } from './coverage'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import names from '../src/poems/poem-names.js'
