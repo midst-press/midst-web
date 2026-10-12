@@ -18,6 +18,9 @@
   },
   "license": "all rights reserved",
   "dependencies": {
+    "@tiptap/pm": "2.5.4",
+    "@tiptap/react": "2.5.4",
+    "@tiptap/starter-kit": "2.5.4",
     "@fortawesome/fontawesome-free": "5.12.1",
     "@rooks/use-window-size": "4.6.1",
     "@types/body-scroll-lock": "2.6.1",
@@ -112,6 +115,30 @@
     "prettier": "1.18.2",
     "process": "^0.11.10",
     "typescript": "4.6.3"
+  },
+  "overrides": {
+    "@tiptap/core": "2.5.4",
+    "@tiptap/pm": "2.5.4",
+    "@tiptap/extension-blockquote": "2.5.4",
+    "@tiptap/extension-bold": "2.5.4",
+    "@tiptap/extension-bubble-menu": "2.5.4",
+    "@tiptap/extension-bullet-list": "2.5.4",
+    "@tiptap/extension-code": "2.5.4",
+    "@tiptap/extension-code-block": "2.5.4",
+    "@tiptap/extension-document": "2.5.4",
+    "@tiptap/extension-dropcursor": "2.5.4",
+    "@tiptap/extension-floating-menu": "2.5.4",
+    "@tiptap/extension-gapcursor": "2.5.4",
+    "@tiptap/extension-hard-break": "2.5.4",
+    "@tiptap/extension-heading": "2.5.4",
+    "@tiptap/extension-history": "2.5.4",
+    "@tiptap/extension-horizontal-rule": "2.5.4",
+    "@tiptap/extension-italic": "2.5.4",
+    "@tiptap/extension-list-item": "2.5.4",
+    "@tiptap/extension-ordered-list": "2.5.4",
+    "@tiptap/extension-paragraph": "2.5.4",
+    "@tiptap/extension-strike": "2.5.4",
+    "@tiptap/extension-text": "2.5.4"
   },
   "resolutions": {
     "@babel/preset-env": "7.13.8"

@@ -1,0 +1,125 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import { IMidstFile } from '../../store/types'
+import { ChangeObj, reconstructHTML } from './helpers'
+import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
+import './player.css'
+
+const extensions = [StarterKit.configure({
+  bulletList: false, orderedList: false, blockquote: false, code: false,
+  codeBlock: false, heading: false, horizontalRule: false, listItem: false, strike: false,
+})]
+
+interface Props {
+  data: IMidstFile | null
+  activePlayer: boolean
+  cursorFollowing: boolean
+  hasScrollbar: boolean
+}
+
+export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasScrollbar }: Props) {
+  // The loader validates B/C and exposes snapshots. Whole-document replacements preserve unchanged
+  // frames too, unlike compareStrings's early return, without changing the editor's copied helpers.
+  const history = useMemo<ChangeObj[]>(() => {
+    return (data ? data.editorTimelineFrames : []).map(frame => {
+      const change = { front: 0, end: 0, inserted: frame.content, t: new Date(frame.timestamp), pos: frame.cursorPosition }
+      // step keeps `end` characters from the previous document. Zero retains none.
+      return change
+    })
+  }, [data])
+  const maxStep = Math.max(0, history.length - 1)
+  const [step, setStep] = useState(maxStep)
+  const [playing, setPlaying] = useState(false)
+  const glide = useRef<Glide | null>(null)
+  const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const editor = useEditor({
+    extensions,
+    content: '',
+    editable: false,
+    parseOptions: { preserveWhitespace: true },
+    editorProps: { attributes: { class: 'editable', 'aria-label': 'Poem replay' } },
+  })
+
+  function cancelGlide() {
+    if (glide.current) cancelAnimationFrame(glide.current.frame)
+    glide.current = null
+  }
+
+  useEffect(() => {
+    setStep(maxStep)
+    setPlaying(false)
+    cancelGlide()
+  }, [data, maxStep])
+
+  useEffect(() => {
+    if (!activePlayer || !cursorFollowing) cancelGlide()
+    if (!activePlayer) setPlaying(false)
+  }, [activePlayer, cursorFollowing])
+
+  useEffect(() => {
+    if (!editor) return
+    const before = editor.state.doc
+    // Each adapter entry is a full replacement, so reconstruct just this entry: seeking a long
+    // archive must not replay every earlier snapshot on every 60ms tick.
+    editor.commands.setContent(reconstructHTML('', history.slice(Math.min(step, maxStep), Math.min(step, maxStep) + 1), 0), false, { preserveWhitespace: true })
+    const after = editor.state.doc
+    const changed = after.content.findDiffStart(before.content)
+    const scroller = scrollParent(editor.view.dom as HTMLElement)
+    if (activePlayer && cursorFollowing && changed != null && scroller) {
+      const point = editor.view.coordsAtPos(Math.min(changed, after.content.size))
+      const to = targetScrollTop(point, scroller.getBoundingClientRect(), scroller.scrollTop, scroller.scrollHeight)
+      if (to != null) glide.current = glideTo(scroller, to, glide.current)
+    }
+    if (step >= maxStep) setPlaying(false)
+  }, [editor, history, step, maxStep, activePlayer, cursorFollowing])
+
+  useEffect(() => {
+    if (!playing || !activePlayer || maxStep === 0) return
+    timer.current = setInterval(() => {
+      setStep(value => gliding(glide.current) ? value : Math.min(value + 1, maxStep))
+    }, 60)
+    return () => { if (timer.current) clearInterval(timer.current) }
+  }, [playing, activePlayer, maxStep])
+
+  useEffect(() => () => {
+    if (timer.current) clearInterval(timer.current)
+    cancelGlide()
+  }, [])
+
+  const playPause = () => {
+    if (playing) {
+      setPlaying(false)
+      return
+    }
+    if (step >= maxStep) {
+      cancelGlide()
+      setStep(0)
+    }
+    setPlaying(true)
+  }
+
+  return (
+    <div className="midst-tiptap-player" data-player="tiptap">
+      <div className={`editor${hasScrollbar ? '' : ' editor--hide-scrollbar'}`} style={{
+        fontFamily: data ? data.meta.editorFontFamily : 'Helvetica',
+        fontSize: data ? data.meta.editorFontSize : 14,
+      }}>
+        <EditorContent editor={editor} />
+      </div>
+      <div className="control-container">
+        <div className="controls" onKeyDown={event => event.stopPropagation()}>
+          <button type="button" aria-label={playing ? 'Pause' : 'Play'}
+            className={`play-pause-button control-button${playing ? ' playing' : ''}`}
+            onClick={playPause} disabled={!activePlayer || history.length < 2}>
+            {playing ? <><span className="pause-rectangle" /><span className="pause-rectangle" /></> : '▶'}
+          </button>
+          <input type="range" aria-label="Timeline" className="progress-bar"
+            min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
+            disabled={!activePlayer || history.length < 2}
+            onChange={event => { setPlaying(false); cancelGlide(); setStep(Number(event.target.value)) }} />
+        </div>
+      </div>
+    </div>
+  )
+}

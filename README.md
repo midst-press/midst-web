@@ -103,3 +103,25 @@ node tools/poem-canary.mjs
 Asks the bucket for every published poem and reports anything unreachable. It needs no credentials. It
 exists because a poem was unreachable for an unknown length of time and nobody found out from the
 software.
+## TipTap website replay
+
+The poem route uses `src/components/MidstPlayer/MidstPlayer.tsx`, adapted from
+`reimplement-2026` at `05c727544f47dcee1d40ddaaa06ab994299dd875`. The existing loader
+still validates B/C archives and preserves the Unicode asset fallback. Each validated
+snapshot becomes a full replacement for the editor's reconstruction helper, including
+unchanged frames. Seeking reconstructs only the selected replacement.
+
+`follow.ts` and `helpers.ts` are copied byte-for-byte from midst-editor main. All writing
+hooks exclude these copies from formatting, and the provenance hook compares them with
+a freshly fetched editor main. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
+after fetching its `origin/main`. CI checks out editor main through scoped read-only
+access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea and `MIDST_REPO_READ_TOKEN` on GitHub.
+
+TipTap and its transitive extensions are pinned to 2.5.4, matching the editor lockfile.
+`@tiptap/pm` is explicit because this website installs with `--legacy-peer-deps`.
+Playback waits during a follow glide; pause, seek, navigation and unmount manage the
+timer lifecycle. Cursor-following and scrollbar metadata overrides remain supported.
+
+The synthetic follow tests cover end/middle writing jumps at 600px and 720px page
+heights. The recorder also checks quiet final edits and distinguishes a forced browser
+clamp from a voluntary jump. Real poem content is never needed for these CI tests.
