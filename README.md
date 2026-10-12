@@ -67,6 +67,11 @@ They cover formatting, `tsc --noEmit`, unused dependencies, and three project-sp
 data and log files can never be committed, and `src/poems/index.ts` must stay consistent with the poem
 metadata.
 
+One more exists because the gate runs on macOS: `tools/check-import-case.mjs` fails when a relative
+import is spelled in a different letter case (or Unicode form) than git has the file. macOS resolves
+such an import and Linux does not, and this site has shipped that once. It compares against
+`git ls-files`, never the filesystem, so it gives the same answer on both.
+
 ## Publishing a poem
 
 `src/poems/index.ts` is **generated**. Do not edit it.
