@@ -122,7 +122,7 @@ a freshly fetched editor main. The same hook holds the editor's tests for them, 
 `src/__tests__/editor-*.test.ts`: each must equal its original apart from a header note and
 the import path. To bring a copy up to date, copy the original and reapply those two. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
 after fetching its `origin/main`. CI checks out editor main through scoped read-only
-access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea and `MIDST_REPO_READ_TOKEN` on GitHub.
+access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea. On GitHub midst-editor is public, so the checkout needs no credential.
 
 TipTap and its transitive extensions are pinned to 2.5.4, matching the editor lockfile.
 `@tiptap/pm` is explicit because this website installs with `--legacy-peer-deps`.
