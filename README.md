@@ -67,6 +67,11 @@ They cover formatting, `tsc --noEmit`, unused dependencies, and three project-sp
 data and log files can never be committed, and `src/poems/index.ts` must stay consistent with the poem
 metadata.
 
+One more exists because the gate runs on macOS: `tools/check-import-case.mjs` fails when a relative
+import is spelled in a different letter case (or Unicode form) than git has the file. macOS resolves
+such an import and Linux does not, and this site has shipped that once. It compares against
+`git ls-files`, never the filesystem, so it gives the same answer on both.
+
 ## Publishing a poem
 
 `src/poems/index.ts` is **generated**. Do not edit it.
@@ -176,3 +181,13 @@ or `npm run test:e2e` records nothing extra and is no slower.
 What it does not measure: the `asset-canary`, `asset-fetch` and `midst-file` Playwright specs run
 `src/` code in Node, not in a page, so what they execute is not counted here. Coverage is what ran,
 not what was asserted, and no figure from this report is used as a gate.
+
+## License
+
+The website's source code is licensed under the GNU Affero General Public License, version 3 or (at your
+option) any later version: see `LICENSE`. That license does not cover the following, which keep their own
+terms:
+
+- font files (for example Bell MT, a Monotype font, and the other commercial fonts under `static/` and `src/`),
+- poets' names, poem titles and other poem metadata, and the journal's own written text,
+- third-party components that declare their own license (for example the player component's `package.json`).
