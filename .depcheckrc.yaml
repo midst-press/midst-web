@@ -22,6 +22,11 @@ ignores:
                                       #   present -> build passes. Without that flag Parcel silently
                                       #   installs it and the build passes either way.
 
+  # --- unit tests: run through the "jest" block in package.json, which nothing imports ---
+  - jest                              # the unit-test runner (npm test)
+  - ts-jest                           # named in jest.transform, to run TypeScript and the CommonJS .js modules
+  - jest-environment-jsdom            # named in a @jest-environment docblock (the follow tests copied from midst-editor)
+
   # --- CSS-only packages: imported from stylesheets, which depcheck does not parse ---
   - normalize.css
   - global.css
