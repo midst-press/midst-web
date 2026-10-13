@@ -35,22 +35,26 @@ fine for development; the README's "Fonts" section says how to use a copy.
 
 ## Before you open a pull request
 
+`pre-commit` is a Python tool: `pipx install pre-commit==4.6.2` (the version CI uses; `uv tool install`
+works too). Several hooks call tools from `node_modules`, so run `npm ci` first.
+
 Some player helpers are copied from the editor and must stay identical to it, and a hook checks that.
 It needs a current checkout of `midst-press/midst-editor`, named by `MIDST_EDITOR_ROOT`:
 
 ```
 git clone https://github.com/midst-press/midst-editor.git ../midst-editor   # once; pull it before checking
 export MIDST_EDITOR_ROOT=$PWD/../midst-editor
+npx playwright install chromium                                             # once; the end-to-end tests need it
 
 pre-commit install            # once per clone
-pre-commit run --all-files    # what CI runs: formatting, type check, unused dependencies, project rules
-npm test                      # unit tests (Jest), with per-file coverage thresholds
+pre-commit run --all-files    # formatting, type check, unused dependencies, project rules
+npm test -- --coverage        # unit tests (Jest), with the per-file coverage thresholds, as CI runs them
 npm run test:e2e              # end-to-end: does a poem still load and play (Playwright)
 ```
 
 - **Tests come with the change.** A bug fix carries a test that fails without it.
 - **Replay and scrolling.** If you change how the player follows the writing (`src/components/MidstPlayer/`,
-  especially `follow.ts`), run `npm run e2e:frame-budget` on a machine with a display if you can. These
+  especially `follow.ts`), run `npm run e2e:frame-budget -- --headed` on a machine with a display if you can. These
   tests measure the scrolling over time, so they need real frame timing. They are not required locally:
   the `frame-budget` workflow runs them on every pull request.
 
