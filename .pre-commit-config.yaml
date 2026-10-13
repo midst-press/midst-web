@@ -100,6 +100,18 @@ repos:
         entry: node tools/test-poem-names.mjs
         pass_filenames: false
         files: '^(src/poems/[^/]+\.json|src/poems/poem-names\.js|tools/poem-names\.snapshot\.json)$'
+      - id: poem-ids
+        name: every poem has an opaque id, and no two share one
+        language: system
+        entry: node tools/poem-ids.mjs
+        pass_filenames: false
+        files: '^(src/poems/[^/]+\.json|tools/poem-ids\.mjs)$'
+      - id: poem-ids-self-test
+        name: the poem id check passes on sound ids and names each way they can be wrong
+        language: system
+        entry: node --test tools/test-poem-ids.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?poem-ids\.mjs$'
       - id: poem-index-generated
         name: src/poems/index.ts is generated and consistent with the metadata
         language: system
