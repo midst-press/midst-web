@@ -136,17 +136,28 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   }
 
   // The current frame's edit time, shown below the timeline. Follows the playhead.
-  // A synthetic frame (empty history) has timestamp 0 and sourceHistoryLength 0 — not a real edit.
+  // A synthetic frame (empty history) has sourceHistoryLength 0 — not a real edit.
+  // Distinguish synthetic from missing/invalid: require a finite timestamp, allow 0 and negatives.
   const currentFrame = data?.editorTimelineFrames?.[Math.min(step, maxStep)]
-  const hasRealTimestamp = currentFrame != null && currentFrame.timestamp > 0
-    && (data?.sourceHistoryLength ?? 1) > 0
+  const isSynthetic = (data?.sourceHistoryLength ?? 1) === 0
+  const rawTimestamp = currentFrame?.timestamp
+  const hasRealTimestamp = currentFrame != null && !isSynthetic
+    && rawTimestamp != null && Number.isFinite(rawTimestamp)
   const frameTimestamp = hasRealTimestamp ? currentFrame!.timestamp : null
   const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
-  // Edge-align: translateX(-50%) pushes half the label offscreen at 0% and 100%.
-  // Clamp the left so the label stays within the timeline container.
-  const playheadLeft = playheadPercent <= 0 ? '0%' : playheadPercent >= 100 ? '100%' : `${playheadPercent}%`
-  const playheadTransform = playheadPercent <= 0 ? 'translateX(0)'
-    : playheadPercent >= 100 ? 'translateX(-100%)' : 'translateX(-50%)'
+  // Continuous bounding: clamp the label so it stays within the timeline container.
+  // Measure the rendered label width and bound left between 0 and 100% minus label width.
+  const timestampRef = useRef<HTMLDivElement>(null)
+  const [labelWidthPct, setLabelWidthPct] = useState(0)
+  useEffect(() => {
+    const el = timestampRef.current
+    if (!el || !el.parentElement) return
+    const containerWidth = el.parentElement.offsetWidth
+    if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
+  }, [frameTimestamp, playheadPercent])
+  const clampedLeft = Math.max(0, Math.min(playheadPercent, 100 - labelWidthPct))
+  const playheadLeft = `${clampedLeft}%`
+  const playheadTransform = 'translateX(-50%)'
 
   // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
   // key only worked once the play button had been clicked and so held focus; a freshly loaded page
@@ -196,7 +207,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>◆</button>)}
             </div>
             {frameTimestamp != null && (
-              <div className="frame-timestamp" role="status" aria-label="Frame edit time"
+              <div ref={timestampRef} className="frame-timestamp" role="status" aria-label="Frame edit time"
                 style={{ left: playheadLeft, transform: playheadTransform }}>
                 {new Date(frameTimestamp).toLocaleString(undefined, {
                   year: 'numeric', month: 'short', day: 'numeric',
@@ -205,7 +216,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
               </div>
             )}
             {frameTimestamp == null && currentFrame != null && (
-              <div className="frame-timestamp frame-timestamp--unavailable" role="status"
+              <div ref={timestampRef} className="frame-timestamp frame-timestamp--unavailable" role="status"
                 aria-label="Frame edit time unavailable"
                 style={{ left: playheadLeft, transform: playheadTransform }}>
                 edit time unavailable
