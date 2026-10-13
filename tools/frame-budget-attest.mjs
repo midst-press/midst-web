@@ -82,6 +82,28 @@ const result = spawnSync('node', [
 // Refuse if Playwright failed to run
 if (result.status !== 0 && result.status !== null) {
   console.error(`REFUSED: Playwright exited ${result.status}.`)
+  // Say which tests failed and with what: a red run that does not name its reason cannot be told from a
+  // broken runner. Titles are test names from the spec file, never poem names.
+  try {
+    const failed = []
+    const walk = suite => {
+      for (const spec of suite.specs ?? []) {
+        for (const t of spec.tests ?? []) {
+          const res = t.results?.[t.results.length - 1]
+          if (!res || res.status === 'passed' || res.status === 'skipped') continue
+          const message = (res.error?.message ?? res.errors?.[0]?.message ?? 'no error message')
+            .replace(/\u001b\[[0-9;]*m/g, '').split('\n').map(line => line.trim()).filter(Boolean).slice(0, 16).join(' | ')
+          failed.push(`- ${res.status}: ${spec.title}: ${message.slice(0, 1200)}`)
+        }
+      }
+      for (const child of suite.suites ?? []) walk(child)
+    }
+    for (const suite of JSON.parse(result.stdout).suites ?? []) walk(suite)
+    console.error(`${failed.length} test(s) did not pass:`)
+    for (const line of failed) console.error(line)
+  } catch {
+    console.error('Playwright printed no JSON report to read the failures from.')
+  }
   console.error(result.stderr?.slice(0, 2000) ?? '')
   process.exit(1)
 }
