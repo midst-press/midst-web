@@ -135,6 +135,10 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     setPlaying(true)
   }
 
+  // The current frame's edit time, shown below the timeline. Follows the playhead.
+  const frameTimestamp = data?.editorTimelineFrames?.[Math.min(step, maxStep)]?.timestamp
+  const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
+
   // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
   // key only worked once the play button had been clicked and so held focus; a freshly loaded page
   // has nothing focused. Every poem is mounted in the carousel, so only the active player listens.
@@ -182,6 +186,15 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 title={marker.label} aria-label={`Jump to ${marker.label}`} disabled={!activePlayer}
                 onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>◆</button>)}
             </div>
+            {frameTimestamp != null && (
+              <div className="frame-timestamp" role="status" aria-label="Frame edit time"
+                style={{ left: `${playheadPercent}%` }}>
+                {new Date(frameTimestamp).toLocaleString(undefined, {
+                  year: 'numeric', month: 'short', day: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
