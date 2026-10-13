@@ -53,6 +53,9 @@ npm run test:e2e              # end-to-end: does a poem still load and play (Pla
 ```
 
 - **Tests come with the change.** A bug fix carries a test that fails without it.
+- **Commit messages and pull-request titles say `Refs #12`, not `Fixes #12` or `Closes #12`.** A closing
+  keyword there closes the issue the moment the commit reaches `main`, before anyone has checked the fix in
+  a release. The `commit-msg` hook that `pre-commit install` sets up refuses one.
 - **Replay and scrolling.** If you change how the player follows the writing (`src/components/MidstPlayer/`,
   especially `follow.ts`), run `npm run e2e:frame-budget -- --headed` on a machine with a display if you can. These
   tests measure the scrolling over time, so they need real frame timing. They are not required locally:

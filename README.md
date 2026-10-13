@@ -147,6 +147,14 @@ build copies `static/` into `dist/`, so they are served at `/fonts/`. Without th
 back to system fonts and nothing else changes. The end-to-end tests do not need them: the fixture
 maker writes a synthetic font under each name and the tests check that the faces load.
 
+If `MIDST_FONTS_URL` points at a different origin from the site, that host must answer font requests
+with an `Access-Control-Allow-Origin` header naming the site (or `*`). Browsers load fonts across
+origins only with it; without it every face fails to load and the page falls back to system fonts,
+with nothing shown to the reader. The default, `/fonts/` on the site's own origin, needs no header.
+
+If a build fails with "Failed to resolve '../midst-player-hack/lato.css'" after you pull, delete
+`.parcel-cache`: it was written by a build from before the font stylesheets were removed.
+
 ## Checking the poems are still reachable
 
 ```
