@@ -5,8 +5,10 @@ import { IMidstFile } from '../../store/types'
 import { ChangeObj, reconstructHTML } from './helpers'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
-import '../midst-player-hack/lato.css'
-import '../midst-player-hack/helvetica-neue.css'
+import { installFonts } from '../../fonts'
+
+// Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
+installFonts()
 
 const extensions = [StarterKit.configure({
   bulletList: false, orderedList: false, blockquote: false, code: false,

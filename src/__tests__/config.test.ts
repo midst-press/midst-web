@@ -5,7 +5,7 @@ const POEMS_OVERRIDE = 'http://127.0.0.1:8099/zq/poems/'
 const MEDIA_OVERRIDE = 'http://127.0.0.1:8099/zq/media/'
 const SHAPES_OVERRIDE = 'http://127.0.0.1:8099/zq/shapes/'
 
-const KEYS = ['MIDST_POEMS_URL', 'MIDST_MEDIA_URL', 'MIDST_SHAPES_URL'] as const
+const KEYS = ['MIDST_POEMS_URL', 'MIDST_MEDIA_URL', 'MIDST_SHAPES_URL', 'MIDST_FONTS_URL'] as const
 
 type ConfigModule = typeof import('../config')
 
@@ -102,6 +102,20 @@ describe('config asset origins', () => {
     expect(config.POEMS_URL).toBe('https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/')
     expect(config.MEDIA_URL).toBe('https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/')
     expect(config.SHAPES_URL).toBe('https://d3nlqr52a31o6y.cloudfront.net/midst-press/site/shapes/')
+    expect(config.USING_NON_PRODUCTION_ASSETS).toBe(false)
+  })
+})
+
+describe('config fonts origin', () => {
+  it('defaults to fonts/ at the site origin', () => {
+    expect(loadConfig({}).FONTS_URL).toBe('/fonts/')
+    expect(loadConfig({ MIDST_FONTS_URL: '' }).FONTS_URL).toBe('/fonts/')
+  })
+
+  it('takes an override, and does not mark the build as showing non-production data', () => {
+    const config = loadConfig({ MIDST_FONTS_URL: 'http://127.0.0.1:8099/zq/fonts/' })
+    expect(config.FONTS_URL).toBe('http://127.0.0.1:8099/zq/fonts/')
+    expect(config.POEMS_URL).toBe(PROD_AUTHORS)
     expect(config.USING_NON_PRODUCTION_ASSETS).toBe(false)
   })
 })

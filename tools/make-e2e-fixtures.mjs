@@ -130,6 +130,25 @@ function zipOne(name, body) {
 
 rmSync(OUT, { recursive: true, force: true })
 let written = 0
+
+// FONTS. The real font files are not in this repository (#55), and the tests must not fall back to
+// system fonts without saying so. So every file named in src/font-faces.json gets a SYNTHETIC font:
+// three glyphs (a box for every printable ASCII character), family "MidstE2ESynthetic", built with
+// fontTools' FontBuilder and saved as TrueType, WOFF and WOFF2. No part of any real typeface. The
+// build points MIDST_FONTS_URL at this directory (package.json, e2e:build).
+const SYNTHETIC_FONT = {
+  ttf: 'AAEAAAAKAIAAAwAgT1MvMkUARHIAAAEoAAAAYGNtYXAAjgHtAAABkAAAAPJnbHlmf3R/cgAAAowAAAA0aGVhZC9UXTIAAACsAAAANmhoZWEFegHEAAAA5AAAACRobXR4AlgAZAAAAYgAAAAIbG9jYQANACcAAAKEAAAACG1heHAABQAGAAABCAAAACBuYW1lRcljQgAAAsAAAAB+cG9zdANqcHoAAANAAAAALAABAAAAAQAAGrqmYV8PPPUAAwPoAAAAAObzDS8AAAAA5vMNLwAyAAACJgH0AAAAAwACAAAAAAAAAAEAAAMg/zgAAAJYADIAMgImAAEAAAAAAAAAAAAAAAAAAAABAAEAAAADAAQAAQAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAwJYAZAABQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAPz8/PwAAACAAfgMg/zgAAAMgAMgAAAAAAAAAAAAAAAAAAAAgAAACWAAyAAAAMgAAAAIAAAADAAAAFAADAAEAAAAUAAQA3gAAAAQABAABAAAAfv//AAAAIP//AAAAAQAEAAAAAQACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAAAAAANAA0AGgABADIAAAImAfQAAwAAMxEhETIB9AH0/gwAAAEAMgAAAiYB9AADAAAzESERMgH0AfT+DAAAAAAEADYAAQAAAAAAAQARAAAAAQAAAAAAAgAHABEAAwABBAkAAQAiABgAAwABBAkAAgAOADpNaWRzdEUyRVN5bnRoZXRpY1JlZ3VsYXIATQBpAGQAcwB0AEUAMgBFAFMAeQBuAHQAaABlAHQAaQBjAFIAZQBnAHUAbABhAHIAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAADAQIDYm94',
+  woff: 'd09GRgABAAAAAAJ8AAoAAAAAA2wAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAABZAAAAC4AAABgRQBEcmNtYXAAAAGcAAAALwAAAPIAjgHtZ2x5ZgAAAdQAAAAlAAAANH90f3JoZWFkAAAA9AAAADYAAAA2L1RdMmhoZWEAAAEsAAAAHwAAACQFegHEaG10eAAAAZQAAAAIAAAACAJYAGRsb2NhAAABzAAAAAgAAAAIAA0AJ21heHAAAAFMAAAAGAAAACAABQAGbmFtZQAAAfwAAABoAAAAfkXJY0Jwb3N0AAACZAAAABUAAAAsA2pwegABAAAAAQAAGrqmYV8PPPUAAwPoAAAAAObzDS8AAAAA5vMNLwAyAAACJgH0AAAAAwACAAAAAAAAeJxjYGRgYFb4b8HAwBTBYMRgxKTGABRBAYwAPTECRAB4nGNgZGBgYGZgYQDRDAxMDGgAAAEtAAx4nGNgZopgnMDAysDCQBgwInPsgQBIKTDUMSv8t2BgYFZgOIGmXoGBAQDESQT4AAACWAAyAAAAMnicY2BgYGJgYGAGYhEgyQimWRjuAWkWIATx6/7/B5IKYJIRKAYimYYuBADlHAZ5AAAAAA0ADQAaeJxjYGQwYmBgUmP8wsDMwGAsqChoxPiF8cs/HgYGnDIA1vIJ3wAAAHicLYixDkAwFEVPkYhFYjP7hA4Ge0cLXyDaVJPGQA3+3iNOcm/uuUBBj+JF0Xz9klGK5aiikqej/XdGzTAGeyajzXzvaXMprJPzV1wORgKWk4RBS2ZudrENJx1YmWR5LiILxwNpqBOkeJxjYGLAD5hBmJGJOSm/AgADUAFYAAAA',
+  woff2: 'd09GMgABAAAAAAFIAAoAAAAAA3AAAAD/AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgXIKOEIBNgIkAwgLCAAEIAV+BywbvwJgHge5GeuSulCWDs17PBT7tbe7p5hHvKomIsmbNUqwHimJyNA58rd2Yhx/Nf9oYZjEx5coTpEgPJDrTv8d8PPzMcq9Q0UaALUFWC0PPMAMI0lvGM8mCY+cfjeqfLBra6EE8KKKRe+lOSQ8XwAtuonCjAV0yzdarcB702BROLR+nb0bCnSQ6GEI0AKBaLWGazSRtgc0Hq0Xefvc8I/j/feqfuHnb3Qjx7bJ9RigJAhOkfNBYbtDAABixWyfUVoCJAAAWvYFCJMIkLomlWj1hWULw2Qac3z1Wg+Y+PpPdIGWL1gvYAJVHcDIpeSboBOgikg015BtToWyIrJe1gMAAA==',
+}
+const faces = JSON.parse(readFileSync(join(REPO, 'src', 'font-faces.json'), 'utf8'))
+mkdirSync(join(OUT, 'fonts'), { recursive: true })
+for (const file of new Set(faces.flatMap(face => face.sources.map(source => source.file)))) {
+  const extension = file.split('.').pop()
+  // .eot is only ever requested by Internet Explorer; it gets the TrueType bytes so the name exists.
+  writeFileSync(join(OUT, 'fonts', file), Buffer.from(SYNTHETIC_FONT[extension] || SYNTHETIC_FONT.ttf, 'base64'))
+  written += 1
+}
 for (const subject of SUBJECTS) {
   const meta = JSON.parse(readFileSync(join(REPO, 'src', 'poems', `${subject}.json`), 'utf8'))
   const objectName = names.timelapseObjectName(meta) // <- the app's own derivation
@@ -148,7 +167,8 @@ for (const subject of SUBJECTS) {
         editorTimelineFrames: frames(TYPED),
         meta: {
           editorDraftMarkers: [],
-          editorFontFamily: 'Helvetica',
+          // One poem is set in Lato, a face the site serves, so e2e can check a poem's own font loads.
+          editorFontFamily: subject === 'Margaret_Yapp' ? 'Lato' : 'Helvetica',
           editorFontSize: 14,
           editorHighestEverDraftNumber: 0,
           editorTitle: 'Untitled',
