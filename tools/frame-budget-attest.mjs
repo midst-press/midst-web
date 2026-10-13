@@ -47,9 +47,21 @@ if (status) {
 
 const headSha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
 
-// GUI session check
+// GUI session check. macOS: a launchd GUI domain for this user. Linux: an X display (Xvfb on a CI runner).
 let gui = 'no'
-try { execSync('launchctl print gui/' + process.getuid(), { stdio: 'pipe' }); gui = 'yes' } catch {}
+if (process.platform === 'linux') {
+  if (process.env.DISPLAY) gui = `X display ${process.env.DISPLAY}`
+} else {
+  try { execSync('launchctl print gui/' + process.getuid(), { stdio: 'pipe' }); gui = 'yes' } catch {}
+}
+
+// Extra arguments go to Playwright unchanged (the GitHub job passes --headed so Chromium draws on Xvfb).
+// --retries and --reporter stay ours: they are what make the output an attestation.
+const extraArgs = process.argv.slice(2)
+if (extraArgs.some(arg => /^--(retries|reporter|grep)\b/.test(arg))) {
+  console.error('REFUSED: --retries, --reporter and --grep are fixed by this tool.')
+  process.exit(1)
+}
 
 // Playwright version
 let playwrightVersion = 'unknown'
@@ -59,7 +71,7 @@ try { playwrightVersion = execSync('npx playwright --version', { encoding: 'utf8
 // CI=1 disables reuseExistingServer so the build always comes from this tree.
 // --retries=0: a retried pass is not the evidence wanted.
 const result = spawnSync('node', [
-  'node_modules/.bin/playwright', 'test', '--grep', '@frame-budget', '--reporter=json', '--retries=0',
+  'node_modules/.bin/playwright', 'test', '--grep', '@frame-budget', '--reporter=json', '--retries=0', ...extraArgs,
 ], {
   encoding: 'utf8',
   maxBuffer: 50 * 1024 * 1024,
@@ -110,6 +122,7 @@ for (const suite of report.suites ?? []) {
         status: res.status === 'passed' ? 'PASS' : 'FAIL',
         samplerMedian: s?.median != null ? s.median.toFixed(1) : 'n/a',
         samplerMax: s?.max != null ? s.max.toFixed(1) : 'n/a',
+        rafMedian: r.length ? [...r].sort((a, b) => a - b)[Math.floor(r.length / 2)].toFixed(1) : 'n/a',
         rafMax: r.length ? Math.max(...r).toFixed(1) : 'n/a',
         abrupt: timing ? verdictAbrupt(timing) : 'n/a',
         // 'n/a' when the test recorded no cache check at all (not only when it recorded no timing), so the
@@ -168,10 +181,12 @@ console.log(`
 | GUI session | ${gui} |
 | Playwright | ${playwrightVersion} |
 | Chromium | (from Playwright) |
+| Platform | ${process.platform} |
+| Playwright arguments | ${extraArgs.length ? extraArgs.join(' ') : '(none)'} |
 
-| Height | Position | Result | Sampler median | Sampler max | rAF max | Abrupt | Cache match |
-|--------|----------|--------|----------------|-------------|---------|--------|-------------|
-${rows.map(r => `| ${r.height} | ${r.position} | ${r.status} | ${r.samplerMedian} | ${r.samplerMax} | ${r.rafMax} | ${r.abrupt} | ${r.cacheMatch} |`).join('\n')}
+| Height | Position | Result | Sampler median | Sampler max | rAF median | rAF max | Abrupt | Cache match |
+|--------|----------|--------|----------------|-------------|------------|---------|--------|-------------|
+${rows.map(r => `| ${r.height} | ${r.position} | ${r.status} | ${r.samplerMedian} | ${r.samplerMax} | ${r.rafMedian} | ${r.rafMax} | ${r.abrupt} | ${r.cacheMatch} |`).join('\n')}
 
 **Totals:** ${passed} passed, ${failed} failed out of ${rows.length}
 `)
