@@ -50,7 +50,7 @@ jobs:
         with: { python-version: '3.14' }
       # --legacy-peer-deps: React 18 against @types/react 16.9. A real mismatch, not a flag to
       # paper over it -- see #11.
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
       # threshold, so an untested file counts as 0% and any drop fails this step.
       # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
@@ -73,7 +73,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - run: npm run build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -96,7 +96,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - run: npx playwright install --with-deps chromium
       # Fixtures are GENERATED here, not committed: they are .midst.zip files that the poem-data hook
       # refuses outright, and their deflate output is not byte-reproducible across platforms. The
@@ -127,7 +127,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - name: build on a case-INsensitive filesystem
         run: npm run build
       - name: report
