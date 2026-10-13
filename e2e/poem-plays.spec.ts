@@ -167,6 +167,30 @@ test.describe('a published poem plays', () => {
     })
   }
 
+  // GitHub midst-web #51: on a freshly loaded poem page, with nothing clicked and so nothing focused,
+  // the spacebar must start playback, and pause it again.
+  for (const { number, route, scope } of poems) {
+    test(`poem ${number}: spacebar plays and pauses on a freshly loaded page`, async ({ page }) => {
+      await page.goto(route)
+      const editor = page.locator(`${scope} .editor`)
+      await expect(editor).toContainText('and again')
+      const play = page.locator(`${scope} .play-pause-button`)
+      await expect(play).not.toHaveClass(/playing/)
+      expect(await page.evaluate(() => document.activeElement === document.body), 'nothing has focus yet').toBe(true)
+
+      await page.keyboard.press('Space')
+      await expect(play, 'spacebar did not start playback').toHaveClass(/playing/)
+      await expect(editor).not.toContainText('and again')
+
+      await page.keyboard.press('Space')
+      await expect(play, 'spacebar did not pause playback').not.toHaveClass(/playing/)
+      const timeline = page.locator(`${scope} input[type=range]`)
+      const pausedStep = await timeline.inputValue()
+      await page.waitForTimeout(300)
+      await expect(timeline).toHaveValue(pausedStep)
+    })
+  }
+
   test('the route is derived from metadata, not hardcoded', () => {
     // Guards the premise of every test above: if these routes stopped matching the fixture names, the
     // suite would be testing nothing and would still be green, because the app would render its
