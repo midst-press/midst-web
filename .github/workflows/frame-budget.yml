@@ -1,0 +1,68 @@
+name: frame-budget
+# The @frame-budget replay-follow tests on a GitHub-hosted Linux runner, with Chromium headed under Xvfb.
+# Issue #16; sjswerdloff, 13 October 2026.
+#
+# These five tests sample the scroll position and refuse their own measurement when the sampler interval
+# reaches 50 ms. The self-hosted runner has no GUI session and delivers frames about every 150 ms, so the
+# Gitea ci.yml skips them and a person runs `npm run e2e:frame-budget:attest` on a Mac and pastes the
+# result. This job runs that SAME tool, three times, and puts the three attestation blocks in the job
+# summary and an artefact.
+#
+# It runs the frame-budget attestation on GitHub and is not a required check; whether it replaces the
+# hand-run step is set in PROGRAMME.md. The 50 ms guard is not relaxed here: if this machine cannot
+# deliver frames, the tests fail by their own precondition ("invalid measurement"), the tool refuses,
+# and that is the result.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: frame-budget-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    name: replay follows the writing (ubuntu-latest, Xvfb, three runs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # --ignore-scripts as in ci.yml: no dependency's install script runs on the runner.
+      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: xvfb
+        run: command -v xvfb-run || (sudo apt-get update && sudo apt-get install -y xvfb)
+      - name: machine
+        run: echo "$(nproc) cores, $(free -m | awk '/^Mem:/ {print $2}') MB, node $(node --version)"
+      # Each run is a whole attestation: its own build, five tests, no retries. A refusal or failure in
+      # one run does not stop the others, so the summary shows all three; the step fails if any did.
+      - name: attest three times, headed under Xvfb
+        shell: bash
+        run: |
+          failed=0
+          for run in 1 2 3; do
+            echo "### Run $run" >> "$RUNNER_TEMP/frame-budget.md"
+            if xvfb-run -a --server-args="-screen 0 1440x1000x24" npm run --silent e2e:frame-budget:attest -- --headed > "$RUNNER_TEMP/run-$run.md" 2> "$RUNNER_TEMP/run-$run.err"; then
+              cat "$RUNNER_TEMP/run-$run.md" >> "$RUNNER_TEMP/frame-budget.md"
+            else
+              failed=1
+              # xvfb-run sends the command's stderr to stdout, so the tool's refusal is in the .md file.
+              { echo; echo "**Run $run did not produce an attestation:**"; echo; echo '```'; tail -n 60 "$RUNNER_TEMP/run-$run.md" "$RUNNER_TEMP/run-$run.err"; echo '```'; } >> "$RUNNER_TEMP/frame-budget.md"
+            fi
+          done
+          cat "$RUNNER_TEMP/frame-budget.md" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/frame-budget.md"
+          exit "$failed"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: frame-budget-${{ github.sha }}
+          path: ${{ runner.temp }}/frame-budget.md
+          retention-days: 30
