@@ -99,6 +99,19 @@ CloudFront**.
 There is no automated deployment yet, and there is an open issue about who controls the AWS account —
 until that is answered, nothing can be deployed from CI.
 
+## Fonts
+
+The font files are not in this repository, and a commit hook refuses any that are added: some are
+commercial, and a public repository is not a webfont licence. The site asks for them at
+`MIDST_FONTS_URL`, which defaults to `/fonts/` at its own origin, so a deployment uploads the font
+files beside the site under `fonts/`. `src/font-faces.json` lists every file the site asks for and
+`src/fonts.ts` writes the `@font-face` rules from it when the page loads.
+
+To see the real fonts in local development, put the files in `static/fonts/` (ignored by git); the
+build copies `static/` into `dist/`, so they are served at `/fonts/`. Without them the site falls
+back to system fonts and nothing else changes. The end-to-end tests do not need them: the fixture
+maker writes a synthetic font under each name and the tests check that the faces load.
+
 ## Checking the poems are still reachable
 
 ```

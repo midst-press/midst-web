@@ -5,8 +5,10 @@ import { IMidstFile } from '../../store/types'
 import { ChangeObj, reconstructHTML } from './helpers'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
-import '../midst-player-hack/lato.css'
-import '../midst-player-hack/helvetica-neue.css'
+import { installFonts } from '../../fonts'
+
+// Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
+installFonts()
 
 const extensions = [StarterKit.configure({
   bulletList: false, orderedList: false, blockquote: false, code: false,
@@ -132,6 +134,27 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     }
     setPlaying(true)
   }
+
+  // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
+  // key only worked once the play button had been clicked and so held focus; a freshly loaded page
+  // has nothing focused. Every poem is mounted in the carousel, so only the active player listens.
+  // A key pressed on a control keeps its own meaning: space on a focused button already clicks it.
+  const playPauseRef = useRef(playPause)
+  playPauseRef.current = playPause
+  const canPlay = activePlayer && history.length >= 2
+  useEffect(() => {
+    if (!canPlay) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== ' ' || event.repeat || event.defaultPrevented) return
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+      const target = event.target as Element | null
+      if (target && target.closest && target.closest('button, a[href], input, textarea, select, [contenteditable="true"]')) return
+      event.preventDefault() // otherwise the page scrolls
+      playPauseRef.current()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [canPlay])
 
   return (
     <div className="midst-tiptap-player" data-player="tiptap">
