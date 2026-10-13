@@ -1,3 +1,5 @@
+import { buildLabel } from './buildLabel'
+
 /*
  * Which build is this? Shown at the foot of the About page, so someone checking an issue against a
  * deployed site can say which release is in front of them (issue #77).
@@ -11,34 +13,12 @@
  *   MIDST_BUILD_DATE    that commit's own date, ISO 8601 (git log -1 --format=%cI). Not the build time.
  *
  * A build with none of them set says "Development build" and does not invent a version.
+ *
+ * The wording is the editor's (buildLabel.ts, a byte-identical copy of midst-editor's
+ * src/shared/buildLabel.ts), so the site and the editor describe a build the same way.
  */
-export interface BuildInputs {
-  tag?: string
-  commit?: string
-  date?: string
-}
-
-// The date in UTC, so it reads the same wherever the builder and the reader are.
-function utc(date: string): string {
-  const parsed = new Date(date)
-  // A date that cannot be read is shown as given: a wrong input should be seen, not hidden.
-  if (Number.isNaN(parsed.getTime())) return date
-  return `${parsed.toISOString().slice(0, 16).replace('T', ' ')} UTC`
-}
-
-export function describeBuild(inputs: BuildInputs): string {
-  const tag = (inputs.tag || '').trim()
-  const commit = (inputs.commit || '').trim()
-  const date = (inputs.date || '').trim()
-  if (!tag && !commit && !date) return 'Development build'
-  const parts = [tag ? `Version ${tag}` : 'Untagged build']
-  if (commit) parts.push(`commit ${commit}`)
-  if (date) parts.push(`committed ${utc(date)}`)
-  return parts.join(', ')
-}
-
-export const BUILD_DESCRIPTION: string = describeBuild({
+export const BUILD_DESCRIPTION: string = buildLabel({
   tag: process.env.MIDST_BUILD_TAG,
   commit: process.env.MIDST_BUILD_COMMIT,
-  date: process.env.MIDST_BUILD_DATE,
+  committedAt: process.env.MIDST_BUILD_DATE,
 })
