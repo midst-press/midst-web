@@ -53,7 +53,8 @@ jobs:
               cat "$RUNNER_TEMP/run-$run.md" >> "$RUNNER_TEMP/frame-budget.md"
             else
               failed=1
-              { echo; echo "**Run $run did not produce an attestation:**"; echo; echo '```'; tail -n 40 "$RUNNER_TEMP/run-$run.err"; echo '```'; } >> "$RUNNER_TEMP/frame-budget.md"
+              # xvfb-run sends the command's stderr to stdout, so the tool's refusal is in the .md file.
+              { echo; echo "**Run $run did not produce an attestation:**"; echo; echo '```'; tail -n 60 "$RUNNER_TEMP/run-$run.md" "$RUNNER_TEMP/run-$run.err"; echo '```'; } >> "$RUNNER_TEMP/frame-budget.md"
             fi
           done
           cat "$RUNNER_TEMP/frame-budget.md" >> "$GITHUB_STEP_SUMMARY"
