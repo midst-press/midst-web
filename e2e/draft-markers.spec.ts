@@ -118,3 +118,49 @@ test('a long name is cut short on the label and kept whole for hover and screen 
   expect(box.shown).toBeLessThanOrEqual(140)
   expect(box.full).toBeGreaterThan(box.shown)
 })
+
+for (const width of [320, 1024]) {
+  test(`labels at either end of the timeline stay inside the bar and keep their pointers in place at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 })
+    const long = 'zq '.repeat(30).trim()
+    await mount(page, syntheticData([
+      { timelineIndex: 0, name: long }, { timelineIndex: 39, name: long }, { timelineIndex: 40, name: long },
+    ]))
+    const timeline = page.locator(`${player} input[aria-label="Timeline"]`)
+    const bar = (await page.locator(`${player} .controls`).boundingBox())!
+    const names = await page.locator(`${player} .draft-marker-name`).evaluateAll(els => els.map(el => {
+      const r = el.getBoundingClientRect()
+      return { left: r.left, right: r.right, cut: el.scrollWidth > el.clientWidth }
+    }))
+    expect(names).toHaveLength(3)
+    for (const name of names) {
+      expect(name.left).toBeGreaterThanOrEqual(bar.x - 0.5)
+      expect(name.right).toBeLessThanOrEqual(bar.x + bar.width + 0.5)
+      expect(name.cut).toBe(true)
+    }
+    // The pointer is the marker button's ::after, centred in the button; the label alone has moved.
+    const pointers = await page.locator(`${player} .draft-marker`).evaluateAll(els => els.map(el => {
+      const r = el.getBoundingClientRect()
+      return r.left + r.width / 2
+    }))
+    const thumbCentre = async (index: number) => {
+      await timeline.fill(String(index))
+      return timeline.evaluate((el: HTMLInputElement) => {
+        const r = el.getBoundingClientRect()
+        return r.left + 8 + (r.width - 16) * Number(el.value) / Number(el.max)
+      })
+    }
+    expect(Math.abs(pointers[0] - await thumbCentre(0))).toBeLessThan(1.5)
+    expect(Math.abs(pointers[1] - await thumbCentre(39))).toBeLessThan(1.5)
+    expect(Math.abs(pointers[2] - await thumbCentre(40))).toBeLessThan(1.5)
+  })
+}
+
+test('a label pushed back inside the bar is put back when the bar gets wider', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await mount(page, syntheticData([{ timelineIndex: 2, name: 'zq '.repeat(30).trim() }]))
+  const name = page.locator(`${player} .draft-marker-name`)
+  await expect.poll(() => name.evaluate(el => (el as HTMLElement).style.transform)).not.toBe('')
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await expect.poll(() => name.evaluate(el => (el as HTMLElement).style.transform)).toBe('')
+})
