@@ -15,6 +15,11 @@ const extensions = [StarterKit.configure({
   codeBlock: false, heading: false, horizontalRule: false, listItem: false, strike: false,
 })]
 
+const MIN_FPS = 1
+const MAX_FPS = 60
+const DEFAULT_FPS = 1000 / 60
+const displayFPS = (fps: number) => String(Math.round(fps * 10) / 10)
+
 interface Props {
   data: IMidstFile | null
   activePlayer: boolean
@@ -33,6 +38,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     })
   }, [data])
   const maxStep = Math.max(0, history.length - 1)
+  const canPlay = activePlayer && history.length >= 2
   const markers = useMemo(() => {
     if (!data) return []
     const raw = data.presentation ? data.presentation.draftMarkers : data.meta.editorDraftMarkers
@@ -76,6 +82,11 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     ? data.meta.editorFontSize : 14
   const [step, setStep] = useState(maxStep)
   const [playing, setPlaying] = useState(false)
+  const [fps, setFPS] = useState(DEFAULT_FPS)
+  const [speedOpen, setSpeedOpen] = useState(false)
+  const speedControl = useRef<HTMLDivElement | null>(null)
+  const speedButton = useRef<HTMLButtonElement | null>(null)
+  const speedSlider = useRef<HTMLInputElement | null>(null)
   const glide = useRef<Glide | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const generation = useRef(0)
@@ -101,12 +112,13 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     haltPlayback()
     setStep(maxStep)
     setPlaying(false)
+    setSpeedOpen(false)
     cancelGlide()
   }, [data, maxStep, haltPlayback])
 
   useEffect(() => {
     if (!activePlayer || !cursorFollowing) cancelGlide()
-    if (!activePlayer) { haltPlayback(); setPlaying(false) }
+    if (!activePlayer) { haltPlayback(); setPlaying(false); setSpeedOpen(false) }
   }, [activePlayer, cursorFollowing, haltPlayback])
 
   useEffect(() => {
@@ -132,15 +144,40 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const interval = setInterval(() => {
       if (generation.current !== run) return
       setStep(value => generation.current !== run || gliding(glide.current) ? value : Math.min(value + 1, maxStep))
-    }, 60)
+    }, Math.ceil(1000 / fps))
     timer.current = interval
     return () => { generation.current += 1; clearInterval(interval); if (timer.current === interval) timer.current = undefined }
-  }, [playing, activePlayer, maxStep])
+  }, [playing, activePlayer, maxStep, fps])
+
+  useEffect(() => {
+    if (!speedOpen) return
+    speedSlider.current?.focus()
+    const outside = (event: PointerEvent) => {
+      if (!speedControl.current?.contains(event.target as Node)) setSpeedOpen(false)
+    }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [speedOpen])
 
   useEffect(() => () => {
     haltPlayback()
     cancelGlide()
   }, [haltPlayback])
+
+  const seekTo = (index: number) => {
+    if (!canPlay || !Number.isFinite(index)) return
+    haltPlayback()
+    setPlaying(false)
+    cancelGlide()
+    setStep(Math.max(0, Math.min(Math.trunc(index), maxStep)))
+  }
+
+  const changeFPS = (next: number) => {
+    if (!canPlay || !Number.isFinite(next) || next < MIN_FPS || next > MAX_FPS || next === fps) return
+    // Invalidate a queued old-rate tick immediately, without pausing or cancelling the glide.
+    haltPlayback()
+    setFPS(next)
+  }
 
   const playPause = () => {
     if (playing) {
@@ -163,7 +200,6 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   // A key pressed on a control keeps its own meaning: space on a focused button already clicks it.
   const playPauseRef = useRef(playPause)
   playPauseRef.current = playPause
-  const canPlay = activePlayer && history.length >= 2
   useEffect(() => {
     if (!canPlay) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -188,22 +224,66 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       </div>
       <div className="control-container">
         <div className="controls" onKeyDown={event => event.stopPropagation()}>
-          <button type="button" aria-label={playing ? 'Pause' : 'Play'}
-            className={`play-pause-button control-button${playing ? ' playing' : ''}`}
-            onClick={playPause} disabled={!activePlayer || history.length < 2}>
-            {playing ? <><span className="pause-rectangle" /><span className="pause-rectangle" /></> : '▶'}
-          </button>
           <div className="timeline-control">
           <input type="range" aria-label="Timeline" className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
-            disabled={!activePlayer || history.length < 2}
-            onChange={event => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(Number(event.target.value)) }} />
+            disabled={!canPlay}
+            onChange={event => seekTo(Number(event.target.value))} />
             <div className="draft-markers" ref={markerRow}>
               {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
                 style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
                 title={marker.label} aria-label={`Jump to ${marker.label}`} disabled={!activePlayer}
                 onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
                 <span className="draft-marker-name">{marker.label}</span></button>)}
+            </div>
+          </div>
+          <div className="playback-controls">
+            <button type="button" className="control-button" aria-label="Skip to start"
+              disabled={!canPlay} onClick={() => seekTo(0)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M5 5v14M19 5 8 12l11 7Z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button type="button" aria-label={playing ? 'Pause' : 'Play'}
+              className={`play-pause-button control-button${playing ? ' playing' : ''}`}
+              onClick={playPause} disabled={!canPlay}>
+              {playing ? <><span className="pause-rectangle" /><span className="pause-rectangle" /></> : '▶'}
+            </button>
+            <button type="button" className="control-button" aria-label="Skip to end"
+              disabled={!canPlay} onClick={() => seekTo(maxStep)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M19 5v14M5 5l11 7-11 7Z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <div className="playback-speed-control" ref={speedControl}
+              onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSpeedOpen(false) }}
+              onKeyDown={event => {
+                if (event.key !== 'Escape' || !speedOpen) return
+                event.preventDefault()
+                setSpeedOpen(false)
+                speedButton.current?.focus()
+              }}>
+              <button type="button" className="control-button" aria-label="Playback speed"
+                ref={speedButton} aria-expanded={speedOpen} disabled={!canPlay}
+                onClick={() => setSpeedOpen(open => !open)}>
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M3 19a10 10 0 1 1 18 0Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <path d="m12 13 4-4M6 13H5m3-6L7 6m5-1V4m6 9h1" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="12" cy="13" r="2" fill="currentColor" />
+                </svg>
+              </button>
+              {speedOpen && (
+                <div className="playback-speed-popup" role="group" aria-label="Playback speed controls">
+                  <span aria-hidden="true">{MAX_FPS}</span>
+                  <input type="range" className="playback-speed-slider" ref={speedSlider}
+                    aria-label="Playback frame rate" aria-orientation="vertical"
+                    aria-valuetext={`${displayFPS(fps)} frames per second`}
+                    min={MIN_FPS} max={MAX_FPS} step="any" value={fps} disabled={!canPlay}
+                    onChange={event => changeFPS(Number(event.target.value))} />
+                  <span aria-hidden="true">{MIN_FPS}</span>
+                  <output className="playback-speed-value" aria-live="off">{displayFPS(fps)} fps</output>
+                </div>
+              )}
             </div>
           </div>
         </div>
