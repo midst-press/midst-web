@@ -8,6 +8,11 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+# Every build and every end-to-end run names its key scheme; there is no default (#41). The jobs run
+# under legacy, which is what production holds. The e2e job then builds the site again under canonical
+# and runs the specs that touch object names, so both schemes stay tested whichever a deployment uses.
+env:
+  MIDST_KEY_SCHEME: legacy
 
 # WHY THE REQUIRED JOBS RUN ON LINUX, AND WHY ONE DOES NOT
 #
@@ -104,6 +109,11 @@ jobs:
       # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
       # and it holds without storing anything poem-shaped in git.
       - run: npm run test:e2e
+      # CI is set, so the web server rebuilds the site and its fixtures under this scheme.
+      - name: the same site under canonical keys
+        env:
+          MIDST_KEY_SCHEME: canonical
+        run: npx playwright test e2e/key-scheme.spec.ts e2e/poem-plays.spec.ts e2e/load-failure.spec.ts e2e/asset-canary.spec.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

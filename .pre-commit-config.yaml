@@ -121,6 +121,12 @@ repos:
         entry: node --test tools/test-poem-ids.mjs
         pass_filenames: false
         files: '^tools/(test-)?poem-ids\.mjs$'
+      - id: key-scheme-self-test
+        name: the build refuses a missing or unknown key scheme, and canonical needs an id on every published poem
+        language: system
+        entry: node --test tools/test-check-key-scheme.mjs
+        pass_filenames: false
+        files: '^(src/poems/[^/]+\.json|src/poems/key-scheme\.js|tools/(test-)?check-key-scheme\.mjs)$'
       - id: poem-index-generated
         name: src/poems/index.ts is generated and consistent with the metadata
         language: system

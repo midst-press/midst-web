@@ -35,6 +35,7 @@ jest.mock('../poems', () => ({
       title: 'Bb, Ti',
       date: '2017-05-05',
       publishDate: '2018-06-06',
+      id: '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
       authorSecondaryFolder: 'zq-folder',
       cursorFollowing: true,
       hasScrollbar: false,
@@ -103,6 +104,8 @@ describe('createPoem (via initialState.poems)', () => {
 
   it('passes through the optional fields when given', () => {
     expect(full.authorSecondaryFolder).toBe('zq-folder')
+    // The storage id is carried as given, and is not the route-derived poemId.
+    expect(full.id).toBe('0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d')
     expect(full.cursorFollowing).toBe(true)
     expect(full.hasScrollbar).toBe(false)
     expect(full.highlighted).toBe(true)
@@ -111,6 +114,7 @@ describe('createPoem (via initialState.poems)', () => {
 
   it('leaves the optional fields undefined when missing', () => {
     expect(sparse.authorSecondaryFolder).toBeUndefined()
+    expect(sparse.id).toBeUndefined()
     expect(sparse.cursorFollowing).toBeUndefined()
     expect(sparse.hasScrollbar).toBeUndefined()
     expect(sparse.highlighted).toBeUndefined()
