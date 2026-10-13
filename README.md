@@ -2,16 +2,18 @@
 
 The journal: a poem is shown as a timelapse of its own composition, replayed keystroke by keystroke.
 
+To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md): the checks, the tests, and the rules about poem content.
+
 ## Before you start
 
-**Node 24** (the current LTS). The version is pinned in `.nvmrc`, and CI reads that same file, so the
-easiest way to match CI is a version manager that respects it:
+**Node: the version pinned in `.nvmrc`.** CI reads that same file, so the easiest way to match CI is a
+version manager that respects it:
 
 ```
 nvm use          # or: fnm use / asdf install
 ```
 
-Newer Node generally works — the site builds on 26 — but 24 is what CI verifies.
+Other versions may work, but the one in `.nvmrc` is what CI verifies.
 
 ## Use npm. Not yarn
 
