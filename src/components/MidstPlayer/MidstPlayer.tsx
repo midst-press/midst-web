@@ -136,8 +136,17 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   }
 
   // The current frame's edit time, shown below the timeline. Follows the playhead.
-  const frameTimestamp = data?.editorTimelineFrames?.[Math.min(step, maxStep)]?.timestamp
+  // A synthetic frame (empty history) has timestamp 0 and sourceHistoryLength 0 — not a real edit.
+  const currentFrame = data?.editorTimelineFrames?.[Math.min(step, maxStep)]
+  const hasRealTimestamp = currentFrame != null && currentFrame.timestamp > 0
+    && (data?.sourceHistoryLength ?? 1) > 0
+  const frameTimestamp = hasRealTimestamp ? currentFrame!.timestamp : null
   const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
+  // Edge-align: translateX(-50%) pushes half the label offscreen at 0% and 100%.
+  // Clamp the left so the label stays within the timeline container.
+  const playheadLeft = playheadPercent <= 0 ? '0%' : playheadPercent >= 100 ? '100%' : `${playheadPercent}%`
+  const playheadTransform = playheadPercent <= 0 ? 'translateX(0)'
+    : playheadPercent >= 100 ? 'translateX(-100%)' : 'translateX(-50%)'
 
   // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
   // key only worked once the play button had been clicked and so held focus; a freshly loaded page
@@ -188,11 +197,18 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             </div>
             {frameTimestamp != null && (
               <div className="frame-timestamp" role="status" aria-label="Frame edit time"
-                style={{ left: `${playheadPercent}%` }}>
+                style={{ left: playheadLeft, transform: playheadTransform }}>
                 {new Date(frameTimestamp).toLocaleString(undefined, {
                   year: 'numeric', month: 'short', day: 'numeric',
                   hour: '2-digit', minute: '2-digit',
                 })}
+              </div>
+            )}
+            {frameTimestamp == null && currentFrame != null && (
+              <div className="frame-timestamp frame-timestamp--unavailable" role="status"
+                aria-label="Frame edit time unavailable"
+                style={{ left: playheadLeft, transform: playheadTransform }}>
+                edit time unavailable
               </div>
             )}
           </div>
