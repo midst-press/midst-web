@@ -8,9 +8,8 @@ name: frame-budget
 # result. This job runs that SAME tool, three times, and puts the three attestation blocks in the job
 # summary and an artefact.
 #
-# It starts as a DUPLICATE of the local attestation, not a replacement, and is not a required check. If
-# the sampler and animation-frame intervals hold over many runs it can replace the hand-run step. The
-# 50 ms guard is not relaxed here: if this machine cannot deliver frames, the tests fail by their own
+# It runs the frame-budget attestation on GitHub and is not a required check; whether it replaces the
+# hand-run step is set in PROGRAMME.md. The 50 ms guard is not relaxed here: if this machine cannot deliver frames, the tests fail by their own
 # precondition ("invalid measurement"), the tool refuses, and that is the result.
 on:
   pull_request:
