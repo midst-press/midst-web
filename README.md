@@ -101,6 +101,20 @@ CloudFront**.
 There is no automated deployment yet, and there is an open issue about who controls the AWS account —
 until that is answered, nothing can be deployed from CI.
 
+## Poem ids
+
+Every poem file in `src/poems` has an `id`: a random version-4 UUID, minted once, that says nothing
+about the poem. Poets' names and poem titles change, so storage is to be keyed on the id and not on
+any name (#41). Never edit an id, reuse one, or build one from anything.
+
+```
+node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
+node tools/poem-ids.mjs           # the check the commit hook runs
+```
+
+Nothing reads the id yet; object names are still built by `src/poems/poem-names.js`. A poem file can
+be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
+
 ## Fonts
 
 The font files are not in this repository, and a commit hook refuses any that are added: some are
@@ -113,6 +127,14 @@ To see the real fonts in local development, put the files in `static/fonts/` (ig
 build copies `static/` into `dist/`, so they are served at `/fonts/`. Without them the site falls
 back to system fonts and nothing else changes. The end-to-end tests do not need them: the fixture
 maker writes a synthetic font under each name and the tests check that the faces load.
+
+If `MIDST_FONTS_URL` points at a different origin from the site, that host must answer font requests
+with an `Access-Control-Allow-Origin` header naming the site (or `*`). Browsers load fonts across
+origins only with it; without it every face fails to load and the page falls back to system fonts,
+with nothing shown to the reader. The default, `/fonts/` on the site's own origin, needs no header.
+
+If a build fails with "Failed to resolve '../midst-player-hack/lato.css'" after you pull, delete
+`.parcel-cache`: it was written by a build from before the font stylesheets were removed.
 
 ## Checking the poems are still reachable
 
