@@ -39,8 +39,9 @@
    the thumb is 16px wide (8px + 2px on the left, 8px - 2px on the right). Every box property is set here, so no other stylesheet on the page
    can size or move a marker. */
 .midst-tiptap-player .timeline-control .draft-markers { position: absolute; top: auto; bottom: 100%; left: 10px; right: 6px; width: auto; height: 0; }
-.midst-tiptap-player .draft-markers .draft-marker { position: absolute; top: auto; bottom: 0; width: auto; height: auto; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; margin: 0; padding: 0; border: 0; background: none; font: bold 11px/1 Arial, Helvetica, sans-serif; color: #690000; cursor: pointer; }
+.midst-tiptap-player .draft-markers .draft-marker { position: absolute; top: auto; bottom: 0; width: auto; height: auto; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; margin: 0; padding: 0; border: 0; background: none; font: bold 11px/20px Arial, Helvetica, sans-serif; color: #000; cursor: pointer; }
 .midst-tiptap-player .draft-markers .draft-marker::after { content: ''; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #690000; }
-.midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; max-width: 120px; padding: 3px 8px; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The size of the old player's label: 80px wide and 28px tall for a default name. A longer name widens it up to 140px. */
+.midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; min-width: 80px; max-width: 140px; padding: 3px 10px; text-align: center; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .midst-tiptap-player .draft-markers .draft-marker:hover, .midst-tiptap-player .draft-markers .draft-marker:focus-visible { z-index: 1; }
 .midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }

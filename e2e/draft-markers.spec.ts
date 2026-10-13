@@ -47,6 +47,12 @@ test('a draft marker shows its name on a pale yellow label', async ({ page }) =>
 test('a marker with no name of its own shows its default name', async ({ page }) => {
   await mount(page, syntheticData([{ timelineIndex: 10, name: '', defaultName: 'Draft 3' }]))
   await expect(page.locator(`${player} .draft-marker-name`)).toHaveText('Draft 3')
+  // The size and colour of the label in the picture on the issue: 80 by 28, black text.
+  const look = await page.locator(`${player} .draft-marker-name`).evaluate(el => {
+    const r = el.getBoundingClientRect()
+    return { width: r.width, height: r.height, colour: getComputedStyle(el).color }
+  })
+  expect(look).toEqual({ width: 80, height: 28, colour: 'rgb(0, 0, 0)' })
 })
 
 test('each marker points at its own place on the timeline', async ({ page }) => {
@@ -109,6 +115,6 @@ test('a long name is cut short on the label and kept whole for hover and screen 
   await expect(marker).toHaveAttribute('title', long)
   await expect(marker).toHaveAttribute('aria-label', `Jump to ${long}`)
   const box = await label.evaluate(el => ({ shown: el.clientWidth, full: el.scrollWidth }))
-  expect(box.shown).toBeLessThanOrEqual(120)
+  expect(box.shown).toBeLessThanOrEqual(140)
   expect(box.full).toBeGreaterThan(box.shown)
 })
