@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { IMidstFile } from '../../store/types'
@@ -48,6 +48,28 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       return out
     }, [])
   }, [data, history.length])
+  // A label is centred over its marker, which would push one near either end of the timeline past
+  // the end of the control bar. Slide only the label back inside; its pointer stays on the marker.
+  const markerRow = useRef<HTMLDivElement | null>(null)
+  useLayoutEffect(() => {
+    const row = markerRow.current
+    const bar = row && row.closest('.controls')
+    if (!row || !bar) return
+    const fit = () => {
+      const bounds = bar.getBoundingClientRect()
+      row.querySelectorAll<HTMLElement>('.draft-marker-name').forEach(name => {
+        name.style.transform = ''
+        const box = name.getBoundingClientRect()
+        const shift = box.left < bounds.left ? bounds.left - box.left : box.right > bounds.right ? bounds.right - box.right : 0
+        if (shift) name.style.transform = `translateX(${shift}px)`
+      })
+    }
+    fit()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(fit)
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [markers, maxStep])
   const family = data && typeof data.meta.editorFontFamily === 'string' && data.meta.editorFontFamily.trim()
     ? data.meta.editorFontFamily : 'Helvetica'
   const size = data && Number.isFinite(data.meta.editorFontSize) && data.meta.editorFontSize > 0
@@ -200,11 +222,12 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!activePlayer || history.length < 2}
             onChange={event => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(Number(event.target.value)) }} />
-            <div className="draft-markers">
+            <div className="draft-markers" ref={markerRow}>
               {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
                 style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
                 title={marker.label} aria-label={`Jump to ${marker.label}`} disabled={!activePlayer}
-                onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>◆</button>)}
+                onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
+                <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
             {frameTimestamp != null && (
               <div ref={timestampRef} className="frame-timestamp" role="status" aria-label="Frame edit time"

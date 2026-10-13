@@ -33,7 +33,17 @@
 .midst-tiptap-player .pause-rectangle { background: white; height: 14px; width: 3px; margin: 0 1px; }
 .midst-tiptap-player .timeline-control { flex: 1; position: relative; }
 .midst-tiptap-player .timeline-control .progress-bar { width: 100%; }
-.midst-tiptap-player .draft-markers { position: absolute; top: -10px; left: 0; right: 0; }
-.midst-tiptap-player .draft-marker { position: absolute; transform: translateX(-50%); padding: 0; border: 0; background: none; color: #690000; font-size: 12px; cursor: pointer; }
+/* Draft markers: the poet's own name for each, on a pale yellow label, with a pointer at the marker's
+   place on the timeline. The row covers exactly where the slider thumb's centre can go: the slider
+   is 100% wide with the browser's 2px margin, so it starts 2px in and ends 2px past the edge, and
+   the thumb is 16px wide (8px + 2px on the left, 8px - 2px on the right). Every box property is set here, so no other stylesheet on the page
+   can size or move a marker. */
+.midst-tiptap-player .timeline-control .draft-markers { position: absolute; top: auto; bottom: 100%; left: 10px; right: 6px; width: auto; height: 0; }
+.midst-tiptap-player .draft-markers .draft-marker { position: absolute; top: auto; bottom: 0; width: auto; height: auto; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; margin: 0; padding: 0; border: 0; background: none; font: bold 11px/20px Arial, Helvetica, sans-serif; color: #000; cursor: pointer; }
+.midst-tiptap-player .draft-markers .draft-marker::after { content: ''; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #690000; }
+/* The size of the old player's label: 80px wide and 28px tall for a default name. A longer name widens it up to 140px. */
+.midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; min-width: 80px; max-width: 140px; padding: 3px 10px; text-align: center; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.midst-tiptap-player .draft-markers .draft-marker:hover, .midst-tiptap-player .draft-markers .draft-marker:focus-visible { z-index: 1; }
+.midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }
 .midst-tiptap-player .frame-timestamp { position: absolute; top: 100%; left: 0; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: #666; pointer-events: none; margin-top: 4px; }
 .midst-tiptap-player .frame-timestamp--unavailable { color: #999; font-style: italic; }
