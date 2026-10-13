@@ -34,7 +34,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      # --ignore-scripts as in ci.yml: no dependency's install script runs on the runner.
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - name: xvfb
         run: command -v xvfb-run || (sudo apt-get update && sudo apt-get install -y xvfb)
