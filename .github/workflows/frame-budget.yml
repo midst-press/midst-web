@@ -9,8 +9,9 @@ name: frame-budget
 # summary and an artefact.
 #
 # It runs the frame-budget attestation on GitHub and is not a required check; whether it replaces the
-# hand-run step is set in PROGRAMME.md. The 50 ms guard is not relaxed here: if this machine cannot deliver frames, the tests fail by their own
-# precondition ("invalid measurement"), the tool refuses, and that is the result.
+# hand-run step is set in PROGRAMME.md. The 50 ms guard is not relaxed here: if this machine cannot
+# deliver frames, the tests fail by their own precondition ("invalid measurement"), the tool refuses,
+# and that is the result.
 on:
   pull_request:
   push:
