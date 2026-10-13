@@ -180,7 +180,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
               {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
                 style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
                 title={marker.label} aria-label={`Jump to ${marker.label}`} disabled={!activePlayer}
-                onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>◆</button>)}
+                onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
+                <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
           </div>
         </div>
