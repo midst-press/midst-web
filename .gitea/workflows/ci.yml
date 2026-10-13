@@ -45,6 +45,18 @@ jobs:
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
       # --legacy-peer-deps: React 18 against @types/react 16.9; see #11.
       - run: npm ci --legacy-peer-deps --ignore-scripts
+      # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
+      # threshold, so an untested file counts as 0% and any drop fails this step.
+      # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
+      # branch are line 118, the function's closing brace, which Jest's V8 converter counts and nothing can run.
+      - name: unit tests with coverage thresholds
+        run: npm test -- --coverage
+      - name: the coverage control's messages each fire
+        run: npm run test:coverage-control
+      # The e2e server must hold its port from the start and fail early when it is taken (#35).
+      # No dependencies: node's own test runner.
+      - name: e2e server holds its port
+        run: node --test tools/test-serve-local.mjs
       - name: read-only checkout of editor main for helper provenance
         env:
           DEPLOY_KEY: ${{ secrets.MIDST_EDITOR_DEPLOY_KEY }}
@@ -95,6 +107,8 @@ jobs:
       - run: npx playwright install chromium
       # Jobs on this runner share one host, and CI runs in parallel, so a fixed port could collide.
       # playwright.config.ts and the e2e npm scripts all read MIDST_E2E_PORT.
+      # The port is free when picked and is bound a moment later, when Playwright starts e2e:serve,
+      # which takes it BEFORE building and exits 3 at once if another job got there first (#35).
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
@@ -116,3 +130,41 @@ jobs:
         run: |
           echo "::warning::frame-budget e2e SKIPPED: runner has no GUI session; run npm run e2e:frame-budget locally"
           npx playwright test --grep-invert "@frame-budget"
+
+  # What the unit and e2e tests execute, as numbers. A second build and run on purpose: coverage needs an
+  # unminified build to map back to src/, and the e2e job above must keep testing the build that
+  # ships. Prints file paths and percentages only; see scripts/coverage-merge.mjs. Reported, not gated
+  # on any figure: this job fails only if the tests fail or the measurement's own control does.
+  coverage:
+    name: coverage (what the tests execute; numbers only)
+    runs-on: stuart-m3ultra-canary
+    steps:
+      - name: Homebrew first on PATH
+        run: |
+          echo /opt/homebrew/sbin >> "$GITHUB_PATH"
+          echo /opt/homebrew/bin >> "$GITHUB_PATH"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: toolchain guard (Homebrew first, current versions)
+        run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
+      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npx playwright install chromium
+      - name: pick a free port
+        run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
+      - name: check for GUI session
+        id: gui
+        run: |
+          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
+            echo "has_gui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_gui=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: coverage (all tests)
+        if: steps.gui.outputs.has_gui == 'true'
+        run: npm run coverage
+      - name: coverage (frame-budget tests excluded — no GUI session)
+        if: steps.gui.outputs.has_gui != 'true'
+        env:
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
+        run: |
+          echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
+          npm run coverage

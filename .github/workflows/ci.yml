@@ -41,7 +41,6 @@ jobs:
           repository: midst-press/midst-editor
           ref: main
           path: .editor-provenance
-          token: ${{ secrets.MIDST_REPO_READ_TOKEN }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -52,6 +51,16 @@ jobs:
       # --legacy-peer-deps: React 18 against @types/react 16.9. A real mismatch, not a flag to
       # paper over it -- see #11.
       - run: npm ci --legacy-peer-deps
+      # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
+      # threshold, so an untested file counts as 0% and any drop fails this step.
+      # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
+      # branch are line 118, the function's closing brace, which Jest's V8 converter counts and nothing can run.
+      - name: unit tests with coverage thresholds
+        run: npm test -- --coverage
+      # The e2e server must hold its port from the start and fail early when it is taken (#35).
+      # No dependencies: node's own test runner.
+      - name: e2e server holds its port
+        run: node --test tools/test-serve-local.mjs
       - run: pip install 'pre-commit==4.6.2'
       - run: pre-commit run --all-files --show-diff-on-failure
 
@@ -108,6 +117,9 @@ jobs:
   portability-macos:
     name: portability on macOS (non-blocking)
     runs-on: macos-latest
+    # macOS minutes bill at 10x on the free plan, and this job never blocks. Run it on pushes to main only,
+    # not on every PR update (Stuart, 13 Oct).
+    if: github.event_name == 'push'
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

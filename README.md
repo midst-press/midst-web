@@ -67,6 +67,11 @@ They cover formatting, `tsc --noEmit`, unused dependencies, and three project-sp
 data and log files can never be committed, and `src/poems/index.ts` must stay consistent with the poem
 metadata.
 
+One more exists because the gate runs on macOS: `tools/check-import-case.mjs` fails when a relative
+import is spelled in a different letter case (or Unicode form) than git has the file. macOS resolves
+such an import and Linux does not, and this site has shipped that once. It compares against
+`git ls-files`, never the filesystem, so it gives the same answer on both.
+
 ## Publishing a poem
 
 `src/poems/index.ts` is **generated**. Do not edit it.
@@ -113,9 +118,11 @@ unchanged frames. Seeking reconstructs only the selected replacement.
 
 `follow.ts` and `helpers.ts` are copied byte-for-byte from midst-editor main. All writing
 hooks exclude these copies from formatting, and the provenance hook compares them with
-a freshly fetched editor main. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
+a freshly fetched editor main. The same hook holds the editor's tests for them, copied to
+`src/__tests__/editor-*.test.ts`: each must equal its original apart from a header note and
+the import path. To bring a copy up to date, copy the original and reapply those two. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
 after fetching its `origin/main`. CI checks out editor main through scoped read-only
-access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea and `MIDST_REPO_READ_TOKEN` on GitHub.
+access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea. On GitHub midst-editor is public, so the checkout needs no credential.
 
 TipTap and its transitive extensions are pinned to 2.5.4, matching the editor lockfile.
 `@tiptap/pm` is explicit because this website installs with `--legacy-peer-deps`.
@@ -135,3 +142,52 @@ Marker names stay in the reader UI, never diagnostics. Missing/unusable renderin
 values fall back to Helvetica/14; other positive finite sizes remain supported.
 Existing vendored font faces are included. A CSS family declaration with a generic
 fallback does not certify availability of Bell/Garamond or grant new font licenses.
+
+## Coverage: what the tests execute
+
+```
+npm run coverage
+```
+
+Runs the unit tests, then the end-to-end suite with `MIDST_COVERAGE=1`, and prints lines, branches
+and functions for every code file under `src/`, and in total. It is opt-in: an ordinary `npm test`
+or `npm run test:e2e` records nothing extra and is no slower.
+
+- **How.** `e2e/coverage.ts` records Chromium's own V8 coverage for each test's page, and
+  `scripts/coverage-jest-reporter.cjs` keeps the V8 coverage Jest collects for each unit test file.
+  `scripts/coverage-merge.mjs` maps both back to `src/` through each build's source maps with
+  `monocart-coverage-reports`, writes istanbul JSON to `coverage/unit-istanbul.json` and
+  `coverage/e2e-istanbul.json`, and prints the table. Output is git-ignored.
+- **A different build.** Under `MIDST_COVERAGE` the e2e build is not minified (`--no-optimize`),
+  because a minified bundle cannot be mapped back function by function. So the coverage run does
+  not test the build that ships; the ordinary e2e run does.
+- **Three layers.** Unit-only, e2e-only and combined, all three over every file.
+- **One converter for both layers.** Jest also writes `coverage/unit/coverage-final.json`, and this
+  report does not read it. Jest's converter counts every source line as a statement, so its figures are not comparable with these and its maps cannot be
+  merged with them. The thresholds in `package.json` are Jest's own figures and are unaffected.
+- **Combined is a merge only where both layers ran a file.** The two layers run two builds of the
+  same source, and the builds do not always agree on what the items are (an import is a statement in
+  one and gone in the other). Items are paired by where each begins; the report prints how many
+  could not be paired. Those count once per build, so for such a file the combined branch and
+  function figures can read slightly low. A line counts once however many items begin on it.
+- **Every file counts.** A file no test loads is listed at 0%, not left out.
+- **The control.** `e2e/coverage-control.ts` holds one function that runs when the module loads and
+  one nothing calls. The harness page loads it for the e2e layer and
+  `src/__tests__/coverage-control.test.ts` for the unit layer. The script withholds every figure
+  unless each layer shows exactly that.
+- **Numbers only.** It prints file paths and percentages, never source text. The raw recordings in
+  `coverage/raw/` hold the built JavaScript and stay on disk.
+
+What it does not measure: the `asset-canary`, `asset-fetch` and `midst-file` Playwright specs run
+`src/` code in Node, not in a page, so what they execute is not counted here. Coverage is what ran,
+not what was asserted, and no figure from this report is used as a gate.
+
+## License
+
+The website's source code is licensed under the GNU Affero General Public License, version 3 or (at your
+option) any later version: see `LICENSE`. That license does not cover the following, which keep their own
+terms:
+
+- font files (for example Bell MT, a Monotype font, and the other commercial fonts under `static/` and `src/`),
+- poets' names, poem titles and other poem metadata, and the journal's own written text,
+- third-party components that declare their own license (for example the player component's `package.json`).

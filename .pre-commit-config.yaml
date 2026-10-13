@@ -16,7 +16,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^static/|^etc/|^src/components/MidstPlayer/(follow|helpers)\.ts$|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^static/|^etc/|^src/components/MidstPlayer/(follow|helpers)\.ts$|^src/__tests__/editor-(follow|followMore|trackingUtils)\.test\.ts$|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
@@ -34,11 +34,29 @@ repos:
   - repo: local
     hooks:
       - id: editor-helpers-identical
-        name: copied player helpers match midst-editor main
+        name: copied player helpers and their tests match midst-editor main
         language: system
         entry: node tools/check-editor-helpers.mjs
         pass_filenames: false
         always_run: true
+      - id: editor-helpers-check-self-test
+        name: the provenance check passes on faithful copies and fails on anything else
+        language: system
+        entry: node --test tools/test-check-editor-helpers.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?check-editor-helpers\.mjs$'
+      - id: import-case
+        name: relative imports are spelled exactly as git names the file (macOS hides this; Linux does not)
+        language: system
+        entry: node tools/check-import-case.mjs
+        pass_filenames: false
+        always_run: true
+      - id: import-case-self-test
+        name: the import-case check reports a wrong-case import, and only that
+        language: system
+        entry: node --test tools/test-check-import-case.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?check-import-case\.mjs$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail

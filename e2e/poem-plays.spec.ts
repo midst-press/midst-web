@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './coverage'
 // Bare specifiers, not `node:fs`/`node:path`: this repository pins @types/node 12.12.42, which
 // predates the `node:` prefix, so the prefixed form fails `tsc --noEmit`. See #11.
 import { readFileSync, readdirSync } from 'fs'
