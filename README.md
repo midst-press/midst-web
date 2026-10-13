@@ -101,6 +101,20 @@ CloudFront**.
 There is no automated deployment yet, and there is an open issue about who controls the AWS account —
 until that is answered, nothing can be deployed from CI.
 
+## Poem ids
+
+Every poem file in `src/poems` has an `id`: a random version-4 UUID, minted once, that says nothing
+about the poem. Poets' names and poem titles change, so storage is to be keyed on the id and not on
+any name (#41). Never edit an id, reuse one, or build one from anything.
+
+```
+node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
+node tools/poem-ids.mjs           # the check the commit hook runs
+```
+
+Nothing reads the id yet; object names are still built by `src/poems/poem-names.js`. A poem file can
+be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
+
 ## Fonts
 
 The font files are not in this repository, and a commit hook refuses any that are added: some are
