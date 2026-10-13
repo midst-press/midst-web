@@ -113,7 +113,8 @@ export function glideTo(
   const from = el.scrollTop;
   const distance = Math.abs(to - from);
   if (distance < 2) return null;
-  if (el.clientHeight < MIN_GLIDE_VIEWPORT) {
+  // NEGATIVE CONTROL, NOT FOR MERGE: every move is a jump, to see the frame-budget job go red.
+  if (el.clientHeight < MIN_GLIDE_VIEWPORT || el.clientHeight >= 0) {
     el.scrollTop = to;
     return null;
   }
