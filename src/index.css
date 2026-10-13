@@ -53,41 +53,6 @@ table {
 
 br, p { clear:both}
 
-@font-face {
-  font-family: 'futuraregular';
-  src: url('../static/static/assets/futuraregular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'futuralight';
-  src: url('../static/static/assets/futuralight.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'futuramedium';
-  src: url('../static/static/assets/futuramedium.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Futura_Bk_BT_Book';
-  src: url('../static/static/assets/Futura_Bk_BT_Book.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'aileronregular';
-  src: url('../static/static/assets/aileron_regular_macroman/Aileron-Regular-webfont.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
 html,
 body {
   margin: 0;

@@ -2,16 +2,18 @@
 
 The journal: a poem is shown as a timelapse of its own composition, replayed keystroke by keystroke.
 
+To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md): the checks, the tests, and the rules about poem content.
+
 ## Before you start
 
-**Node 24** (the current LTS). The version is pinned in `.nvmrc`, and CI reads that same file, so the
-easiest way to match CI is a version manager that respects it:
+**Node: the version pinned in `.nvmrc`.** CI reads that same file, so the easiest way to match CI is a
+version manager that respects it:
 
 ```
 nvm use          # or: fnm use / asdf install
 ```
 
-Newer Node generally works — the site builds on 26 — but 24 is what CI verifies.
+Other versions may work, but the one in `.nvmrc` is what CI verifies.
 
 ## Use npm. Not yarn
 
@@ -112,6 +114,19 @@ node tools/poem-ids.mjs           # the check the commit hook runs
 
 Nothing reads the id yet; object names are still built by `src/poems/poem-names.js`. A poem file can
 be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
+
+## Fonts
+
+The font files are not in this repository, and a commit hook refuses any that are added: some are
+commercial, and a public repository is not a webfont licence. The site asks for them at
+`MIDST_FONTS_URL`, which defaults to `/fonts/` at its own origin, so a deployment uploads the font
+files beside the site under `fonts/`. `src/font-faces.json` lists every file the site asks for and
+`src/fonts.ts` writes the `@font-face` rules from it when the page loads.
+
+To see the real fonts in local development, put the files in `static/fonts/` (ignored by git); the
+build copies `static/` into `dist/`, so they are served at `/fonts/`. Without them the site falls
+back to system fonts and nothing else changes. The end-to-end tests do not need them: the fixture
+maker writes a synthetic font under each name and the tests check that the faces load.
 
 ## Checking the poems are still reachable
 

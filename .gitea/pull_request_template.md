@@ -1,16 +1,14 @@
 ## Summary
 
-<!-- What does this PR do? -->
+<!-- What does this PR do, and why? Link the issue it addresses. -->
 
 ## Checklist
 
-- [ ] Code follows project conventions
-- [ ] Tests pass locally
-- [ ] If this PR touches replay or follow: attestation comment posted at head `<sha>`
-  - Run `npm run e2e:frame-budget:attest` and paste the output as a PR comment
-  - The attestation must match the current head; a new push needs a new attestation
-  - This checkbox is a record, not a gate: nothing checks it or the attestation before merge (see #16)
+- [ ] `pre-commit run --all-files` passes
+- [ ] Tests cover the change (a bug fix has a test that fails without it)
+- [ ] No poem content: no poem text, poem files, or unpublished titles or names
+- [ ] If this changes how the player follows the writing: `npm run e2e:frame-budget -- --headed` run locally if possible (the `frame-budget` workflow runs it regardless)
 
 ## Notes
 
-<!-- Any additional context -->
+<!-- Anything a reviewer should know -->
