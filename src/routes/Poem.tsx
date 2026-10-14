@@ -5,6 +5,7 @@ import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { loadPoemData } from '../store/actions'
 import { IPoem, PoemLoadFailure } from '../store/types'
+import PoemListStatus from '../components/PoemListStatus'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 import { useParams } from 'react-router'
 
@@ -33,16 +34,17 @@ function Poem(): ReactElement {
   const el = useRef(null)
 
   useEffect(() => {
-    const sliderFrame = (el as any).current.querySelector('.sliding-poems__frame')
+    // No such poem, or the list has not arrived yet (it is empty, or this url is not in it): nothing to
+    // slide to or load. Runs again when the list does arrive, because the index changes.
+    if (currentPoemIndex < 0 || !poems[currentPoemIndex]) return
 
-    if (currentPoemIndex > -1) {
-      sliderFrame.style.left = `calc(100vw * -${currentPoemIndex})`
-    }
+    const sliderFrame = (el as any).current.querySelector('.sliding-poems__frame')
+    sliderFrame.style.left = `calc(100vw * -${currentPoemIndex})`
 
     if (!poems[currentPoemIndex].loaded) {
       dispatch(loadPoemData(currentPoemIndex))
     }
-  }, [poemUrl])
+  }, [poemUrl, currentPoemIndex])
 
   return (
     <div
@@ -55,6 +57,8 @@ function Poem(): ReactElement {
           <title>{BASE_SITE_PAGE_TITLE} Player</title>
           <meta name="description" content="" />
         </Helmet>
+
+        <PoemListStatus />
 
         <div className="sliding-poems">
           <div

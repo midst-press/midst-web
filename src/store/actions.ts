@@ -1,4 +1,5 @@
 import { KEY_SCHEME, POEMS_URL } from '../config'
+import { fetchRecordedKey, parsePublishedList } from '../poems/poem-list'
 import { parseMidstFile } from './midst-file'
 import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
@@ -11,15 +12,45 @@ import insane from 'insane'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_LIST,
+  POEM_LIST_FAILED,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
   SET_SORT_TERM,
 
   IPoem,
+  PoemListFailure,
   PoemLoadFailure,
 } from './types'
 
+
+// The published list (MIDST_POEM_LIST=published), fetched once at start. Every failure ends in the same
+// action and the same fixed console message: the page says the poems could not be loaded, and nothing
+// else is shown in their place.
+const loadPoemList = (): any =>
+  async (dispatch: any) => {
+    const fail = (reason: PoemListFailure) => {
+      console.error('Unable to load the poem list')
+      dispatch({ type: POEM_LIST_FAILED, payload: { reason }})
+    }
+
+    let response
+    try {
+      response = await fetch(`${POEMS_URL}published.json`, { cache: 'no-cache' })
+    } catch {
+      return fail('network')
+    }
+    if (!response.ok) return fail('server')
+
+    let entries
+    try {
+      entries = parsePublishedList(await response.json())
+    } catch {
+      return fail('malformed')
+    }
+    dispatch({ type: LOAD_POEM_LIST, payload: { entries }})
+  }
 
 // TODO: Should be: ThunkResult<void>. Why doesn't it work?
 const loadPoemData = (poemIndex: number): any =>
@@ -38,7 +69,10 @@ const loadPoemData = (poemIndex: number): any =>
     const get = async (name: string) => {
       let response
       try {
-        response = await fetchPoemAsset(POEMS_URL, name, KEY_SCHEME)
+        // A poem from the published list carries the keys it was recorded under: fetched as written.
+        response = poem.keys
+          ? await fetchRecordedKey(POEMS_URL, name)
+          : await fetchPoemAsset(POEMS_URL, name, KEY_SCHEME)
       } catch {
         throw { reason: 'network' }
       }
@@ -50,10 +84,14 @@ const loadPoemData = (poemIndex: number): any =>
       const zip = (window as any).zip
       zip.workerScriptsPath = '/static/workers/'
 
-      const names = objectNames(poem, KEY_SCHEME)
-      const noteResponse = await get(names.processNote)
-      const processNoteRaw = await noteResponse.text()
-      const processNote = insane(marked(processNoteRaw), { allowedTags: ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']})
+      const names = poem.keys || objectNames(poem, KEY_SCHEME)
+      // A recorded null means the poem has no note: no request, and an empty note.
+      let processNote = ''
+      if (names.processNote !== null) {
+        const noteResponse = await get(names.processNote)
+        const processNoteRaw = await noteResponse.text()
+        processNote = insane(marked(processNoteRaw), { allowedTags: ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']})
+      }
       const zipTest = await get(names.timelapse)
       const reader = new zip.BlobReader(await zipTest.blob())
 
@@ -107,6 +145,7 @@ const setSortTerm = (sortBy: string): AnyAction => ({
 
 export {
   loadPoemData,
+  loadPoemList,
   setMobileNavOpen,
   setProcessNoteOpen,
   reverseSortOrder,
