@@ -126,6 +126,11 @@ export function currentSession(deps: Pick<AuthDeps, 'storage' | 'now'>): Session
   return session
 }
 
+/** Forget the session here only: for a 401, which means the token is no longer accepted (docs/app-api.md). */
+export function forgetSession(deps: Pick<AuthDeps, 'storage'>): void {
+  deps.storage.removeItem(SESSION)
+}
+
 /** Forget the session here, and return the managed login's sign-out address so its own session ends too. */
 export function signOut(settings: AuthSettings, deps: Pick<AuthDeps, 'storage'>): string {
   deps.storage.removeItem(SESSION)
