@@ -10,7 +10,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[] }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -32,6 +32,10 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') return reply(200, list())
     const body = request.postDataJSON() as { poemId?: string, poemIds?: string[], listEtag: string, publishDate?: string | null, highlighted?: boolean }
     store.writes.push(`${request.method()} ${url.pathname}`)
+    if (store.failNext) {
+      store.failNext = false
+      return reply(500, { error: 'server', message: 'Zq went wrong.' })
+    }
     if (body.listEtag !== `e${store.etag}`) {
       return reply(409, { error: 'conflict', message: 'The published list changed since you loaded it.', listEtag: `e${store.etag}` })
     }
@@ -111,6 +115,19 @@ test('a date that fails to save does not stay in the field: it shows what the se
   await date.blur()
   await expect(page.getByRole('alert')).toContainText('Someone else changed the published list')
   await expect(page.getByLabel('Publish date of Zq 1')).toHaveValue('2026-03-04')
+})
+
+test('a date that fails to save for another reason is not left in the field either', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [{ ...poem(1), publishDate: '2026-01-02' }], unpublished: [], writes: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  store.failNext = true
+  const date = page.getByLabel('Publish date of Zq 1')
+  await date.fill('2026-05-06')
+  await date.blur()
+  await expect(page.getByRole('alert')).toHaveText('Zq went wrong.')
+  await expect(page.getByLabel('Publish date of Zq 1')).toHaveValue('2026-01-02')
 })
 
 test('Undo changes puts back the saved order, and nothing is written', async ({ page, baseURL }) => {

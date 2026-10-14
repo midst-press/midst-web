@@ -26,6 +26,8 @@ function Publisher(): ReactElement {
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [dragging, setDragging] = useState<number | null>(null)
+  // Bumped on every failed change, so fields typed into are remade from the server's values (see the date input).
+  const [failures, setFailures] = useState(0)
 
   // Only a publisher's page asks for the list; the API would refuse anyone else anyway.
   const call: Call | null = session && session.groups.includes('publisher') ? callerFor(APP_API_URL, session.idToken) : null
@@ -52,8 +54,9 @@ function Publisher(): ReactElement {
       await reload(call)
       setNotice(done)
     } catch (error) {
+      setFailures(count => count + 1)
+      await reload(call).catch(() => undefined)
       if (error instanceof ApiError && error.code === 'conflict') {
-        await reload(call).catch(() => undefined)
         setProblem(CONFLICT)
       } else {
         setProblem(error instanceof ApiError ? error.message : 'That did not work. Please try again.')
@@ -101,9 +104,10 @@ function Publisher(): ReactElement {
                     aria-label={`Move ${poem.title} down`}>↓</button>
                   <label>
                     Date{' '}
-                    {/* Keyed on the server's date as well as the poem: after a reload the field is made again
-                        from what the server holds, so a date that failed to save does not stay looking saved. */}
-                    <input key={`${poem.poemId}:${poem.publishDate ?? ''}`}
+                    {/* Keyed on the server's date and on the failure count as well as the poem: after a reload,
+                        or any failed change, the field is made again from what the server holds, so a date that
+                        did not save does not stay looking saved. */}
+                    <input key={`${poem.poemId}:${poem.publishDate ?? ''}:${failures}`}
                       type="date" disabled={busy || reordered} defaultValue={poem.publishDate ?? ''}
                       aria-label={`Publish date of ${poem.title}`}
                       onBlur={event => {
