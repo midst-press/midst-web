@@ -2,7 +2,7 @@
  * Where the beta app's sign-in and back end are (docs/app-api.md, #110). Inlined by Parcel at build
  * time, like the other MIDST_* values in ../config.ts.
  *
- *   MIDST_APP_API_URL      the Lambda's function URL
+ *   MIDST_APP_API_URL      the app's API (an API Gateway HTTP API in front of the Lambda)
  *   MIDST_APP_AUTH_DOMAIN  the Cognito managed login domain, e.g. https://<prefix>.auth.<region>.amazoncognito.com
  *   MIDST_APP_CLIENT_ID    the user pool's app client for this site
  *
