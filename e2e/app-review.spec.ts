@@ -35,7 +35,7 @@ function fixtureZip(): Buffer {
 }
 
 interface Submission { submissionId: string, title: string, author: string, poet: string, submittedAt: string, status: string, note: string | null }
-interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number }
+interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean }
 
 const submission = (n: number, over: Partial<Submission> = {}): Submission =>
   ({ submissionId: `sub-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, poet: `qz${n}@example.invalid`, submittedAt: `2026-10-0${n}T09:00:00Z`, status: 'received', note: null, ...over })
@@ -55,6 +55,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (url.origin !== API) return route.abort()
     if (store.unauthorised) return route.fulfill({ status: 401, headers: cors, contentType: 'application/json', body: JSON.stringify({ message: 'Unauthorized' }) })
     if (request.method() === 'GET' && url.pathname === '/review/submissions') {
+      if (store.listFailsAfterDecision && store.decisions.length > 0) return reply(503, { message: 'Service Unavailable' })
       store.listReads += 1
       return reply(200, { submissions: store.submissions })
     }
@@ -101,6 +102,17 @@ test('a decided submission offers no decision, and an unfinished upload offers n
   await expect(row(page, 'Zq 2').getByRole('button', { name: /Accept|Decline/ })).toHaveCount(0)
   await expect(row(page, 'Zq 2').getByRole('button', { name: 'Play Zq 2' })).toBeVisible()
   await expect(row(page, 'Zq 3').getByRole('button')).toHaveCount(0)
+})
+
+test('a saved decision whose list reload fails is still shown as saved, and offers no second decision', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [submission(1)], decisions: [], listReads: 0, listFailsAfterDecision: true }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await page.getByRole('button', { name: 'Accept Zq 1' }).click()
+  await expect(page.getByRole('status')).toContainText('Accepted “Zq 1”')
+  await expect(page.getByRole('alert')).toHaveText('The decision was saved, but the list could not be refreshed. Reload the page to see it.')
+  await expect(row(page, 'Zq 1').getByRole('button', { name: /Accept|Decline/ })).toHaveCount(0)
 })
 
 test('accepting with a note, then declining, each saves and reloads the list', async ({ page, baseURL }) => {

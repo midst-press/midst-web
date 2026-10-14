@@ -68,8 +68,9 @@ function Review(): ReactElement {
     setBusy(true)
     setNotice(null)
     setProblem(null)
+    let decided: Submission
     try {
-      await decide(call, submission.submissionId, decision, (notes[submission.submissionId] ?? '').trim())
+      decided = await decide(call, submission.submissionId, decision, (notes[submission.submissionId] ?? '').trim())
     } catch (error) {
       failed(error, 'That did not work. Please try again.')
       setBusy(false)
@@ -78,10 +79,14 @@ function Review(): ReactElement {
     // The decision is saved. A failure from here on is only the list.
     setNotice(`${decision === 'accept' ? 'Accepted' : 'Declined'} “${submission.title}”.`)
     setNotes(n => ({ ...n, [submission.submissionId]: '' }))
+    // Show it decided at once, so its buttons go even if the reload below fails.
+    setSubmissions(list => list && list.map(s => (s.submissionId === submission.submissionId ? { ...s, ...decided } : s)))
     try {
       setSubmissions((await reviewSubmissions(call)).submissions)
     } catch (error) {
-      failed(error, 'The decision was saved, but the list could not be refreshed. Reload the page to see it.')
+      // Whatever went wrong, the decision itself is saved: never say otherwise, or it may be made again.
+      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+      setProblem('The decision was saved, but the list could not be refreshed. Reload the page to see it.')
     } finally {
       setBusy(false)
     }
