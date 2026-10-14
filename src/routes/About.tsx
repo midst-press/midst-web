@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
+import { BUILD_DESCRIPTION } from '../build-info'
 
 function About(): ReactElement {
   return (
@@ -84,6 +85,7 @@ function About(): ReactElement {
         <p>
           Midst has presented live demos and craft talks at Lambda Litfest in Los Angeles, Amsterdam's <i>Track Changes</i> conference, and the annual ELO (Electronic Literature Foundation) conference in Cork, Ireland, as well as an installation at the Bodleian Library in Oxford, England, and a live presentation with local commissions at the Filmscene movie theatre in Iowa City. We welcome collaborations with educational institutions and creative organizations of all stripes.
         </p>
+        <p className="build-info">{BUILD_DESCRIPTION}</p>
       </section>
     </div>
   )
