@@ -1,4 +1,5 @@
 import { KEY_SCHEME, POEMS_URL } from '../config'
+import { fetchRecordedKey, parsePublishedList } from '../poems/poem-list'
 import { parseMidstFile } from './midst-file'
 import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
@@ -11,15 +12,45 @@ import insane from 'insane'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_LIST,
+  POEM_LIST_FAILED,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
   SET_SORT_TERM,
 
   IPoem,
+  PoemListFailure,
   PoemLoadFailure,
 } from './types'
 
+
+// The published list (MIDST_POEM_LIST=published), fetched once at start. Every failure ends in the same
+// action and the same fixed console message: the page says the poems could not be loaded, and nothing
+// else is shown in their place.
+const loadPoemList = (): any =>
+  async (dispatch: any) => {
+    const fail = (reason: PoemListFailure) => {
+      console.error('Unable to load the poem list')
+      dispatch({ type: POEM_LIST_FAILED, payload: { reason }})
+    }
+
+    let response
+    try {
+      response = await fetch(`${POEMS_URL}published.json`, { cache: 'no-cache' })
+    } catch {
+      return fail('network')
+    }
+    if (!response.ok) return fail('server')
+
+    let entries
+    try {
+      entries = parsePublishedList(await response.json())
+    } catch {
+      return fail('malformed')
+    }
+    dispatch({ type: LOAD_POEM_LIST, payload: { entries }})
+  }
 
 // The part of zip.js used here. It is loaded by a script tag in index.html, not imported.
 interface ZipEntry {
@@ -78,7 +109,10 @@ const loadPoemData = (poemIndex: number): any =>
     const get = async (name: string) => {
       let response
       try {
-        response = await fetchPoemAsset(POEMS_URL, name, KEY_SCHEME)
+        // A poem from the published list carries the keys it was recorded under: fetched as written.
+        response = poem.keys
+          ? await fetchRecordedKey(POEMS_URL, name)
+          : await fetchPoemAsset(POEMS_URL, name, KEY_SCHEME)
       } catch {
         throw { reason: 'network' }
       }
@@ -92,9 +126,13 @@ const loadPoemData = (poemIndex: number): any =>
       const zip = (window as unknown as { zip: ZipJs }).zip
       zip.workerScriptsPath = '/static/workers/'
 
-      const names = objectNames(poem, KEY_SCHEME)
-      const note = await (await get(names.processNote)).text()
-      processNote = insane(marked(note), { allowedTags: NOTE_TAGS })
+      const names = poem.keys || objectNames(poem, KEY_SCHEME)
+      // A recorded null means the poem has no note: no request, and an empty note.
+      processNote = ''
+      if (names.processNote !== null) {
+        const note = await (await get(names.processNote)).text()
+        processNote = insane(marked(note), { allowedTags: NOTE_TAGS })
+      }
       const archive = await (await get(names.timelapse)).blob()
       text = await readFirstEntry(zip, archive)
     } catch (e: unknown) {
@@ -133,6 +171,7 @@ const setSortTerm = (sortBy: string): AnyAction => ({
 
 export {
   loadPoemData,
+  loadPoemList,
   setMobileNavOpen,
   setProcessNoteOpen,
   reverseSortOrder,

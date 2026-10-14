@@ -52,11 +52,12 @@ npx playwright install chromium                                             # on
 
 pre-commit run --all-files    # formatting, type check, unused dependencies, project rules
 npm test -- --coverage        # unit tests (Jest), with the per-file coverage thresholds, as CI runs them
-MIDST_KEY_SCHEME=legacy npm run test:e2e   # end-to-end: does a poem still load and play (Playwright)
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run test:e2e   # end-to-end: does a poem still load and play (Playwright)
+MIDST_KEY_SCHEME=legacy npm run test:e2e:published                  # the same site with the published poem list
 ```
 
-The end-to-end commands, the fixture maker and the build refuse to start without `MIDST_KEY_SCHEME`
-(README, "Key scheme"). `legacy` is what CI's main pass uses.
+The end-to-end commands, the fixture maker and the build refuse to start without `MIDST_KEY_SCHEME` and
+`MIDST_POEM_LIST` (README, "Key scheme", "Poem list"). `legacy` is what CI's main pass uses.
 
 - **Tests come with the change.** A bug fix carries a test that fails without it.
 - **Titles, descriptions and commit messages say `Refs #12`, not `Fixes #12` or `Closes #12`.** A closing

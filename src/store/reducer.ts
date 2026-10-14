@@ -6,6 +6,8 @@ import produce from 'immer'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_LIST,
+  POEM_LIST_FAILED,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
@@ -18,15 +20,16 @@ import moment from 'moment'
 import { slugify } from 'voca'
 import poemData from '../poems'
 import * as poemNames from '../poems/poem-names'
+import { POEM_LIST } from '../config'
 
-function createPoem(data: any) {
+function createPoem(data: any, position: number = 0) {
   // Derived by src/poems/poem-names.js, which is the one definition shared with the tooling. It
   // used to be inlined here and transcribed again in tools/poem-canary.mjs; two copies of the rule
   // that decides whether a poem can be fetched is one too many.
   const authorId = poemNames.authorId(data.author)
   const url = poemNames.poemUrl(data.title)
 
-  const poem = {
+  const poem: IPoem = {
     author: data.author,
     authorId,
     authorSecondaryFolder: data.authorSecondaryFolder,
@@ -35,6 +38,7 @@ function createPoem(data: any) {
     date: moment(data.date),
     publishDate: moment(data.publishDate),
     poemId: `${authorId}--${url}`,
+    position,
     hasScrollbar: data.hasScrollbar,
     highlighted: data.highlighted,
     id: data.id,
@@ -50,24 +54,36 @@ function createPoem(data: any) {
   return poem
 }
 
-const poems = poemData.map(createPoem)
+// One entry of a validated published list (poems/poem-list.js). Same poem as a bundled one, with `id` the
+// list's poemId and the recorded keys carried. A null date is an invalid moment, not today.
+function createPublishedPoem(entry: any, position: number): IPoem {
+  const poem = createPoem({
+    author: entry.author,
+    title: entry.title,
+    highlighted: entry.highlighted,
+    id: entry.poemId,
+  }, position)
+  poem.date = moment(entry.date)
+  poem.publishDate = moment(entry.publishDate)
+  poem.keys = entry.keys
+  return poem
+}
 
-// Where each poem sits in the list, so poems that tie (one author's poems, when sorting by author)
-// come out in the same order whatever the previous sort was.
-const listPosition = new Map(poems.map((poem, index) => [poem.poemId, index]))
+// Under `published` nothing is bundled into the state: the list arrives with LOAD_POEM_LIST.
+const poems: IPoem[] = POEM_LIST === 'bundled' ? poemData.map(createPoem) : []
 
-// Sorts the poems in the state, so what has been loaded into them is kept.
+// Sorts the poems in the state, so what has been loaded into them is kept. Ties (one author's poems, when
+// sorting by author) break by position in the list, so they come out in the same order whatever the
+// previous sort was, for a bundled list or a published one.
 function sortPoems(draftState: IState) {
-  const sorted = sortBy(draftState.poems, [
-    draftState.sortTerm,
-    (poem: IPoem) => listPosition.get(poem.poemId),
-  ])
+  const sorted = sortBy(draftState.poems, [draftState.sortTerm, 'position'])
   return draftState.sortOrder === 'DESC' ? reverse(sorted) : sorted
 }
 
 const initialState: IState = {
   mobileNavOpen: false,
   poems,
+  poemList: POEM_LIST === 'bundled' ? 'ready' : 'loading',
   processNoteOpen: false,
   sortOrder: 'ASC',
   sortTerm: 'publishDate',
@@ -96,6 +112,22 @@ const reducer = (
       return produce(state, draftState => {
         const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
         if (poem) poem.loadFailure = payload.reason
+      })
+
+    // The list replaces whatever the state held, in the order given: reading order, as the bundle's is until
+    // the reader sorts.
+    case LOAD_POEM_LIST:
+      return produce(state, draftState => {
+        draftState.poems = payload.entries.map(createPublishedPoem)
+        draftState.poemList = 'ready'
+        draftState.poemListFailure = null
+      })
+
+    case POEM_LIST_FAILED:
+      return produce(state, draftState => {
+        draftState.poems = []
+        draftState.poemList = 'failed'
+        draftState.poemListFailure = payload.reason
       })
 
     case REVERSE_SORT_ORDER:

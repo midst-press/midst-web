@@ -2,6 +2,7 @@
 .vscode
 .env
 dist
+dist-published
 zak-widget-dist
 node_modules
 .DS_Store
@@ -11,6 +12,7 @@ node_modules
 # build + dependencies
 node_modules/
 dist/
+dist-published/
 build/
 .parcel-cache/
 .cache/

@@ -33,6 +33,7 @@ permissions:
 # under legacy, which is what production holds; the e2e job then builds again under canonical.
 env:
   MIDST_KEY_SCHEME: legacy
+  MIDST_POEM_LIST: bundled
 defaults:
   run:
     shell: /opt/homebrew/bin/bash -eo pipefail {0}
@@ -140,6 +141,10 @@ jobs:
         env:
           MIDST_KEY_SCHEME: canonical
         run: npx playwright test e2e/key-scheme.spec.ts e2e/poem-plays.spec.ts e2e/load-failure.spec.ts e2e/asset-canary.spec.ts
+      - name: the site with the published poem list
+        env:
+          MIDST_POEM_LIST: published
+        run: npx playwright test --config playwright.published.config.ts
 
   # What the unit and e2e tests execute, as numbers. A second build and run on purpose: coverage needs an
   # unminified build to map back to src/, and the e2e job above must keep testing the build that

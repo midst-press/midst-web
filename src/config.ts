@@ -1,4 +1,5 @@
 import { parseScheme } from './poems/key-scheme'
+import { parsePoemList } from './poems/poem-list'
 
 export const BASE_SITE_TITLE = 'Midst'
 export const BASE_SITE_PAGE_TITLE = BASE_SITE_TITLE + ':'
@@ -21,6 +22,7 @@ export const POEM_ARROW_KEY: 'timeline' | 'slide' = 'timeline'
  *   MIDST_SHAPES_URL  decorative shapes
  *   MIDST_FONTS_URL   the font files named in font-faces.json (see fonts.ts)
  *   MIDST_KEY_SCHEME  which object names the poems are asked for under (see poems/key-scheme.js)
+ *   MIDST_POEM_LIST   where the list of poems comes from: the bundle, or poems/published.json (see poems/poem-list.js)
  *
  * POEMS is separate from MEDIA on purpose: pointing poems at a local archive while photographs still
  * come from production is the common case for a demo, and conflating them would force an all-or-
@@ -37,6 +39,11 @@ export const SHAPES_URL: string = process.env.MIDST_SHAPES_URL || PROD_SHAPES
  * build` refuses to start without it (tools/check-key-scheme.mjs), and a bundle built some other way
  * throws here when it loads, so a site cannot quietly ask for the other scheme's names (#41). */
 export const KEY_SCHEME: 'legacy' | 'canonical' = parseScheme(process.env.MIDST_KEY_SCHEME)
+
+/* Required, with no default: "bundled" (the list built into the site) or "published" (poems/published.json under
+ * POEMS_URL, fetched at start). The build refuses to start without it, and a bundle built some other way throws
+ * here when it loads. There is no fallback from one to the other (#110). */
+export const POEM_LIST: 'bundled' | 'published' = parsePoemList(process.env.MIDST_POEM_LIST)
 
 /* Fonts are served by the site itself, from fonts/ at its own origin, so the default is a path and
  * not a CloudFront literal: whoever deploys the site uploads the fonts beside it (#55). It is not
