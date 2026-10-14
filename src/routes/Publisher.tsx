@@ -40,8 +40,13 @@ function Publisher(): ReactElement {
   }, [])
 
   // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
+  // Sets state here too, so the whole page renders again and offers sign-in, even when the 401 came from the
+  // Poets section, whose own state is not this page's.
   const expired = (error: unknown) => {
-    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+    if (error instanceof ApiError && error.status === 401) {
+      forgetSession(browserDeps())
+      setProblem(error.message)
+    }
   }
 
   useEffect(() => {

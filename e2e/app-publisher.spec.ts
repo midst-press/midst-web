@@ -198,6 +198,24 @@ test('registering an email that already has an account says so and keeps what wa
   await expect(page.getByRole('list', { name: 'Registered poets' }).getByRole('button', { name: 'Resend invitation' })).toHaveCount(0)
 })
 
+test('a 401 in the Poets section signs the whole page out and offers sign-in', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [], poets: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  // The list and the poets load; registering is refused with the gateway's own 401.
+  await page.route('https://api.example.invalid/publisher/poets', route => route.request().method() === 'POST'
+    ? route.fulfill({ status: 401, headers: cors, contentType: 'application/json', body: '{"message":"Unauthorized"}' })
+    : route.fallback())
+  await page.goto('/publisher')
+  await expect(published(page)).toHaveText(['Zq 1'])
+  const form = page.getByRole('form', { name: 'Register a poet' })
+  await form.getByLabel('Name').fill('Qz')
+  await form.getByLabel('Email').fill('qz@example.invalid')
+  await form.getByRole('button', { name: 'Register poet' }).click()
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Published poems' })).toHaveCount(0)
+})
+
 test('Undo changes puts back the saved order, and nothing is written', async ({ page, baseURL }) => {
   const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [] }
   await signedInAs(page, ['publisher'])
