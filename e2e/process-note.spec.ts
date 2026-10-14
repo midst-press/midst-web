@@ -100,3 +100,26 @@ test('Escape and a click outside close the note', async ({ page, baseURL }) => {
   await note(page).click()
   await expect(page.locator('.process-note'), 'a click inside the note closed it').toHaveClass(/open/)
 })
+
+test('a mousedown outside, the moment the note opens, closes it', async ({ page, baseURL }) => {
+  // The note used to read "is it open?" from a variable set in an effect, which runs after the render
+  // that adds `open` to its class. A mousedown in that gap was ignored (connor-227743e6). A
+  // MutationObserver callback runs as a microtask right after React writes the class, before its effects,
+  // so a mousedown sent from it lands in exactly that gap, every time.
+  const file = published[withNote]
+  await serveSentinelNotes(page, baseURL!)
+  await page.goto(route(file))
+  await expect(page.locator(`${scope(file)} .editor`)).toBeVisible()
+  await page.evaluate((editorSelector) => {
+    const note = document.querySelector('.process-note')!
+    const editor = document.querySelector(editorSelector)!
+    const observer = new MutationObserver(() => {
+      if (!note.classList.contains('open')) return
+      observer.disconnect()
+      editor.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    })
+    observer.observe(note, { attributes: true, attributeFilter: ['class'] })
+  }, `${scope(file)} .editor`)
+  await page.locator('.poem-credit > span').click()
+  await expect(page.locator('.process-note')).not.toHaveClass(/open/)
+})
