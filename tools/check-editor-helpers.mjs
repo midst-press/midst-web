@@ -8,6 +8,8 @@ const HELPERS = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
   ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
   ['src/buildLabel.ts', 'src/shared/buildLabel.ts'],
+  // The editor's user guide, shown on /app#help (midst-editor #105) until Annelyse writes her own help.
+  ['src/guide/editor-user-guide.md', 'docs/user-guide.md'],
 ]
 // The editor's tests for those files, copied too. A copy may differ from its original in exactly two
 // ways: the header note below, and the path it imports from. [copy, original, original's import, copy's import]
