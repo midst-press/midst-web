@@ -39,6 +39,8 @@ Every error has the same body:
 | 403 | `forbidden` | signed in, but not in the group the route needs |
 | 404 | `not_found` | no such poem, submission or person, or one that is not yours: a poet asking for another poet's submission gets 404, never 403, so the answer does not say whether it exists |
 | 409 | `conflict` | the published list changed since it was read; the body also carries the current `listEtag` |
+| 409 | `already_registered` | registering an email that already has an account |
+| 409 | `already_signed_in` | resending an invitation to someone who has already set their password |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
 
@@ -88,10 +90,11 @@ the poet on a decision, or `null`. `poet` (the poet's email) is included only on
 **Person:**
 
 ```json
-{ "username": "a1b2c3d4", "email": "qz@example.invalid", "groups": ["poet"], "status": "invited" }
+{ "username": "a1b2c3d4", "name": "Qz Vb", "email": "qz@example.invalid", "groups": ["poet"], "status": "invited" }
 ```
 
-`status` is `invited` (has not signed in yet), `active` or `disabled`.
+`status` is `invited` (has not signed in yet), `active` or `disabled`. `username` is Cognito's own id for the
+person, not their email; it is what the routes below take.
 
 ## Routes
 
@@ -115,6 +118,18 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   400 `invalid` unless `poemIds` is exactly the published set, each once.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`
   For a published poem.
+
+**Poets** (Stuart, 14 Oct: the publisher registers poets, and never sees a password):
+
+- `GET /publisher/poets` → `{ "poets": [Person, ...] }`, the people in `poet`.
+- `POST /publisher/poets` `{ "name", "email" }` → `Person`, status `invited`. Creates the account (its sign-in
+  name is the email) in `poet`; Cognito emails a temporary password and a link, and the poet must choose
+  their own password at first sign-in. 409 `already_registered` when the email has an account.
+- `POST /publisher/poets/{username}/resend` → `Person`. Sends the invitation again, with a new temporary
+  password. 409 `already_signed_in` once the poet has set their password; forgetting it is then Cognito's own
+  "forgot password" on the sign-in page.
+- `POST /publisher/poets/{username}/disable` → `Person`. Only for someone whose one group is `poet`: anyone else
+  is 403 `forbidden`, so a publisher cannot disable a publisher or an admin. Admin manages those.
 
 ### Poet (`poet`)
 
