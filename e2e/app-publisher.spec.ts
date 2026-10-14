@@ -10,7 +10,8 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean }
+interface Person { username: string, name: string, email: string, groups: string[], status: string }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, poets?: Person[] }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -30,6 +31,24 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') return reply(200, list())
+    // The poet routes (docs/app-api.md, "Poets").
+    const poets = store.poets ?? (store.poets = [])
+    if (request.method() === 'GET' && url.pathname === '/publisher/poets') return reply(200, { poets })
+    if (url.pathname.startsWith('/publisher/poets')) {
+      store.writes.push(`${request.method()} ${url.pathname}`)
+      if (url.pathname === '/publisher/poets') {
+        const { name, email } = request.postDataJSON()
+        if (poets.some(p => p.email === email)) return reply(409, { error: 'already_registered', message: 'Zq already has an account.' })
+        const person = { username: `u-${poets.length + 1}`, name, email, groups: ['poet'], status: 'invited' }
+        poets.push(person)
+        return reply(200, person)
+      }
+      const [, , , username, action] = url.pathname.split('/')
+      const person = poets.find(p => p.username === decodeURIComponent(username))!
+      if (action === 'resend' && person.status !== 'invited') return reply(409, { error: 'already_signed_in', message: 'Zq has already signed in.' })
+      if (action === 'disable') person.status = 'disabled'
+      return reply(200, person)
+    }
     const body = request.postDataJSON() as { poemId?: string, poemIds?: string[], listEtag: string, publishDate?: string | null, highlighted?: boolean }
     store.writes.push(`${request.method()} ${url.pathname}`)
     if (store.failNext) {
@@ -138,6 +157,63 @@ test('a 401 forgets the session and offers sign-in again', async ({ page, baseUR
   await page.goto('/publisher')
   await expect(page.getByRole('alert')).toHaveText('Please sign in again.')
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+})
+
+test('the publisher registers a poet, resends the invitation and disables them; never a password', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [], writes: [], poets: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const form = page.getByRole('form', { name: 'Register a poet' })
+  await expect(form.locator('input[type=password]')).toHaveCount(0)
+  await form.getByLabel('Name').fill('Qz Vb')
+  await form.getByLabel('Email').fill('qz@example.invalid')
+  await form.getByRole('button', { name: 'Register poet' }).click()
+  await expect(page.getByRole('status')).toContainText('Registered Qz Vb.')
+  const poets = page.getByRole('list', { name: 'Registered poets' })
+  await expect(poets).toContainText('Invited, has not signed in yet')
+  await expect(form.getByLabel('Email')).toHaveValue('')
+
+  await poets.getByRole('button', { name: 'Resend invitation' }).click()
+  await expect(page.getByRole('status')).toHaveText('Sent the invitation to Qz Vb again.')
+  await poets.getByRole('button', { name: 'Disable' }).click()
+  await expect(poets).toContainText('Disabled')
+  await expect(poets.getByRole('button')).toHaveCount(0)
+  expect(store.writes).toEqual(['POST /publisher/poets', 'POST /publisher/poets/u-1/resend', 'POST /publisher/poets/u-1/disable'])
+})
+
+test('registering an email that already has an account says so and keeps what was typed', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [], writes: [],
+    poets: [{ username: 'u-1', name: 'Qz', email: 'qz@example.invalid', groups: ['poet'], status: 'active' }] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const form = page.getByRole('form', { name: 'Register a poet' })
+  await form.getByLabel('Name').fill('Qz again')
+  await form.getByLabel('Email').fill('qz@example.invalid')
+  await form.getByRole('button', { name: 'Register poet' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Zq already has an account.')
+  await expect(form.getByLabel('Email')).toHaveValue('qz@example.invalid')
+  // A poet who has signed in has no invitation to resend.
+  await expect(page.getByRole('list', { name: 'Registered poets' }).getByRole('button', { name: 'Resend invitation' })).toHaveCount(0)
+})
+
+test('a 401 in the Poets section signs the whole page out and offers sign-in', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [], poets: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  // The list and the poets load; registering is refused with the gateway's own 401.
+  await page.route('https://api.example.invalid/publisher/poets', route => route.request().method() === 'POST'
+    ? route.fulfill({ status: 401, headers: cors, contentType: 'application/json', body: '{"message":"Unauthorized"}' })
+    : route.fallback())
+  await page.goto('/publisher')
+  await expect(published(page)).toHaveText(['Zq 1'])
+  const form = page.getByRole('form', { name: 'Register a poet' })
+  await form.getByLabel('Name').fill('Qz')
+  await form.getByLabel('Email').fill('qz@example.invalid')
+  await form.getByRole('button', { name: 'Register poet' }).click()
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Published poems' })).toHaveCount(0)
 })
 
 test('Undo changes puts back the saved order, and nothing is written', async ({ page, baseURL }) => {
