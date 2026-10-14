@@ -1,0 +1,127 @@
+import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
+import { Helmet } from 'react-helmet'
+import { BASE_SITE_PAGE_TITLE } from '../config'
+import { APP_API_URL, APP_AVAILABLE } from '../app/config'
+import { ApiError } from '../app/api'
+import { currentSession, forgetSession, signInUrl } from '../app/auth'
+import { authSettings, browserDeps } from '../app/browser'
+import { callerFor } from '../app/publisher'
+import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem } from '../app/submit'
+
+// The poet's page (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21): send a poem as a .midst
+// file, and see where each submission stands. A prototype; the wording is Annelyse's to choose.
+
+const putFile = async (url: string, headers: Record<string, string>, file: Blob) => {
+  const response = await fetch(url, { method: 'PUT', headers, body: file })
+  return { ok: response.ok }
+}
+
+function Submit(): ReactElement {
+  const session = APP_AVAILABLE ? currentSession(browserDeps()) : null
+  const isPoet = Boolean(session && session.groups.includes('poet'))
+  const [submissions, setSubmissions] = useState<Submission[] | null>(null)
+  const [title, setTitle] = useState('')
+  const [author, setAuthor] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [formKey, setFormKey] = useState(0) // remakes the file input after a submission
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+
+  const call = session && isPoet ? callerFor(APP_API_URL, session.idToken) : null
+  const failed = (error: unknown, fallback: string) => {
+    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+    setProblem(error instanceof ApiError ? error.message : fallback)
+  }
+
+  useEffect(() => {
+    if (call) mySubmissions(call).then(r => setSubmissions(r.submissions)).catch(error => failed(error, 'Your submissions could not be loaded.'))
+    // Loaded once per visit, and again after each submission.
+  }, [])
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!call || !file) return
+    const wrong = fileProblem(file)
+    if (wrong) { setProblem(wrong); return }
+    setBusy(true)
+    setNotice(null)
+    setProblem(null)
+    try {
+      const sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim() }, file)
+      setNotice(`Thank you. We have received “${sent.title}”. You will get an email to say so.`)
+      setTitle('')
+      setFile(null)
+      setFormKey(k => k + 1)
+    } catch (error) {
+      failed(error, 'Your poem could not be sent. Please try again.')
+      setBusy(false)
+      return
+    }
+    // The poem is in. A failure from here on is only the list: saying "could not be sent" would make a poet
+    // send it twice.
+    try {
+      setSubmissions((await mySubmissions(call)).submissions)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+      setProblem('Your poem was received, but the list below could not be refreshed. Reload the page to see it.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/submit'))
+
+  let content: ReactElement
+  if (!APP_AVAILABLE) {
+    content = <p>Submitting is not available on this site.</p>
+  } else if (!session) {
+    content = (
+      <>
+        {problem && <p role="alert">{problem}</p>}
+        <p>Sign in to submit a poem. <button type="button" className="app-button" onClick={signIn}>Sign in</button></p>
+      </>
+    )
+  } else if (!isPoet) {
+    content = <p>Your account cannot submit poems. Ask the editor to register you as a poet.</p>
+  } else {
+    content = (
+      <>
+        {notice && <p role="status" className="publisher-notice">{notice}</p>}
+        {problem && <p role="alert" className="publisher-problem">{problem}</p>}
+        <form className="submit-form" onSubmit={send} key={formKey}>
+          <p><label>Title <input type="text" required value={title} onChange={e => setTitle(e.target.value)} disabled={busy} /></label></p>
+          <p><label>Your name as it should appear <input type="text" required value={author} onChange={e => setAuthor(e.target.value)} disabled={busy} /></label></p>
+          <p><label>The poem, as a Midst file (.midst) <input type="file" accept=".midst" required onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={busy} /></label></p>
+          <p><button type="submit" className="app-button" disabled={busy || !file}>{busy ? 'Sending…' : 'Submit poem'}</button></p>
+        </form>
+
+        <h3>Your submissions</h3>
+        {submissions === null ? <p>Loading…</p> : submissions.length === 0 ? <p>You have not submitted anything yet.</p> : (
+          <ul className="publisher-list" aria-label="Your submissions">
+            {submissions.map(s => (
+              <li key={s.submissionId}>
+                <span className="publisher-poem"><strong>{s.title}</strong> <span className="publisher-author">{new Date(s.submittedAt).toLocaleDateString()}</span></span>
+                <span className="publisher-actions">{STATUS_WORDS[s.status]}{s.note ? `: ${s.note}` : ''}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <div className="app-account-page submit-page">
+      <Helmet>
+        <title>{BASE_SITE_PAGE_TITLE} Submit a poem</title>
+      </Helmet>
+      <section className="heroine heroine--normal">
+        <h2>Submit a poem</h2>
+        {content}
+      </section>
+    </div>
+  )
+}
+
+export default Submit
