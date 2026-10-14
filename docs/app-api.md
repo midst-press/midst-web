@@ -53,6 +53,7 @@ and have the gateway's own body, `{ "message": "..." }`, with no `error`:
 |---|---|
 | 401 | the authoriser refused the token (`Unauthorized`) |
 | 403 | the gateway refused the request |
+| 404 | no route takes that method and path (the API has `GET`, `POST` and `PUT` on paths below `/` only) |
 | 429 | throttled: the API's rate limit was reached (`Too Many Requests`) |
 | 500, 502, 503, 504 | the Lambda could not be run, failed outside our code, or timed out |
 
