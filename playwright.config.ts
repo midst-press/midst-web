@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 import keyScheme from './src/poems/key-scheme.js'
+import poemList from './src/poems/poem-list.js'
 
 // End-to-end tests. Issue #13.
 //
@@ -19,12 +20,18 @@ import keyScheme from './src/poems/key-scheme.js'
 // The site and its fixtures are built under one key scheme, named by whoever starts the run. There is
 // no default (#41); refusing here says so at once instead of as a failed build inside the web server.
 keyScheme.parseScheme(process.env.MIDST_KEY_SCHEME)
+// Likewise the poem list (#110). This suite is the bundled site; the published one has its own config and
+// build (playwright.published.config.ts), so running this one under "published" would only fail confusingly.
+if (poemList.parsePoemList(process.env.MIDST_POEM_LIST) !== 'bundled') {
+  throw new Error('This suite tests the bundled poem list: run it with MIDST_POEM_LIST=bundled. The published list is `npm run test:e2e:published`.')
+}
 
 const PORT = Number(process.env.MIDST_E2E_PORT ?? 8099)
 const BASE = `http://127.0.0.1:${PORT}`
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: 'published-list.spec.ts',
   // The player is time-based: it replays keystrokes on timers. Generous, because a flaky e2e suite
   // gets switched off and then it protects nothing.
   timeout: 90_000,

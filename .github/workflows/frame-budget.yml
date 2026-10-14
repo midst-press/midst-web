@@ -25,6 +25,7 @@ permissions:
 # No default exists (#41); these tests are about the player, so either scheme would do.
 env:
   MIDST_KEY_SCHEME: legacy
+  MIDST_POEM_LIST: bundled
 
 jobs:
   attest:

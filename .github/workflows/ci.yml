@@ -13,6 +13,7 @@ permissions:
 # and runs the specs that touch object names, so both schemes stay tested whichever a deployment uses.
 env:
   MIDST_KEY_SCHEME: legacy
+  MIDST_POEM_LIST: bundled
 
 # WHY THE REQUIRED JOBS RUN ON LINUX, AND WHY ONE DOES NOT
 #
@@ -114,6 +115,10 @@ jobs:
         env:
           MIDST_KEY_SCHEME: canonical
         run: npx playwright test e2e/key-scheme.spec.ts e2e/poem-plays.spec.ts e2e/load-failure.spec.ts e2e/asset-canary.spec.ts
+      - name: the site with the published poem list
+        env:
+          MIDST_POEM_LIST: published
+        run: npx playwright test --config playwright.published.config.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

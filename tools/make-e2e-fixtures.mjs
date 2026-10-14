@@ -22,12 +22,16 @@ import { fileURLToPath } from 'node:url'
 import { deflateRawSync, crc32 } from 'node:zlib'
 import names from '../src/poems/poem-names.js'
 import keyScheme from '../src/poems/key-scheme.js'
+import poemList from '../src/poems/poem-list.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const REPO = join(here, '..')
-const OUT = join(REPO, 'e2e', 'fixtures', 'poems')
-// The same value the site under test is built with; parseScheme throws when it is missing (#41).
-const SCHEME = keyScheme.parseScheme(process.env.MIDST_KEY_SCHEME)
+// The same values the site under test is built with; each parse throws when its variable is missing (#41, #110).
+const LIST = poemList.parsePoemList(process.env.MIDST_POEM_LIST)
+// The published variant has its own fixtures, so the two servers never share (or delete) each other's files.
+// Its poems are named by the list, which records canonical keys, whatever MIDST_KEY_SCHEME says.
+const OUT = join(REPO, 'e2e', 'fixtures', LIST === 'published' ? 'published' : 'poems')
+const SCHEME = LIST === 'published' ? 'canonical' : keyScheme.parseScheme(process.env.MIDST_KEY_SCHEME)
 
 // Which poems get a fixture. Deliberately few: the tests assert player BEHAVIOUR, and more poems
 // would make the suite slower without asking a new question. One plain poem, one whose title
@@ -134,6 +138,13 @@ function zipOne(name, body) {
 rmSync(OUT, { recursive: true, force: true })
 let written = 0
 
+// THE PUBLISHED LIST (#110), for the variant built with MIDST_POEM_LIST=published: published.json beside the
+// objects, in the shape tools/seed-published.mjs writes. Its order is the REVERSE of SUBJECTS, so a site that
+// reads the list shows an order the bundle does not have. One poem has no process note: its entry says null and
+// no note file is written, so a site that asks for one anyway gets a 404 the specs see. Metadata only; the
+// fixtures' content is invented as for every other fixture.
+const publishedEntries = []
+
 // FONTS. The real font files are not in this repository (#55), and the tests must not fall back to
 // system fonts without saying so. So every file named in src/font-faces.json gets a SYNTHETIC font:
 // three glyphs (a box for every printable ASCII character), family "MidstE2ESynthetic", built with
@@ -180,10 +191,24 @@ for (const subject of SUBJECTS) {
       }),
     ),
   )
-  writeFileSync(
-    join(OUT, noteName),
-    `# Process note (synthetic)\n\nThis text is invented for the end-to-end tests. It is not ${meta.author}'s writing.\n`,
-  )
+  const hasNote = !(LIST === 'published' && subject === 'Madeleine_Mori')
+  if (hasNote) {
+    writeFileSync(
+      join(OUT, noteName),
+      `# Process note (synthetic)\n\nThis text is invented for the end-to-end tests. It is not ${meta.author}'s writing.\n`,
+    )
+  }
+  publishedEntries.unshift({
+    poemId: meta.id,
+    title: meta.title,
+    author: meta.author,
+    timelapse: `poems/${objectName}`,
+    processNote: hasNote ? `poems/${noteName}` : null,
+    publishDate: meta.publishDate ?? null,
+    highlighted: meta.highlighted === true,
+    date: meta.date ?? null,
+    tags: [],
+  })
   // A 1x1 transparent GIF standing in for the author photograph. MEDIA_URL points at this same
   // directory, so without it the page 404s and the no-failed-requests assertion trips on noise
   // rather than on anything real.
@@ -196,5 +221,12 @@ for (const subject of SUBJECTS) {
   writeFileSync(join(OUT, `${names.poemFolder(meta)}/${names.authorId(meta.author)}.jpg`), px)
   written += 3
 }
-console.log(`${written} fixture file(s) written under e2e/fixtures/poems/`)
-console.log(`Key scheme: ${SCHEME}. Names come from src/poems/key-scheme.js, so a change to the naming breaks these tests.`)
+if (LIST === 'published') {
+  writeFileSync(
+    join(OUT, 'published.json'),
+    `${JSON.stringify({ version: 1, updated: '2026-01-01T00:00:00.000Z', poems: publishedEntries }, null, 2)}\n`,
+  )
+  written += 1
+}
+console.log(`${written} fixture file(s) written under e2e/fixtures/${LIST === 'published' ? 'published' : 'poems'}/`)
+console.log(`Poem list: ${LIST}. Key scheme: ${SCHEME}. Names come from src/poems/key-scheme.js, so a change to the naming breaks these tests.`)
