@@ -17,6 +17,7 @@ import LogoSvg from './LogoSvg'
 import {
   About,
   AboutTheApp,
+  Admin,
   Contact,
   Faq,
   FaqForPoets,
@@ -29,6 +30,7 @@ import {
   Me,
   Publisher,
   SignedIn,
+  Submit,
 } from '../routes'
 
 smoothscroll.polyfill()
@@ -126,6 +128,8 @@ function App(): ReactElement {
           <Route path="/funding" element={<Funding />} />
           <Route path="/me" element={<Me />} />
           <Route path="/publisher" element={<Publisher />} />
+          <Route path="/submit" element={<Submit />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/signed-in" element={<SignedIn />} />
           <Route path="/poem/:poemUrl" element={<Poem />} />
         </Routes>

@@ -1,8 +1,6 @@
 import { Page } from '@playwright/test'
 import { test, expect } from './coverage'
 
-const player = '#player-options-control'
-
 function syntheticData(frames = 80) {
   return {
     editorTimelineFrames: Array.from({ length: frames }, (_, i) => ({
@@ -31,11 +29,17 @@ async function assertLabelInsideTimeline(page: Page) {
   const timelineBox = await page.locator('.timeline-control').boundingBox()
   expect(labelBox).not.toBeNull()
   expect(timelineBox).not.toBeNull()
-  // The label's left and right edges must be within the timeline's bounds.
-  // Allow 1px tolerance for sub-pixel layout.
   expect(labelBox!.x, 'label left edge outside timeline').toBeGreaterThanOrEqual(timelineBox!.x - 1)
   expect(labelBox!.x + labelBox!.width, 'label right edge outside timeline')
     .toBeLessThanOrEqual(timelineBox!.x + timelineBox!.width + 1)
+}
+
+async function labelCentre(page: Page): Promise<number> {
+  const box = await page.locator('.frame-timestamp').boundingBox()
+  const timeline = await page.locator('.timeline-control').boundingBox()
+  expect(box).not.toBeNull()
+  expect(timeline).not.toBeNull()
+  return (box!.x + box!.width / 2 - timeline!.x) / timeline!.width
 }
 
 async function setStep(page: Page, value: number) {
@@ -77,17 +81,26 @@ test('label stays inside the timeline near the end (75/80)', async ({ page }) =>
   await assertLabelInsideTimeline(page)
 })
 
+test('label follows the playhead', async ({ page }) => {
+  await mount(page)
+  // At frame 10 the label's centre should be near 10/79 of the timeline.
+  await setStep(page, 10)
+  const early = await labelCentre(page)
+  // At frame 70 it should be near 70/79 — much further right.
+  await setStep(page, 70)
+  const late = await labelCentre(page)
+  expect(late, 'label did not move right with the playhead').toBeGreaterThan(early + 0.3)
+})
+
 test('label stays inside after a paused wide-to-narrow resize', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 720 })
   await mount(page)
-  await setStep(page, 79) // pause near the end, where clipping is most likely
+  await setStep(page, 79)
   await assertLabelInsideTimeline(page)
 
-  // Narrow the viewport while paused (step unchanged).
   await page.setViewportSize({ width: 320, height: 720 })
-  // Give the ResizeObserver a frame to fire and update the label width.
-  await page.waitForTimeout(100)
-  await assertLabelInsideTimeline(page)
+  await expect(async () => { await assertLabelInsideTimeline(page) })
+    .toPass({ timeout: 5000 })
 })
 
 test('label stays inside after a paused narrow-to-wide resize', async ({ page }) => {
@@ -97,8 +110,8 @@ test('label stays inside after a paused narrow-to-wide resize', async ({ page })
   await assertLabelInsideTimeline(page)
 
   await page.setViewportSize({ width: 1024, height: 720 })
-  await page.waitForTimeout(100)
-  await assertLabelInsideTimeline(page)
+  await expect(async () => { await assertLabelInsideTimeline(page) })
+    .toPass({ timeout: 5000 })
 })
 
 // ---- accessibility (Cyril's review on #107) ------------------------------------------------
