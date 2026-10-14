@@ -90,6 +90,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   const glide = useRef<Glide | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const generation = useRef(0)
+  const lastTick = useRef(0)
   const haltPlayback = useCallback(() => {
     generation.current += 1
     if (timer.current) clearInterval(timer.current)
@@ -141,13 +142,32 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   useEffect(() => {
     if (!playing || !activePlayer || maxStep === 0) return
     const run = ++generation.current
-    const interval = setInterval(() => {
+    const period = Math.ceil(1000 / fps)
+    const tick = () => {
       if (generation.current !== run) return
+      // A glide holds the frame, not the playback clock.
+      lastTick.current = performance.now()
       setStep(value => generation.current !== run || gliding(glide.current) ? value : Math.min(value + 1, maxStep))
-    }, Math.ceil(1000 / fps))
-    timer.current = interval
-    return () => { generation.current += 1; clearInterval(interval); if (timer.current === interval) timer.current = undefined }
-  }, [playing, activePlayer, maxStep, fps])
+    }
+    // Keep the next deadline anchored to the previous tick, not to a speed change.
+    const delay = Math.ceil(lastTick.current + period - performance.now())
+    if (delay <= 0) {
+      timer.current = setInterval(tick, period)
+      tick()
+    } else if (delay === period) {
+      timer.current = setInterval(tick, period)
+    } else {
+      let firstTickFired = false
+      timer.current = setInterval(() => {
+        if (generation.current !== run || firstTickFired) return
+        firstTickFired = true
+        if (timer.current) clearInterval(timer.current)
+        timer.current = setInterval(tick, period)
+        tick()
+      }, delay)
+    }
+    return haltPlayback
+  }, [playing, activePlayer, maxStep, fps, haltPlayback])
 
   useEffect(() => {
     if (!speedOpen) return
@@ -191,6 +211,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       cancelGlide()
       setStep(0)
     }
+    lastTick.current = performance.now()
     setPlaying(true)
   }
 

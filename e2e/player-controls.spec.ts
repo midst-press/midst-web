@@ -29,12 +29,16 @@ async function recordIntervals(page: Page) {
   await page.evaluate(() => {
     const nativeSet = window.setInterval
     const nativeClear = window.clearInterval
-    const entries = new Map<number, { delay: number, cleared: boolean, fire: () => void }>()
+    const nativeNow = performance.now.bind(performance)
+    let now = 1000
+    let realClock = false
+    Object.defineProperty(performance, 'now', { configurable: true, value: () => realClock ? nativeNow() : now })
+    const entries = new Map<number, { delay: number, due: number, cleared: boolean, fire: () => void }>()
     let next = 1000000
     ;(window as any).setInterval = (callback: TimerHandler, delay: number, ...args: any[]) => {
       if (typeof callback !== 'function') throw new Error('Unexpected string interval in player test')
       const id = next++
-      entries.set(id, { delay, cleared: false, fire: () => callback(...args) })
+      entries.set(id, { delay, due: performance.now() + delay, cleared: false, fire: () => callback(...args) })
       return id
     }
     ;(window as any).clearInterval = (id: number) => {
@@ -43,18 +47,28 @@ async function recordIntervals(page: Page) {
       else nativeClear(id)
     }
     ;(window as any).playerTestTimers = {
-      snapshot: () => Array.from(entries, ([id, entry]) => ({ id, delay: entry.delay, cleared: entry.cleared })),
+      snapshot: () => Array.from(entries, ([id, entry]) => ({ id, delay: entry.delay, due: entry.due, cleared: entry.cleared })),
+      advance: (ms: number) => { now += ms },
+      useRealClock: () => { realClock = true },
       fire: (id: number) => {
         const entry = entries.get(id)
         if (!entry) throw new Error(`Unknown player interval ${id}`)
+        if (!entry.cleared && !realClock) {
+          now = Math.max(now, entry.due)
+          entry.due = now + entry.delay
+        }
         entry.fire()
       },
-      restore: () => { window.setInterval = nativeSet; window.clearInterval = nativeClear },
+      restore: () => {
+        window.setInterval = nativeSet
+        window.clearInterval = nativeClear
+        Object.defineProperty(performance, 'now', { configurable: true, value: nativeNow })
+      },
     }
   })
 }
 
-type Interval = { id: number, delay: number, cleared: boolean }
+type Interval = { id: number, delay: number, due: number, cleared: boolean }
 async function intervals(page: Page): Promise<Interval[]> {
   return page.evaluate(() => (window as any).playerTestTimers.snapshot())
 }
@@ -100,6 +114,83 @@ test('default, minimum, intermediate and maximum FPS select the intended cadence
     await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
   }
   await expect(root.getByRole('slider', { name: 'Timeline' })).toHaveValue('0')
+})
+
+test('several rate changes retain the next tick deadline and overdue changes tick promptly', async ({ page }) => {
+  await mount(page)
+  const root = page.locator(player)
+  const timeline = root.getByRole('slider', { name: 'Timeline' })
+  await root.getByRole('button', { name: 'Play', exact: true }).click()
+  expect((await liveInterval(page)).due).toBe(1060)
+  await root.getByRole('button', { name: 'Playback speed' }).click()
+  const rate = root.getByRole('slider', { name: 'Playback frame rate' })
+  for (const [fps, due] of [[25, 1040], [26, 1039], [25, 1040]]) {
+    await page.evaluate(() => (window as any).playerTestTimers.advance(10))
+    await rate.fill(String(fps))
+    await expect.poll(async () => (await liveInterval(page)).due).toBe(due)
+  }
+  const first = await liveInterval(page)
+  expect(first.delay).toBe(10)
+  await fire(page, first.id)
+  await expect(timeline).toHaveValue('1')
+  const steady = await liveInterval(page)
+  expect(steady.delay).toBe(40)
+  expect(steady.id).not.toBe(first.id)
+  // Even a duplicate queued bootstrap callback must not tick or replace the steady timer.
+  await fire(page, first.id)
+  await expect(timeline).toHaveValue('1')
+  expect((await liveInterval(page)).id).toBe(steady.id)
+  await page.evaluate(() => (window as any).playerTestTimers.advance(100))
+  await rate.fill('26')
+  const overdue = await liveInterval(page)
+  expect(overdue.delay).toBe(39)
+  // A passed deadline is serviced during the rate change, without waiting on another timer.
+  await expect(timeline).toHaveValue('2')
+  await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
+})
+
+test('playback advances during continuous speed changes with real timers', async ({ page }, testInfo) => {
+  await page.evaluate(() => (window as any).playerTestTimers.restore())
+  await mount(page, syntheticData(2000))
+  const root = page.locator(player)
+  await root.getByRole('button', { name: 'Play', exact: true }).click()
+  await root.getByRole('button', { name: 'Playback speed' }).click()
+  await root.getByRole('slider', { name: 'Playback frame rate' }).fill('26')
+  await expect(root.locator('.playback-speed-value')).toHaveText('26 fps')
+  const measured = await root.evaluate(async element => {
+    const timeline = element.querySelector<HTMLInputElement>('input[aria-label="Timeline"]')!
+    const rate = element.querySelector<HTMLInputElement>('input[aria-label="Playback frame rate"]')!
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+    const before = Number(timeline.value)
+    await wait(350)
+    const startFrame = Number(timeline.value)
+    const start = performance.now()
+    let previous = start
+    let changes = 0
+    let maxGap = 0
+    const values = new Set<string>()
+    // This interval is the input stimulus, not a readiness sleep or a replacement playback clock.
+    const stimulus = setInterval(() => {
+      const now = performance.now()
+      maxGap = Math.max(maxGap, now - previous)
+      previous = now
+      setValue.call(rate, String(changes % 2 ? 26 : 25))
+      rate.dispatchEvent(new Event('input', { bubbles: true }))
+      values.add(element.querySelector('.playback-speed-value')!.textContent!)
+      changes++
+    }, 20)
+    await wait(1500)
+    clearInterval(stimulus)
+    return { baselineFrames: startFrame - before, duringFrames: Number(timeline.value) - startFrame,
+      elapsed: performance.now() - start, changes, maxGap, values: Array.from(values).sort() }
+  })
+  await testInfo.attach('continuous-speed-measurement', { body: JSON.stringify(measured), contentType: 'application/json' })
+  expect(measured.baselineFrames, 'real playback baseline must advance').toBeGreaterThan(2)
+  expect(measured.changes, 'the change stream must actually be delivered').toBeGreaterThan(25)
+  expect(measured.values).toEqual(['25 fps', '26 fps'])
+  expect(measured.duringFrames, 'playing must keep advancing during the change stream').toBeGreaterThan(8)
+  await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
 })
 
 test('speed popup interactions preserve a paused frame and do not start a timer', async ({ page }) => {
@@ -172,6 +263,7 @@ test('skip endpoints pause, render their frames and reject a queued playback tic
 })
 
 test('changing FPS during a real glide holds the frame until scrolling finishes', async ({ page }) => {
+  await page.evaluate(() => (window as any).playerTestTimers.useRealClock())
   const data = syntheticData(3)
   const body = '<p>synthetic scrolling row</p>'.repeat(200)
   data.editorTimelineFrames.forEach((frame, index) => { frame.content = body + `<p>synthetic tail ${index}</p>` })
@@ -188,7 +280,8 @@ test('changing FPS during a real glide holds the frame until scrolling finishes'
   await root.getByRole('button', { name: 'Playback speed' }).click()
   await root.getByRole('slider', { name: 'Playback frame rate' }).fill('60')
   const current = await liveInterval(page)
-  expect(current.delay).toBe(17)
+  expect(current.delay).toBeGreaterThan(0)
+  expect(current.delay).toBeLessThanOrEqual(17)
   const movingTop = await editor.evaluate(el => el.scrollTop)
   await fire(page, old.id)
   await fire(page, current.id)
@@ -198,7 +291,7 @@ test('changing FPS during a real glide holds the frame until scrolling finishes'
   await expect(timeline).toHaveValue('0')
   await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
   await expect.poll(async () => {
-    await fire(page, current.id)
+    await fire(page, (await liveInterval(page)).id)
     return Number(await timeline.inputValue())
   }, { timeout: 20_000, intervals: [100] }).toBe(1)
   await expect(root.locator('.editable')).toContainText('synthetic tail 1')
@@ -306,7 +399,9 @@ test('two mounted players retain independent FPS, popup and playback state', asy
 for (const width of [320, 1024]) {
   test(`right-hand controls and upward popup fit alongside endpoint marker pills at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 720 })
-    await mount(page)
+    const data = syntheticData()
+    data.meta.editorDraftMarkers.forEach(marker => { marker.name = 'zq '.repeat(60).trim() })
+    await mount(page, data)
     const root = page.locator(player)
     await root.getByRole('button', { name: 'Playback speed' }).click()
     const bounds = await root.locator('.controls').boundingBox()
