@@ -86,13 +86,16 @@ beforeEach(() => {
     }),
   }
   ;(globalThis as any).window = { zip }
+  // As a browser's FileReader: the text is on `result` when loadend fires.
   ;(globalThis as any).FileReader = class {
     private listeners: Record<string, any> = {}
+    result: string | null = null
     addEventListener(type: string, fn: any) {
       this.listeners[type] = fn
     }
     readAsText(_blob: any) {
-      this.listeners.loadend({ srcElement: { result: fileText } })
+      this.result = fileText
+      this.listeners.loadend({ target: this })
     }
   }
   mockFetchAsset.mockReset()
