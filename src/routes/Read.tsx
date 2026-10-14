@@ -156,6 +156,7 @@ function Read(): ReactElement {
               ${ poem.highlighted ? 'poem-highlighted' : '' }
             `}
             data-trigger={poem.trigger ? 'true' : 'false'}
+            data-poem-id={poem.id}
             to={`/poem/${poem.url}/`}
             onClick={() => dispatch(setMobileNavOpen(false))}
           >
