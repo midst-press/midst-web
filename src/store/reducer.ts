@@ -72,17 +72,12 @@ function createPublishedPoem(entry: any, position: number): IPoem {
 // Under `published` nothing is bundled into the state: the list arrives with LOAD_POEM_LIST.
 const poems: IPoem[] = POEM_LIST === 'bundled' ? poemData.map(createPoem) : []
 
-// Sorts what the state holds, so a loaded list is sorted and loaded poems keep their data. Ties break by
-// position in the list, which is the order the sort started from before it sorted anything but the bundle.
+// Sorts the poems in the state, so what has been loaded into them is kept. Ties (one author's poems, when
+// sorting by author) break by position in the list, so they come out in the same order whatever the
+// previous sort was, for a bundled list or a published one.
 function sortPoems(draftState: IState) {
-  // @ts-ignore
-  let finalPoems = sortBy(draftState.poems, [draftState.sortTerm, 'position'])
-
-  if (draftState.sortOrder === 'DESC') {
-    finalPoems = reverse(finalPoems)
-  }
-
-  return finalPoems
+  const sorted = sortBy(draftState.poems, [draftState.sortTerm, 'position'])
+  return draftState.sortOrder === 'DESC' ? reverse(sorted) : sorted
 }
 
 const initialState: IState = {

@@ -45,13 +45,16 @@ beforeEach(() => {
         onReader({ getEntries: (cb: any) => cb([{ getData: (_w: any, dataCb: any) => dataCb(fakeBlob) }]) })),
     },
   }
+  // As a browser's FileReader: the text is on `result` when loadend fires.
   ;(globalThis as any).FileReader = class {
     private listeners: Record<string, any> = {}
+    result: string | null = null
     addEventListener(type: string, fn: any) {
       this.listeners[type] = fn
     }
     readAsText() {
-      this.listeners.loadend({ srcElement: { result: validText } })
+      this.result = validText
+      this.listeners.loadend({ target: this })
     }
   }
   consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
