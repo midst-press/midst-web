@@ -53,9 +53,18 @@ function Submit(): ReactElement {
       setTitle('')
       setFile(null)
       setFormKey(k => k + 1)
-      setSubmissions((await mySubmissions(call)).submissions)
     } catch (error) {
       failed(error, 'Your poem could not be sent. Please try again.')
+      setBusy(false)
+      return
+    }
+    // The poem is in. A failure from here on is only the list: saying "could not be sent" would make a poet
+    // send it twice.
+    try {
+      setSubmissions((await mySubmissions(call)).submissions)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+      setProblem('Your poem was received, but the list below could not be refreshed. Reload the page to see it.')
     } finally {
       setBusy(false)
     }

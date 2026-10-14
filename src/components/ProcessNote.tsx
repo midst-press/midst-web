@@ -11,9 +11,6 @@ interface IProps {
 }
 
 
-// TODO: How not to "freeze in" changing state values in event callbacks?
-let proxyProcessNoteOpen: boolean = false
-
 function ProcessNote(): ReactElement {
   const { processNoteOpen, poems } = useSelector((state: RootState) => ({
     processNoteOpen: state.app.processNoteOpen,
@@ -30,6 +27,13 @@ function ProcessNote(): ReactElement {
 
   const el = useRef(null)
 
+  // The listeners below are added once, so they read the open state through a ref. It is set here, during
+  // render, so it is already true when the commit that adds `open` to the class reaches the screen. It was
+  // a module variable set in an effect, which runs after that commit: a mousedown in between was ignored
+  // (connor-227743e6, from the e2e test failing in the slower coverage build).
+  const openRef = useRef(processNoteOpen)
+  openRef.current = processNoteOpen
+
   function handleEsc(evt: any) {
     if (evt.keyCode === 27) {
       dispatch(setProcessNoteOpen(false))
@@ -37,7 +41,7 @@ function ProcessNote(): ReactElement {
   }
 
   function handleClickOutside(evt: any) {
-    if (!proxyProcessNoteOpen) return
+    if (!openRef.current) return
     if ((el as any).current.contains(evt.target)) return
 
     dispatch(setProcessNoteOpen(false))
@@ -54,7 +58,6 @@ function ProcessNote(): ReactElement {
   }, [])
 
   useEffect(() => {
-    proxyProcessNoteOpen = processNoteOpen
     const noteContent = document.body.querySelector('.process-note__content')
     noteContent && (noteContent.scrollTop = 0)
   }, [processNoteOpen])

@@ -16,7 +16,7 @@ async function signedInAs(page: Page, groups: string[]) {
     JSON.stringify({ idToken, expiresAt: exp * 1000, email: 'qz@example.invalid', groups }))
 }
 
-interface Store { submissions: { submissionId: string, title: string, author: string, submittedAt: string, status: string, note: string | null }[], uploaded: string[], uploadFails?: boolean }
+interface Store { submissions: { submissionId: string, title: string, author: string, submittedAt: string, status: string, note: string | null }[], uploaded: string[], uploadFails?: boolean, listFailsAfterComplete?: boolean }
 
 async function standIn(page: Page, baseURL: string, store: Store) {
   await page.route('**/*', async (route: Route) => {
@@ -31,7 +31,10 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       return route.fulfill({ status: 200, headers: cors, body: '' })
     }
     if (url.origin !== API) return route.abort()
-    if (request.method() === 'GET' && url.pathname === '/submissions/mine') return reply(200, { submissions: store.submissions })
+    if (request.method() === 'GET' && url.pathname === '/submissions/mine') {
+      if (store.listFailsAfterComplete && store.submissions.some(x => x.status === 'received')) return reply(503, { message: 'Service Unavailable' })
+      return reply(200, { submissions: store.submissions })
+    }
     if (request.method() === 'POST' && url.pathname === '/submissions') {
       const body = request.postDataJSON()
       store.submissions.unshift({ submissionId: 'sub-9', title: body.title, author: body.author, submittedAt: '2026-10-15T09:30:00Z', status: 'uploading', note: null })
@@ -61,6 +64,20 @@ test('a poet sends a .midst file, is thanked, and sees it received', async ({ pa
   expect(store.uploaded).toEqual(['/submissions/sub-9/zq.midst application/octet-stream zq synthetic'])
   await expect(page.getByRole('list', { name: 'Your submissions' }).getByRole('listitem').first()).toContainText('Received, waiting to be read')
   await expect(page.getByLabel('Title')).toHaveValue('')
+})
+
+test('when the poem is received but the list cannot be refreshed, it does not say the poem failed', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [], uploaded: [], listFailsAfterComplete: true }
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/submit')
+  await page.getByLabel('Title').fill('Zq')
+  await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
+  await page.getByRole('button', { name: 'Submit poem' }).click()
+  await expect(page.getByRole('status')).toContainText('We have received')
+  await expect(page.getByRole('alert')).toHaveText('Your poem was received, but the list below could not be refreshed. Reload the page to see it.')
+  expect(store.submissions[0].status).toBe('received')
 })
 
 test('a file that is not .midst is refused before anything is sent', async ({ page, baseURL }) => {
