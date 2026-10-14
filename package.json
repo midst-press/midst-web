@@ -196,6 +196,7 @@
       "src/poems/key-scheme.js",
       "src/poems/index.ts",
       "src/config.ts",
+      "src/fonts.ts",
       "src/store/reducer.ts",
       "src/store/actions.ts",
       "src/components/midst-player-hack/midst-file.ts",
@@ -228,6 +229,12 @@
         "statements": 100
       },
       "./src/config.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/fonts.ts": {
         "branches": 100,
         "functions": 100,
         "lines": 100,
