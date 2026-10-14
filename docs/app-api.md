@@ -172,10 +172,10 @@ change a group without going to the AWS console, which is how the first admin is
 |---|---|---|
 | `/signed-in` | anyone | where the managed login returns to; finishes sign-in and goes on |
 | `/me` | signed in | who you are and your groups; sign out |
-| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight |
+| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable |
 | `/submit` | poet | submit a poem, and your submissions and where each stands |
 | `/review` | publisher | submissions: play, accept or decline with a note |
-| `/admin` | admin | people: invite, change groups, disable |
+| `/admin` | admin | publishers and admins: invite, change groups, disable |
 
 Sign-in is Cognito's managed login, authorisation code with PKCE. The tokens are held in memory and in
 `sessionStorage` (so a reload keeps you signed in), never in `localStorage`.
