@@ -101,7 +101,10 @@ function Publisher(): ReactElement {
                     aria-label={`Move ${poem.title} down`}>↓</button>
                   <label>
                     Date{' '}
-                    <input type="date" disabled={busy || reordered} defaultValue={poem.publishDate ?? ''}
+                    {/* Keyed on the server's date as well as the poem: after a reload the field is made again
+                        from what the server holds, so a date that failed to save does not stay looking saved. */}
+                    <input key={`${poem.poemId}:${poem.publishDate ?? ''}`}
+                      type="date" disabled={busy || reordered} defaultValue={poem.publishDate ?? ''}
                       aria-label={`Publish date of ${poem.title}`}
                       onBlur={event => {
                         const publishDate = event.target.value || null
