@@ -37,6 +37,12 @@ async function listed(page: Page): Promise<string[]> {
   return page.locator('.table-of-contents a.poem-line').evaluateAll(links => links.map(a => a.getAttribute('href') || ''))
 }
 
+// Each row's poem id (data-poem-id). Two records can share an address, so the address alone cannot say
+// which record a row shows; the id can.
+async function listedIds(page: Page): Promise<string[]> {
+  return page.locator('.table-of-contents a.poem-line').evaluateAll(links => links.map(a => a.getAttribute('data-poem-id') || ''))
+}
+
 // Where each listed poem should be, as numbers: [0, 1, 2, ...] when the order is right.
 function positions(actual: string[], expected: string[]): number[] {
   return actual.map(href => expected.indexOf(href))
@@ -58,22 +64,28 @@ test.beforeEach(async ({ page, baseURL }) => {
 })
 
 test('every published poem is listed once, in the editor\'s order, and links to its own page', async ({ page }) => {
-  // A control on the data: some poems are unpublished, so "nothing unpublished is listed" can fail.
-  // Some unpublished records share their address with a published poem (same title), and the page
-  // cannot tell those apart by address; the exact count and order below cover them. The rest are checked
-  // by address.
+  // Controls on the data: there are unpublished records, some of them share an address with a published
+  // poem (so the address cannot be the test of which record a row shows), and every published poem has
+  // its own id (so the id can be).
   const publishedHrefs = new Set(published.map(hrefOf))
   const unpublishedRecords = records.filter(poem => poem.published === false)
   expect(unpublishedRecords.length).toBeGreaterThan(0)
   expect(published.length + unpublishedRecords.length).toBe(records.length)
-  const unpublished = unpublishedRecords.map(hrefOf).filter(href => !publishedHrefs.has(href))
-  expect(unpublished.length).toBeGreaterThan(0)
+  expect(unpublishedRecords.filter(poem => publishedHrefs.has(hrefOf(poem))).length).toBeGreaterThan(0)
+  const publishedIds = published.map((poem: any) => poem.id)
+  expect(publishedIds.every((id: unknown) => typeof id === 'string' && id)).toBe(true)
+  expect(new Set(publishedIds).size).toBe(published.length)
+  const unpublishedIds = unpublishedRecords.map(poem => poem.id).filter(Boolean)
 
+  // Which records are listed, by id: every published one, once, in the editor's order, and nothing else.
+  const ids = await listedIds(page)
+  expect(ids.length).toBe(published.length)
+  expect(positions(ids, publishedIds)).toEqual(inOrder(published.length))
+  expect(ids.filter(id => unpublishedIds.includes(id)).length).toBe(0)
+
+  // And each row links to that poem's own address.
   const hrefs = await listed(page)
-  expect(hrefs.length).toBe(published.length)
-  expect(new Set(hrefs).size).toBe(hrefs.length)
   expect(positions(hrefs, published.map(hrefOf))).toEqual(inOrder(published.length))
-  expect(hrefs.filter(href => unpublished.includes(href)).length).toBe(0)
 })
 
 test('a listed poem opens its own page', async ({ page }) => {
