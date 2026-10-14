@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { cursorParagraphIndex, parseMidstFile, playbackFile } from '../src/components/midst-player-hack/midst-file'
+import { cursorParagraphIndex, parseMidstFile, playbackFile } from '../src/store/midst-file'
 
 const epoch = 1600000000000
 const t = new Date(epoch).toISOString()

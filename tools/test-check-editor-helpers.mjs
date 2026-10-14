@@ -18,13 +18,19 @@ const EDITOR_FILES = {
   'src/__tests__/follow.test.ts': "import { ease } from '../renderer/components/Replay/follow';\n\nit('zq', () => expect(ease(1)).toBe(1));\n",
   'src/__tests__/followMore.test.ts': "/** @jest-environment jsdom */\nimport { ease } from '../renderer/components/Replay/follow';\n\nit('xv', () => expect(ease(2)).toBe(2));\n",
   'src/__tests__/trackingUtils.test.ts': "/** @jest-environment node */\nimport { step } from '../renderer/tracking/utils';\n\nit('qz', () => expect(step('qz')).toBe('qz'));\n",
+  'src/shared/buildLabel.ts': "export const label = (vq: string) => vq\n",
+  'src/__tests__/buildLabel.test.ts': "import { label } from '../shared/buildLabel';\n\nit('vq', () => expect(label('vq')).toBe('vq'));\n",
+  'docs/user-guide.md': '# Zq\n\nPress **Xv**.\n',
 }
 const WEB_COPIES = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
   ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
+  ['src/buildLabel.ts', 'src/shared/buildLabel.ts'],
+  ['src/guide/editor-user-guide.md', 'docs/user-guide.md'],
   ['src/__tests__/editor-follow.test.ts', 'src/__tests__/follow.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-followMore.test.ts', 'src/__tests__/followMore.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-trackingUtils.test.ts', 'src/__tests__/trackingUtils.test.ts', '../renderer/tracking/utils', '../components/MidstPlayer/helpers'],
+  ['src/__tests__/editor-buildLabel.test.ts', 'src/__tests__/buildLabel.test.ts', '../shared/buildLabel', '../buildLabel'],
 ]
 
 // A git hook exports GIT_DIR and friends; without this the fixture's commits would land in this repository.
@@ -75,15 +81,16 @@ test('an original that does not import from the expected path exactly once is re
   assert.throws(() => expectedTestCopy("import { a } from '../x';\nimport { b } from '../x';\n", 'p', '../x', '../y'), /exactly one/)
 })
 
-for (const [local] of WEB_COPIES.slice(0, 2)) {
+for (const [local] of WEB_COPIES.slice(0, 4)) {
   test(`a changed helper fails: ${local}`, t => {
     const { editor, web } = fixture(t)
-    edit(web, local, text => text.replace('=>', '=> 0 +'))
+    // A one-character change at the start: it changes a helper and the guide alike.
+    edit(web, local, text => `x${text}`)
     assert.throws(() => check(editor, web), new RegExp(`Copied editor helper differs: ${local}`))
   })
 }
 
-for (const [local] of WEB_COPIES.slice(2)) {
+for (const [local] of WEB_COPIES.slice(4)) {
   test(`one changed line in a copied test fails: ${local}`, t => {
     const { editor, web } = fixture(t)
     edit(web, local, text => text.replace('toBe(', 'not.toBe('))

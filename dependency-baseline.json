@@ -42,7 +42,6 @@
     "react-ga",
     "react-helmet-async",
     "react-icons",
-    "react-scrollbars-custom",
     "react-scrolllock",
     "react-window",
     "recursive-readdir-sync",

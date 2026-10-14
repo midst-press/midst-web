@@ -1,6 +1,6 @@
 // Copied from midst-editor src/__tests__/follow.test.ts, with only the import path changed.
-// MidstPlayer/follow.ts and helpers.ts are byte-identical copies of the editor's files, so the editor's
-// tests are the tests for them. The editor-helpers-identical hook holds this copy to its original.
+// The file it tests is a byte-identical copy of the editor's, so the editor's test is the test for
+// it. The editor-helpers-identical hook holds this copy to its original.
 import {
   ease,
   glideMs,
