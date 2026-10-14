@@ -23,8 +23,9 @@
 #                                                         which is why the four values below are given here.
 #   variables  MIDST_KEY_SCHEME     legacy or canonical; must match what the poems bucket holds
 #              MIDST_POEM_LIST      bundled or published; where the site gets its list of poems. Required, no
-#                                   default. deploy_site.sh passes its environment to the build, so it reaches
-#                                   MIDST_POEM_LIST without a flag (midst-web #110).
+#                                   default. It is passed to deploy_site.sh as --poem-list, which refuses to run
+#                                   without it and, under published, checks poems/published.json and every poem
+#                                   on it before uploading (midst-web #110).
 #              MIDST_SITE_BUCKET, MIDST_SITE_DISTRIBUTION, MIDST_POEMS_URL, MIDST_SITE_URL, AWS_REGION
 #                                   the site stack's bucket, DistributionId, PoemsUrl, SiteUrl, and region
 #              MIDST_APP_API_URL, MIDST_APP_AUTH_DOMAIN, MIDST_APP_CLIENT_ID
@@ -105,6 +106,7 @@ jobs:
           MIDST_APP_CLIENT_ID: ${{ vars.MIDST_APP_CLIENT_ID }}
         run: >-
           bash deploy/beta/deploy_site.sh --web-repo "$GITHUB_WORKSPACE" --key-scheme "$KEY_SCHEME"
+          --poem-list "$MIDST_POEM_LIST"
           --ref "refs/tags/$TAG" --tag "$TAG"
           --site "$SITE_BUCKET" "$SITE_DISTRIBUTION" "$POEMS_URL" "$SITE_URL"
       - name: Hand the release's issues to the verifier
