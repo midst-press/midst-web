@@ -47,11 +47,11 @@ issue about aligning the React types.
 ## Development
 
 ```
-MIDST_KEY_SCHEME=legacy npm start        # dev server
-MIDST_KEY_SCHEME=legacy npm run build    # production build into ./dist
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm start        # dev server
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build    # production build into ./dist
 ```
 
-Both refuse to start without `MIDST_KEY_SCHEME`; see "Key scheme" below for which value to give.
+Both refuse to start without `MIDST_KEY_SCHEME` and `MIDST_POEM_LIST`; see "Key scheme" and "Poem list" below for which value to give.
 
 Both pass `--no-autoinstall` deliberately. Without it, Parcel silently installs missing polyfills on
 your machine and the build then fails only in CI, where autoinstall is off. A missing dependency
@@ -93,7 +93,7 @@ order entry with no metadata file, and a hand-edited index.
 
 ## Deploying
 
-The site is static. `MIDST_KEY_SCHEME=legacy npm run build` produces `./dist` (see "Key scheme"), which is served from **Amazon S3 behind
+The site is static. `MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build` produces `./dist` (see "Key scheme", "Poem list"), which is served from **Amazon S3 behind
 CloudFront**.
 
 > An earlier version of this README said to copy `./src/.htaccess` to the server. There is no Apache
@@ -136,6 +136,28 @@ MIDST_KEY_SCHEME=legacy node tools/poem-canary.mjs
 The scheme is built into the site, so it must match what the bucket at `MIDST_POEMS_URL` holds; a
 mismatch shows every poem as not found. Routes (`/poem/...`) and author photographs are the same
 under both. The names themselves come from `src/poems/key-scheme.js`.
+
+## Poem list
+
+`MIDST_POEM_LIST` says where the site gets its list of poems, and it has no default: the build, the fixture
+maker and both end-to-end suites refuse to start without it (#110).
+
+- `bundled`: the list built into the site (`src/poems/index.ts`), asked for under `MIDST_KEY_SCHEME`.
+- `published`: `published.json` under `MIDST_POEMS_URL` (which ends in `/poems/`), fetched once when the site
+  starts. Its array order is the reading order, and each entry records the two keys its poem is fetched under
+  (`poems/<id>/timelapse.midst.zip`, and a process note or `null`). The site fetches `MIDST_POEMS_URL` + the
+  key without its leading `poems/`, and derives no name. If the list cannot be fetched or is not well formed,
+  the site says the poems could not be loaded; it never falls back to the bundled list. Under `published`,
+  `MIDST_KEY_SCHEME` is still required but no longer says anything about the poems' names, and the build does
+  not ask the bundled poem files for ids.
+
+```
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=published npm run build
+MIDST_KEY_SCHEME=legacy npm run test:e2e:published    # its own build (dist-published), fixtures and port
+```
+
+The list's checks and the key handling are in `src/poems/poem-list.js`; the first list is written by
+`tools/seed-published.mjs`.
 
 ## Fonts
 
