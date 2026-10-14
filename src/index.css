@@ -1405,3 +1405,12 @@ background-size: contain;
     font-size: 11px;
   }
 }
+
+/* Which build this is, at the foot of the About page (issue #77). Small, and selectable so a tester
+   can paste it into an issue. */
+.about-page .build-info {
+  margin-top: 3em;
+  font-size: 0.75em;
+  opacity: 0.7;
+  user-select: text;
+}

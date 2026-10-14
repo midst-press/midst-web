@@ -1,7 +1,6 @@
-import { POEMS_URL } from '../config'
+import { KEY_SCHEME, POEMS_URL } from '../config'
 import { parseMidstFile } from '../components/midst-player-hack/midst-file'
-import { fetchAsset } from '../poems/asset-fetch'
-import { processNoteObjectName, timelapseObjectName } from '../poems/poem-names'
+import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
 // TODO: Type def file
 //@ts-ignore
@@ -39,7 +38,7 @@ const loadPoemData = (poemIndex: number): any =>
     const get = async (name: string) => {
       let response
       try {
-        response = await fetchAsset(POEMS_URL, name)
+        response = await fetchPoemAsset(POEMS_URL, name, KEY_SCHEME)
       } catch {
         throw { reason: 'network' }
       }
@@ -51,10 +50,11 @@ const loadPoemData = (poemIndex: number): any =>
       const zip = (window as any).zip
       zip.workerScriptsPath = '/static/workers/'
 
-      const noteResponse = await get(processNoteObjectName(poem))
+      const names = objectNames(poem, KEY_SCHEME)
+      const noteResponse = await get(names.processNote)
       const processNoteRaw = await noteResponse.text()
       const processNote = insane(marked(processNoteRaw), { allowedTags: ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']})
-      const zipTest = await get(timelapseObjectName(poem))
+      const zipTest = await get(names.timelapse)
       const reader = new zip.BlobReader(await zipTest.blob())
 
       zip.createReader(reader, (zipReader: any) => {

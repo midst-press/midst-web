@@ -22,6 +22,9 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+# No default exists (#41); these tests are about the player, so either scheme would do.
+env:
+  MIDST_KEY_SCHEME: legacy
 
 jobs:
   attest:

@@ -21,10 +21,13 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deflateRawSync, crc32 } from 'node:zlib'
 import names from '../src/poems/poem-names.js'
+import keyScheme from '../src/poems/key-scheme.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const REPO = join(here, '..')
 const OUT = join(REPO, 'e2e', 'fixtures', 'poems')
+// The same value the site under test is built with; parseScheme throws when it is missing (#41).
+const SCHEME = keyScheme.parseScheme(process.env.MIDST_KEY_SCHEME)
 
 // Which poems get a fixture. Deliberately few: the tests assert player BEHAVIOUR, and more poems
 // would make the suite slower without asking a new question. One plain poem, one whose title
@@ -151,8 +154,9 @@ for (const file of new Set(faces.flatMap(face => face.sources.map(source => sour
 }
 for (const subject of SUBJECTS) {
   const meta = JSON.parse(readFileSync(join(REPO, 'src', 'poems', `${subject}.json`), 'utf8'))
-  const objectName = names.timelapseObjectName(meta) // <- the app's own derivation
-  const noteName = names.processNoteObjectName(meta)
+  const objects = keyScheme.objectNames(meta, SCHEME) // <- the app's own derivation
+  const objectName = objects.timelapse
+  const noteName = objects.processNote
   const innerName = objectName.split('/').pop().replace(/\.zip$/, '')
 
   mkdirSync(join(OUT, dirname(objectName)), { recursive: true })
@@ -187,8 +191,10 @@ for (const subject of SUBJECTS) {
     'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     'base64',
   )
+  // The photograph is media, not a poem object: it keeps its author-derived name under both schemes.
+  mkdirSync(join(OUT, names.poemFolder(meta)), { recursive: true })
   writeFileSync(join(OUT, `${names.poemFolder(meta)}/${names.authorId(meta.author)}.jpg`), px)
   written += 3
 }
 console.log(`${written} fixture file(s) written under e2e/fixtures/poems/`)
-console.log('Names come from src/poems/poem-names.js, so a change to the slug rules breaks these tests.')
+console.log(`Key scheme: ${SCHEME}. Names come from src/poems/key-scheme.js, so a change to the naming breaks these tests.`)
