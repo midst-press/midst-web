@@ -1,0 +1,28 @@
+name: Report a problem or ask for a change
+description: Something on the Midst site does not work, or should work differently.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste the text of an unpublished poem here or attach a `.midst` file of someone's work: this page is public. Describe what happens in your own words, and name a published poem by its address on the site.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, or what do you want?
+      description: What you did, what you expected, and what you saw instead. For a request, what you would like the site to do.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      # This label is read by tools/issue_flow.py (STEPS_HEADING), which quotes the answer back when a
+      # release contains the fix. Change the two together.
+      label: How will we know this works?
+      description: Steps someone can follow on the site, without knowing the code, to see that it is fixed or done. For example "Open a poem, press play, and the page follows the line being written."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Which page, in which browser, on what device?
+      description: For example "the poem at midst.press/..., Safari on an iPhone".

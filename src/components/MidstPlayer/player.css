@@ -31,7 +31,7 @@
 .midst-tiptap-player .control-button:hover { background: rgba(0, 0, 0, .15); }
 .midst-tiptap-player .control-button.playing { display: flex; align-items: center; justify-content: center; }
 .midst-tiptap-player .pause-rectangle { background: white; height: 14px; width: 3px; margin: 0 1px; }
-.midst-tiptap-player .timeline-control { flex: 1; position: relative; }
+.midst-tiptap-player .timeline-control { flex: 1; position: relative; min-width: 0; }
 .midst-tiptap-player .timeline-control .progress-bar { width: 100%; }
 /* Draft markers: the poet's own name for each, on a pale yellow label, with a pointer at the marker's
    place on the timeline. The row covers exactly where the slider thumb's centre can go: the slider
@@ -47,3 +47,10 @@
 .midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }
 .midst-tiptap-player .frame-timestamp { position: absolute; top: 100%; left: 0; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: #666; pointer-events: none; margin-top: 4px; }
 .midst-tiptap-player .frame-timestamp--unavailable { color: #999; font-style: italic; }
+.midst-tiptap-player .playback-controls { display: flex; align-items: center; gap: .25rem; flex-shrink: 0; }
+.midst-tiptap-player .playback-controls .control-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
+.midst-tiptap-player .playback-controls .control-button:disabled { opacity: .5; cursor: default; }
+.midst-tiptap-player .playback-speed-control { position: relative; display: flex; }
+.midst-tiptap-player .playback-speed-popup { position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; box-sizing: border-box; width: 72px; padding: 8px; border: 1px solid #ff91af; border-radius: 6px; background: #fff7f3; color: #690000; font: 11px/1.3 Arial, Helvetica, sans-serif; box-shadow: 0 2px 8px rgba(0, 0, 0, .15); }
+.midst-tiptap-player .playback-speed-slider { writing-mode: vertical-lr; direction: rtl; display: block; width: 20px; height: 104px; margin: 2px 0; padding: 0; accent-color: rgb(236, 124, 154); }
+.midst-tiptap-player .playback-speed-value { white-space: nowrap; }
