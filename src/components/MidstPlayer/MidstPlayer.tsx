@@ -169,14 +169,23 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
   // Continuous bounding: clamp the label so it stays within the timeline container.
   // Measure the rendered label width and bound left between 0 and 100% minus label width.
+  // Re-measure on container resize (ResizeObserver) so a paused resize does not leave a stale width.
   const timestampRef = useRef<HTMLDivElement>(null)
   const [labelWidthPct, setLabelWidthPct] = useState(0)
-  useEffect(() => {
+  const measureLabel = useCallback(() => {
     const el = timestampRef.current
     if (!el || !el.parentElement) return
     const containerWidth = el.parentElement.offsetWidth
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
-  }, [frameTimestamp, playheadPercent])
+  }, [])
+  useEffect(measureLabel, [frameTimestamp, playheadPercent, measureLabel])
+  useEffect(() => {
+    const el = timestampRef.current
+    if (!el || !el.parentElement) return
+    const observer = new ResizeObserver(measureLabel)
+    observer.observe(el.parentElement)
+    return () => observer.disconnect()
+  }, [measureLabel])
   const clampedLeft = Math.max(0, Math.min(playheadPercent, 100 - labelWidthPct))
   const playheadLeft = `${clampedLeft}%`
   const playheadTransform = 'translateX(-50%)'
