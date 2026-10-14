@@ -168,6 +168,13 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     && rawTimestamp != null && Number.isFinite(rawTimestamp)
   const frameTimestamp = hasRealTimestamp ? currentFrame!.timestamp : null
   const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
+  // The formatted label text — depend on this, not on frameTimestamp (raw ms, different every frame).
+  const labelText = frameTimestamp != null
+    ? new Date(frameTimestamp).toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : currentFrame != null ? 'edit time unavailable' : null
   // Continuous bounding: clamp the label's CENTRE so the label stays within the timeline container.
   // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
   // resize does not leave a stale width. Measurement runs on text change and resize, not per frame.
@@ -179,7 +186,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const containerWidth = el.parentElement.offsetWidth
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
   }, [])
-  useEffect(measureLabel, [frameTimestamp, measureLabel])
+  useEffect(measureLabel, [labelText, measureLabel])
   useEffect(() => {
     const el = timestampRef.current
     if (!el || !el.parentElement) return
@@ -239,19 +246,11 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
                 <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
-            {frameTimestamp != null && (
-              <div ref={timestampRef} className="frame-timestamp"
+            {labelText != null && (
+              <div ref={timestampRef}
+                className={`frame-timestamp${frameTimestamp == null ? ' frame-timestamp--unavailable' : ''}`}
                 style={{ left: playheadLeft, transform: playheadTransform }}>
-                {new Date(frameTimestamp).toLocaleString(undefined, {
-                  year: 'numeric', month: 'short', day: 'numeric',
-                  hour: '2-digit', minute: '2-digit',
-                })}
-              </div>
-            )}
-            {frameTimestamp == null && currentFrame != null && (
-              <div ref={timestampRef} className="frame-timestamp frame-timestamp--unavailable"
-                style={{ left: playheadLeft, transform: playheadTransform }}>
-                edit time unavailable
+                {labelText}
               </div>
             )}
           </div>
