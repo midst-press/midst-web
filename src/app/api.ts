@@ -16,6 +16,11 @@ export interface Me {
 }
 
 const FALLBACK = 'Something went wrong on our side. Please try again.'
+const GATEWAY: Record<number, [string, string]> = {
+  401: ['unauthenticated', 'Please sign in again.'],
+  403: ['forbidden', 'Your account cannot do that.'],
+  429: ['busy', 'Too many requests just now. Please wait a moment and try again.'],
+}
 
 export async function apiFetch<T>(
   baseUrl: string,
@@ -45,7 +50,12 @@ export async function apiFetch<T>(
     // Not JSON: a gateway or proxy page. Say nothing from it.
   }
   if (response.ok) return body as T
-  const code = typeof body.error === 'string' ? body.error : 'server'
-  const message = typeof body.message === 'string' && body.message ? body.message : FALLBACK
+  if (typeof body.error === 'string') {
+    const message = typeof body.message === 'string' && body.message ? body.message : FALLBACK
+    throw new ApiError(response.status, body.error, message, body)
+  }
+  // Not our shape: API Gateway's own answers, e.g. its JWT authoriser's 401 {"message":"Unauthorized"}.
+  // Their words are not shown; the status says what to tell the person.
+  const [code, message] = GATEWAY[response.status] ?? ['server', FALLBACK]
   throw new ApiError(response.status, code, message, body)
 }

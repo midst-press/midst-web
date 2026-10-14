@@ -40,6 +40,30 @@ describe('apiFetch', () => {
     expect(error.message).not.toContain('html')
   })
 
+  it('reads API Gateway\u2019s own answers by their status, in our words, not theirs', async () => {
+    const cases: [number, string, string, string][] = [
+      [401, '{"message":"Unauthorized"}', 'unauthenticated', 'Please sign in again.'],
+      [403, '{"message":"Forbidden"}', 'forbidden', 'Your account cannot do that.'],
+      [429, '{"message":"Too Many Requests"}', 'busy', 'Too many requests just now. Please wait a moment and try again.'],
+      [503, '{"message":"Service Unavailable"}', 'server', 'Something went wrong on our side. Please try again.'],
+    ]
+    for (const [status, text, code, message] of cases) {
+      const error = await apiFetch('u', 't', '/me', {}, respond(status, text) as unknown as typeof fetch).catch(e => e)
+      expect([error.status, error.code, error.message]).toEqual([status, code, message])
+    }
+  })
+
+  it('uses its own sentence when our error has no message, and returns {} for an empty success', async () => {
+    const error = await apiFetch('u', 't', '/p', {}, respond(400, '{"error":"invalid"}') as unknown as typeof fetch).catch(e => e)
+    expect([error.code, error.message]).toEqual(['invalid', 'Something went wrong on our side. Please try again.'])
+    expect(await apiFetch('u', 't', '/p', {}, respond(204, '') as unknown as typeof fetch)).toEqual({})
+  })
+
+  it('keeps our own 403 and its message when the body is ours', async () => {
+    const error = await apiFetch('u', 't', '/me', {}, respond(403, '{"error":"forbidden","message":"Zq."}') as unknown as typeof fetch).catch(e => e)
+    expect([error.code, error.message]).toEqual(['forbidden', 'Zq.'])
+  })
+
   it('says the app could not be reached when the request itself fails', async () => {
     const fetchFn = jest.fn(async () => { throw new TypeError('Failed to fetch') })
     const error = await apiFetch('u', 't', '/me', {}, fetchFn as unknown as typeof fetch).catch(e => e)
