@@ -46,9 +46,19 @@ Every error has the same body:
 
 `message` is a sentence a person can read. It never contains a poem's text, and never a token.
 
-**One exception:** a 401 the authoriser gives before the Lambda runs has API Gateway's own body,
-`{ "message": "Unauthorized" }`, with no `error`. Pages decide on the status, not on `error`: any 401 means
-forget the session and sign in again.
+**One exception: answers from API Gateway itself.** Some answers come from the gateway before the Lambda runs,
+and have the gateway's own body, `{ "message": "..." }`, with no `error`:
+
+| status | from the gateway when |
+|---|---|
+| 401 | the authoriser refused the token (`Unauthorized`) |
+| 403 | the gateway refused the request |
+| 429 | throttled: the API's rate limit was reached (`Too Many Requests`) |
+| 500, 502, 503, 504 | the Lambda could not be run, failed outside our code, or timed out |
+
+So a page reads `error` only when it is there. Otherwise it decides on the status alone and shows its own
+sentence, never the gateway's text. Any 401, from either source, means forget the session and sign in again.
+A 429 means wait and try again.
 
 ## Things the routes return
 
