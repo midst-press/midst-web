@@ -65,11 +65,11 @@ npm run test:e2e              # end-to-end: does a poem still load and play (Pla
 
 ## How an issue gets closed
 
-An issue is closed by the person who checks the fix on the released site, not by the merge.
+An issue is closed by the person who checks the fix on the deployed site, not by the merge.
 
 1. A pull request whose title or description says `Completes #12` merges. Issue 12 is labelled
    `awaiting release`. `Refs #12` is only a link, for a pull request that is part of the work.
-2. A release that contains that merge is published. The issue is labelled `needs verifying`, put on the
+2. A release that contains that merge is deployed. The issue is labelled `needs verifying`, put on the
    release's milestone and assigned to the verifier, with a comment naming the release and quoting the
    issue's own "How will we know this works?" steps.
 3. The verifier follows the steps on the site. If it works they close the issue, saying what they did and
@@ -77,8 +77,8 @@ An issue is closed by the person who checks the fix on the released site, not by
 
 An issue closed while it is still `awaiting release` is reopened, with a comment saying why. The
 workflow is `.github/workflows/issue-flow.yml`; the verifier is the repository variable `MIDST_VERIFIER`.
-Step 2 starts by itself only when a person publishes the release. A workflow that publishes one has to
-run the step itself (the workflow file says how), and `issue-flow` can be run by hand with the tag.
+Publishing a release does not start step 2: the deployment has to have succeeded first. The deploy
+workflow runs it as its last step; after a deployment made by hand, run `issue-flow` with the tag.
 
 ## CI
 

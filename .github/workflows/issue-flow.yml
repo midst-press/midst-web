@@ -2,14 +2,16 @@
 #
 #   a pull request merges into main   each issue it names with "Completes" and the number is labelled
 #                                     "awaiting release", and the merge commit is recorded on it
-#   a release is published            each "awaiting release" issue whose recorded commit is in the release
+#   a release is deployed             each "awaiting release" issue whose recorded commit is in the release
 #                                     is labelled "needs verifying", put on the release's milestone, assigned
 #                                     to the verifier, and told which release to check and how.
-#                                     ONLY FOR A RELEASE A PERSON PUBLISHES: GitHub does not start a
-#                                     workflow from an event another workflow caused with the repository's
-#                                     own token. A workflow that publishes the release must run the same
-#                                     step itself, last. "Run workflow" with a tag does it by hand, or
-#                                     again: the step is safe to run twice.
+#                                     NOT STARTED BY PUBLISHING THE RELEASE. What the verifier checks is the
+#                                     site, and a published release only starts the deployment: handing
+#                                     issues over then would ask for a check of the previous site, or of a
+#                                     deployment that failed. The deploy workflow runs this step itself,
+#                                     last, after its own check of the deployed site. "Run workflow" with
+#                                     the tag does it after a deployment made by hand, or again: the step
+#                                     is safe to run twice.
 #   an issue is closed                if it was "awaiting release" and closed as completed, it is reopened:
 #                                     its fix is not in a release yet
 #
@@ -27,14 +29,12 @@ name: issue-flow
 on:
   pull_request_target:
     types: [closed]
-  release:
-    types: [published]
   issues:
     types: [closed]
   workflow_dispatch:
     inputs:
       tag:
-        description: The release tag whose issues should go to the verifier, for example v1.2.0.
+        description: The tag of the release that is now deployed, for example v1.2.0. Its issues go to the verifier.
         required: true
         type: string
 permissions:
@@ -56,15 +56,15 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: python3 tools/issue_flow.py merged
   released:
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
       - env:
-          TAG: ${{ github.event.release.tag_name || inputs.tag }}
-          RELEASE_URL: ${{ github.event.release.html_url || format('{0}/{1}/releases/tag/{2}', github.server_url, github.repository, inputs.tag) }}
+          TAG: ${{ inputs.tag }}
+          RELEASE_URL: ${{ format('{0}/{1}/releases/tag/{2}', github.server_url, github.repository, inputs.tag) }}
           VERIFIER: ${{ vars.MIDST_VERIFIER }}
         run: python3 tools/issue_flow.py released
   closed:
