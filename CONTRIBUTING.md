@@ -16,8 +16,8 @@ describe what you see and what you expect, and let the maintainers route the dec
 The poems, their timelapses and process notes are the poets' work. They live in the journal's storage,
 never in this repository, an issue, a pull request or a CI log. That includes poem text, and titles or
 poets' names from unpublished work. Pre-commit hooks refuse poem data files, but they cannot recognise
-text, so the responsibility is yours. The end-to-end tests generate synthetic poems (`npm run
-e2e:fixtures`); use those.
+text, so the responsibility is yours. The end-to-end tests generate synthetic poems
+(`MIDST_KEY_SCHEME=legacy npm run e2e:fixtures`); use those.
 
 ## Licence
 
@@ -52,8 +52,11 @@ npx playwright install chromium                                             # on
 
 pre-commit run --all-files    # formatting, type check, unused dependencies, project rules
 npm test -- --coverage        # unit tests (Jest), with the per-file coverage thresholds, as CI runs them
-npm run test:e2e              # end-to-end: does a poem still load and play (Playwright)
+MIDST_KEY_SCHEME=legacy npm run test:e2e   # end-to-end: does a poem still load and play (Playwright)
 ```
+
+The end-to-end commands, the fixture maker and the build refuse to start without `MIDST_KEY_SCHEME`
+(README, "Key scheme"). `legacy` is what CI's main pass uses.
 
 - **Tests come with the change.** A bug fix carries a test that fails without it.
 - **Titles, descriptions and commit messages say `Refs #12`, not `Fixes #12` or `Closes #12`.** A closing
@@ -62,7 +65,7 @@ npm run test:e2e              # end-to-end: does a poem still load and play (Pla
   pull request. In the pull request that finishes an issue, write `Completes #12`: see "How an issue gets
   closed" below.
 - **Replay and scrolling.** If you change how the player follows the writing (`src/components/MidstPlayer/`,
-  especially `follow.ts`), run `npm run e2e:frame-budget -- --headed` on a machine with a display if you can. These
+  especially `follow.ts`), run `MIDST_KEY_SCHEME=legacy npm run e2e:frame-budget -- --headed` on a machine with a display if you can. These
   tests measure the scrolling over time, so they need real frame timing. They are not required locally:
   the `frame-budget` workflow runs them on every pull request.
 
