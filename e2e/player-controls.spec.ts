@@ -263,7 +263,28 @@ test('skip endpoints pause, render their frames and reject a queued playback tic
 })
 
 test('changing FPS during a real glide holds the frame until scrolling finishes', async ({ page }) => {
-  await page.evaluate(() => (window as any).playerTestTimers.useRealClock())
+  // Exercise the actual glide with controlled frames: display-less runners throttle RAF, while
+  // follow.ts deliberately caps progress per frame. This is a state contract, not a cadence test.
+  await page.evaluate(() => {
+    const pending = new Map<number, FrameRequestCallback>()
+    let next = 2000000
+    window.requestAnimationFrame = callback => {
+      const id = next++
+      pending.set(id, callback)
+      return id
+    }
+    window.cancelAnimationFrame = id => { pending.delete(id) }
+    ;(window as any).playerTestFrames = {
+      pending: () => pending.size,
+      step: () => {
+        ;(window as any).playerTestTimers.advance(1000 / 60)
+        const batch = Array.from(pending.values())
+        pending.clear()
+        batch.forEach(callback => callback(performance.now()))
+        return pending.size
+      },
+    }
+  })
   const data = syntheticData(3)
   const body = '<p>synthetic scrolling row</p>'.repeat(200)
   data.editorTimelineFrames.forEach((frame, index) => { frame.content = body + `<p>synthetic tail ${index}</p>` })
@@ -276,6 +297,11 @@ test('changing FPS during a real glide holds the frame until scrolling finishes'
   await root.getByRole('button', { name: 'Play', exact: true }).click()
   const old = await liveInterval(page)
   await expect(timeline).toHaveValue('0')
+  await expect.poll(() => page.evaluate(() => (window as any).playerTestFrames.pending())).toBeGreaterThan(0)
+  await editor.evaluate(el => {
+    const frames = (window as any).playerTestFrames
+    for (let i = 0; el.scrollTop <= 2 && frames.pending() && i < 1000; i++) frames.step()
+  })
   await expect.poll(() => editor.evaluate(el => el.scrollTop)).toBeGreaterThan(2)
   await root.getByRole('button', { name: 'Playback speed' }).click()
   await root.getByRole('slider', { name: 'Playback frame rate' }).fill('60')
@@ -287,13 +313,26 @@ test('changing FPS during a real glide holds the frame until scrolling finishes'
   await fire(page, current.id)
   await expect(timeline).toHaveValue('0')
   // Continuing motion after the attempted tick proves that this was a real, unfinished glide.
+  await editor.evaluate((el, previous) => {
+    const frames = (window as any).playerTestFrames
+    for (let i = 0; el.scrollTop <= previous + 1 && frames.pending() && i < 1000; i++) frames.step()
+  }, movingTop)
   await expect.poll(() => editor.evaluate(el => el.scrollTop)).toBeGreaterThan(movingTop + 1)
   await expect(timeline).toHaveValue('0')
   await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
-  await expect.poll(async () => {
-    await fire(page, (await liveInterval(page)).id)
-    return Number(await timeline.inputValue())
-  }, { timeout: 20_000, intervals: [100] }).toBe(1)
+  const completed = await page.evaluate(() => {
+    const frames = (window as any).playerTestFrames
+    let count = 0
+    while (frames.pending() && count < 1000) {
+      frames.step()
+      count++
+    }
+    return { count, pending: frames.pending() }
+  })
+  expect(completed.count).toBeGreaterThan(0)
+  expect(completed.pending, 'actual glide finishes under controlled animation frames').toBe(0)
+  await fire(page, (await liveInterval(page)).id)
+  await expect(timeline).toHaveValue('1')
   await expect(root.locator('.editable')).toContainText('synthetic tail 1')
 })
 
