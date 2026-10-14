@@ -94,7 +94,7 @@ recorded, not derived. `publishDate` and `highlighted` are `null` / `false` unti
 }
 ```
 
-`status` is one of `uploading` (the id exists, the file has not arrived), `received`, `accepted`, `declined`,
+`status` is one of `uploading` (the id exists, and `complete` has not yet accepted a file), `received`, `accepted`, `declined`,
 `published`. An accepted submission is an unpublished poem with the same id. `note` is the publisher's note to
 the poet on a decision, or `null`. `poet` (the poet's email) is included only on the publisher's routes.
 
@@ -151,24 +151,37 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
 
 1. `POST /submissions` `{ "title", "author", "fileName", "sizeBytes" }` →
    `{ "submissionId", "uploadUrl", "uploadHeaders": { ... }, "expiresAt" }`
-   `uploadUrl` is a pre-signed PUT for one key, valid for a few minutes. 400 `invalid` when the file is not a
-   `.midst` file or is too large (the limit is in `message`).
+   `uploadUrl` is a pre-signed PUT for one key, valid for five minutes. 400 `invalid` when the file name does not
+   end in `.midst`, or `sizeBytes` is not a whole number from 1 to 20 MB (20,971,520 bytes); `message` says so.
 2. The browser `PUT`s the file to `uploadUrl` with exactly `uploadHeaders`.
 3. `POST /submissions/{submissionId}/complete` → `Submission` with status `received`.
-   The Lambda checks the file arrived and reads as a Midst file, converting an old-format one (#21), and writes
+   The Lambda checks that the file arrived, is the size declared, and is a current-format Midst file, then writes
    a zipped copy for review next to it, in the form the player already reads (`timelapse.midst.zip`).
-   400 `invalid` with a reason when it does not; the submission stays `uploading` and can be tried again.
+   **Older files are not converted** (decision on #110, 14 Oct): the desktop editor converts one when it is
+   opened ("Convert File"), and the converter lives only in midst-editor. Such a file is 400 `invalid` with
+   "This file is from an older version of Midst. Open it in Midst, choose Convert File, and submit the new file."
+   Any other refusal is 400 `invalid` with its reason. The upload is then discarded and the submission stays
+   `uploading`; sending again starts a new submission. Completing one already `received` answers it again,
+   unchanged.
 
 - `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`, newest first. A submission still `uploading`
-  is left out: its file never arrived or was refused, and sending again starts a new submission (#123).
+  is left out: `complete` never accepted a file for it, and sending again starts a new submission (#123, #125).
 
 ### Review (`publisher`)
 
 - `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, newest first.
 - `GET /review/submissions/{submissionId}/timelapse` → `{ "url", "expiresAt" }`
-  A pre-signed GET of the review copy written by `complete`, so the review page plays it with the player as it is.
+  A pre-signed GET of the review copy written by `complete`, valid for five minutes, so the review page plays it
+  with the player as it is. 404 for a submission still `uploading`, which has no review copy.
 - `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
-  `Submission`. Accepting makes it an unpublished poem.
+  `Submission`. Accepting makes it an unpublished poem. `note` is optional, at most 2,000 characters; blank is
+  `null`. A decision is made only on a submission that is `received`, with one exception: accepting one that
+  is already `accepted` is 200. The decision is recorded before the poem is made, so if making the poem fails
+  the submission is left `accepted` without one; accepting again finishes it. That repeat leaves the recorded
+  decision and note as they were (a `note` sent with it is still checked, but not recorded) and returns the current `Submission`. Any other
+  decision on a submission that is not `received` is 400 `invalid`.
+
+A submission's status becomes `published` when its poem is published, and `accepted` again if it is unpublished.
 
 ### Admin (`admin`)
 
