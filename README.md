@@ -91,7 +91,7 @@ order entry with no metadata file, and a hand-edited index.
 
 ## Deploying
 
-The site is static. `npm run build` produces `./dist`, which is served from **Amazon S3 behind
+The site is static. `MIDST_KEY_SCHEME=legacy npm run build` produces `./dist` (see "Key scheme"), which is served from **Amazon S3 behind
 CloudFront**.
 
 > An earlier version of this README said to copy `./src/.htaccess` to the server. There is no Apache
@@ -114,6 +114,25 @@ node tools/poem-ids.mjs           # the check the commit hook runs
 
 Nothing reads the id yet; object names are still built by `src/poems/poem-names.js`. A poem file can
 be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
+
+## Key scheme
+
+`MIDST_KEY_SCHEME` says which object names the site asks a bucket for, and it has no default: a
+build, the canary and the end-to-end suite each refuse to start without it (#41).
+
+- `legacy`: the names built from the author and title, as production holds them.
+- `canonical`: `<id>/timelapse.midst.zip` and `<id>/process-note.md`, one request each, from the
+  poem's id. Every published poem must have an id.
+
+```
+MIDST_KEY_SCHEME=legacy npm run build
+MIDST_KEY_SCHEME=canonical npm run test:e2e
+MIDST_KEY_SCHEME=legacy node tools/poem-canary.mjs
+```
+
+The scheme is built into the site, so it must match what the bucket at `MIDST_POEMS_URL` holds; a
+mismatch shows every poem as not found. Routes (`/poem/...`) and author photographs are the same
+under both. The names themselves come from `src/poems/key-scheme.js`.
 
 ## Fonts
 
