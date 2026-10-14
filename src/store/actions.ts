@@ -1,5 +1,5 @@
 import { KEY_SCHEME, POEMS_URL } from '../config'
-import { parseMidstFile } from '../components/midst-player-hack/midst-file'
+import { parseMidstFile } from './midst-file'
 import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
 // TODO: Type def file

@@ -1,4 +1,4 @@
-import { IMidstCurrentFile, IMidstFile, IMidstTimelineFrame } from '../../store/types'
+import { IMidstCurrentFile, IMidstFile, IMidstTimelineFrame } from './types'
 
 function invalidFile(): never {
   // JSON parser diagnostics can include excerpts of a poet's work.

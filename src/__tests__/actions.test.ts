@@ -1,5 +1,5 @@
 import { fetchPoemAsset } from '../poems/key-scheme'
-import { parseMidstFile } from '../components/midst-player-hack/midst-file'
+import { parseMidstFile } from '../store/midst-file'
 import { processNoteObjectName, timelapseObjectName } from '../poems/poem-names'
 import {
   loadPoemData,
