@@ -15,8 +15,8 @@ import iconPlay from './icon-play'
 import iconSquare from './icon-square'
 import iconTimeline from './icon-timeline'
 import iconTrash from './icon-trash'
-import { IMidstCurrentFile, IMidstFile } from '../../store/types'
-import { cursorParagraphIndex, parseMidstFile, playbackFile } from './midst-file'
+import { IMidstCurrentFile, IMidstFile } from '../../src/store/types'
+import { cursorParagraphIndex, parseMidstFile, playbackFile } from '../../src/store/midst-file'
 import {
   end,
   pause,
@@ -32,15 +32,6 @@ const LOG_AUTO_SCROLL = false
 function autoScrollLog(...args: any[]) {
   if (!LOG_AUTO_SCROLL) return
   console.log(...args)
-}
-
-function getUrlVars() {
-  var vars: any = {}
-  window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
-    vars[key] = value
-    return ''
-  })
-  return vars
 }
 
 interface IProps {

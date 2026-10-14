@@ -1,4 +1,4 @@
-import { cursorParagraphIndex, parseMidstFile, playbackFile } from '../components/midst-player-hack/midst-file'
+import { cursorParagraphIndex, parseMidstFile, playbackFile } from '../store/midst-file'
 
 const INVALID = 'Invalid or unsupported Midst file'
 

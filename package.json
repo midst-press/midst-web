@@ -199,7 +199,7 @@
       "src/fonts.ts",
       "src/store/reducer.ts",
       "src/store/actions.ts",
-      "src/components/midst-player-hack/midst-file.ts",
+      "src/store/midst-file.ts",
       "src/components/MidstPlayer/follow.ts",
       "src/components/MidstPlayer/helpers.ts"
     ],
@@ -252,7 +252,7 @@
         "lines": 100,
         "statements": 100
       },
-      "./src/components/midst-player-hack/midst-file.ts": {
+      "./src/store/midst-file.ts": {
         "branches": 100,
         "functions": 100,
         "lines": 100,
