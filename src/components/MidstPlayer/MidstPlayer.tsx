@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { IMidstFile } from '../../store/types'
 import { ChangeObj, reconstructHTML } from './helpers'
+import { clampLabelCentre } from './timestamp-position'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
 import { installFonts } from '../../fonts'
@@ -215,6 +216,46 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     setPlaying(true)
   }
 
+  // The current frame's edit time, shown below the timeline. Follows the playhead.
+  // A synthetic frame (empty history) has sourceHistoryLength 0 — not a real edit.
+  // Distinguish synthetic from missing/invalid: require a finite timestamp, allow 0 and negatives.
+  const currentFrame = data?.editorTimelineFrames?.[Math.min(step, maxStep)]
+  const isSynthetic = (data?.sourceHistoryLength ?? 1) === 0
+  const rawTimestamp = currentFrame?.timestamp
+  const hasRealTimestamp = currentFrame != null && !isSynthetic
+    && rawTimestamp != null && Number.isFinite(rawTimestamp)
+  const frameTimestamp = hasRealTimestamp ? currentFrame!.timestamp : null
+  const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
+  // The formatted label text — depend on this, not on frameTimestamp (raw ms, different every frame).
+  const labelText = frameTimestamp != null
+    ? new Date(frameTimestamp).toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : currentFrame != null ? 'edit time unavailable' : null
+  // Continuous bounding: clamp the label's CENTRE so the label stays within the timeline container.
+  // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
+  // resize does not leave a stale width. Measurement runs on text change and resize, not per frame.
+  const timestampRef = useRef<HTMLDivElement>(null)
+  const [labelWidthPct, setLabelWidthPct] = useState(0)
+  const measureLabel = useCallback(() => {
+    const el = timestampRef.current
+    if (!el || !el.parentElement) return
+    const containerWidth = el.parentElement.offsetWidth
+    if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
+  }, [])
+  useEffect(measureLabel, [labelText, measureLabel])
+  useEffect(() => {
+    const el = timestampRef.current
+    if (!el || !el.parentElement) return
+    const observer = new ResizeObserver(measureLabel)
+    observer.observe(el.parentElement)
+    return () => observer.disconnect()
+  }, [measureLabel])
+  const clampedCentre = clampLabelCentre(playheadPercent, labelWidthPct)
+  const playheadLeft = `${clampedCentre}%`
+  const playheadTransform = 'translateX(-50%)'
+
   // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
   // key only worked once the play button had been clicked and so held focus; a freshly loaded page
   // has nothing focused. Every poem is mounted in the carousel, so only the active player listens.
@@ -257,6 +298,13 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
                 <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
+            {labelText != null && (
+              <div ref={timestampRef}
+                className={`frame-timestamp${frameTimestamp == null ? ' frame-timestamp--unavailable' : ''}`}
+                style={{ left: playheadLeft, transform: playheadTransform }}>
+                {labelText}
+              </div>
+            )}
           </div>
           <div className="playback-controls">
             <button type="button" className="control-button" aria-label="Skip to start"

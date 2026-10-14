@@ -45,6 +45,8 @@
 .midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; min-width: 80px; max-width: 140px; padding: 3px 10px; text-align: center; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .midst-tiptap-player .draft-markers .draft-marker:hover, .midst-tiptap-player .draft-markers .draft-marker:focus-visible { z-index: 1; }
 .midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }
+.midst-tiptap-player .frame-timestamp { position: absolute; top: 100%; left: 0; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: #666; pointer-events: none; margin-top: 4px; }
+.midst-tiptap-player .frame-timestamp--unavailable { color: #999; font-style: italic; }
 .midst-tiptap-player .playback-controls { display: flex; align-items: center; gap: .25rem; flex-shrink: 0; }
 .midst-tiptap-player .playback-controls .control-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
 .midst-tiptap-player .playback-controls .control-button:disabled { opacity: .5; cursor: default; }
