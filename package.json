@@ -166,7 +166,7 @@
     "testEnvironment": "node",
     "globalSetup": "<rootDir>/tools/require-hooks.cjs",
     "testMatch": [
-      "<rootDir>/src/**/__tests__/**/*.test.ts",
+      "<rootDir>/src/**/__tests__/**/*.test.{ts,tsx}",
       "<rootDir>/tools/__tests__/**/*.test.cjs"
     ],
     "setupFiles": [
@@ -208,6 +208,8 @@
       "src/components/MidstPlayer/follow.ts",
       "src/components/MidstPlayer/helpers.ts",
       "src/components/MidstPlayer/timestamp-position.ts",
+      "src/components/MidstPlayer/timeline.ts",
+      "src/components/MidstPlayer/MidstPlayer.tsx",
       "src/app/auth.ts",
       "src/app/api.ts"
     ],
@@ -289,6 +291,18 @@
         "functions": 100,
         "lines": 100,
         "statements": 100
+      },
+      "./src/components/MidstPlayer/timeline.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/components/MidstPlayer/MidstPlayer.tsx": {
+        "branches": 79,
+        "functions": 94,
+        "lines": 94,
+        "statements": 94
       },
       "./src/app/auth.ts": {
         "branches": 97,

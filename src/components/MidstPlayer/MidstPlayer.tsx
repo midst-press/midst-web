@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { IMidstFile } from '../../store/types'
-import { ChangeObj, reconstructHTML } from './helpers'
 import { clampLabelCentre } from './timestamp-position'
+import { draftMarkers, playerFont } from './timeline'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
 import { installFonts } from '../../fonts'
@@ -29,32 +29,12 @@ interface Props {
 }
 
 export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasScrollbar }: Props) {
-  // The loader validates B/C and exposes snapshots. Whole-document replacements preserve unchanged
-  // frames too, unlike compareStrings's early return, without changing the editor's copied helpers.
-  const history = useMemo<ChangeObj[]>(() => {
-    return (data ? data.editorTimelineFrames : []).map(frame => {
-      const change = { front: 0, end: 0, inserted: frame.content, t: new Date(frame.timestamp), pos: frame.cursorPosition }
-      // step keeps `end` characters from the previous document. Zero retains none.
-      return change
-    })
-  }, [data])
-  const maxStep = Math.max(0, history.length - 1)
-  const canPlay = activePlayer && history.length >= 2
-  const markers = useMemo(() => {
-    if (!data) return []
-    const raw = data.presentation ? data.presentation.draftMarkers : data.meta.editorDraftMarkers
-    if (!Array.isArray(raw)) return []
-    const count = data.sourceHistoryLength === undefined ? history.length : data.sourceHistoryLength
-    return raw.reduce<Array<{ index: number, label: string }>>((out, marker) => {
-      if (!marker || typeof marker !== 'object') return out
-      const index = data.presentation ? marker.index : marker.timelineIndex
-      if (!Number.isSafeInteger(index) || index < 0 || index >= count) return out
-      const label = typeof marker.name === 'string' && marker.name ? marker.name
-        : typeof marker.defaultName === 'string' && marker.defaultName ? marker.defaultName : 'Draft'
-      out.push({ index, label })
-      return out
-    }, [])
-  }, [data, history.length])
+  // Each frame is a whole snapshot of the document (the loader validates both file forms into frames), so the
+  // player shows a frame's content as it is; nothing is rebuilt from changes.
+  const frames = useMemo(() => (data ? data.editorTimelineFrames : []), [data])
+  const maxStep = Math.max(0, frames.length - 1)
+  const canPlay = activePlayer && frames.length >= 2
+  const markers = useMemo(() => draftMarkers(data, frames.length), [data, frames.length])
   // A label is centred over its marker, which would push one near either end of the timeline past
   // the end of the control bar. Slide only the label back inside; its pointer stays on the marker.
   const markerRow = useRef<HTMLDivElement | null>(null)
@@ -77,10 +57,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     observer.observe(bar)
     return () => observer.disconnect()
   }, [markers, maxStep])
-  const family = data && typeof data.meta.editorFontFamily === 'string' && data.meta.editorFontFamily.trim()
-    ? data.meta.editorFontFamily : 'Helvetica'
-  const size = data && Number.isFinite(data.meta.editorFontSize) && data.meta.editorFontSize > 0
-    ? data.meta.editorFontSize : 14
+  const { family, size } = playerFont(data)
   const [step, setStep] = useState(maxStep)
   const [playing, setPlaying] = useState(false)
   const [fps, setFPS] = useState(DEFAULT_FPS)
@@ -128,7 +105,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const before = editor.state.doc
     // Each adapter entry is a full replacement, so reconstruct just this entry: seeking a long
     // archive must not replay every earlier snapshot on every 60ms tick.
-    editor.commands.setContent(reconstructHTML('', history.slice(Math.min(step, maxStep), Math.min(step, maxStep) + 1), 0), false, { preserveWhitespace: true })
+    editor.commands.setContent(frames[Math.min(step, maxStep)]?.content ?? '', false, { preserveWhitespace: true })
     const after = editor.state.doc
     const changed = after.content.findDiffStart(before.content)
     const scroller = scrollParent(editor.view.dom as HTMLElement)
@@ -138,7 +115,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       if (to != null) glide.current = glideTo(scroller, to, glide.current)
     }
     if (step >= maxStep) { haltPlayback(); setPlaying(false) }
-  }, [editor, history, step, maxStep, activePlayer, cursorFollowing, haltPlayback])
+  }, [editor, frames, step, maxStep, activePlayer, cursorFollowing, haltPlayback])
 
   useEffect(() => {
     if (!playing || !activePlayer || maxStep === 0) return
@@ -219,7 +196,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   // The current frame's edit time, shown below the timeline. Follows the playhead.
   // A synthetic frame (empty history) has sourceHistoryLength 0 — not a real edit.
   // Distinguish synthetic from missing/invalid: require a finite timestamp, allow 0 and negatives.
-  const currentFrame = data?.editorTimelineFrames?.[Math.min(step, maxStep)]
+  const currentFrame = frames[Math.min(step, maxStep)]
   const isSynthetic = (data?.sourceHistoryLength ?? 1) === 0
   const rawTimestamp = currentFrame?.timestamp
   const hasRealTimestamp = currentFrame != null && !isSynthetic
