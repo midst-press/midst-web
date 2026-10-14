@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { IMidstFile } from '../../store/types'
-import { ChangeObj, reconstructHTML } from './helpers'
+import { ChangeObj, clampLabelLeft, reconstructHTML } from './helpers'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
 import { installFonts } from '../../fonts'
@@ -186,7 +186,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     observer.observe(el.parentElement)
     return () => observer.disconnect()
   }, [measureLabel])
-  const clampedLeft = Math.max(0, Math.min(playheadPercent, 100 - labelWidthPct))
+  const clampedLeft = clampLabelLeft(playheadPercent, labelWidthPct)
   const playheadLeft = `${clampedLeft}%`
   const playheadTransform = 'translateX(-50%)'
 

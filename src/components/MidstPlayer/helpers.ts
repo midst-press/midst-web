@@ -87,3 +87,11 @@ export const reconstructHTML = (
 
   return reconstructed;
 };
+
+/**
+ * Clamp a label's left position (as a percentage) so it stays within its container.
+ * `labelWidthPct` is the label's width as a percentage of the container width.
+ * Returns a percentage between 0 and 100 - labelWidthPct.
+ */
+export const clampLabelLeft = (playheadPercent: number, labelWidthPct: number): number =>
+  Math.max(0, Math.min(playheadPercent, 100 - labelWidthPct));
