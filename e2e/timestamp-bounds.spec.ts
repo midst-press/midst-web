@@ -100,3 +100,32 @@ test('label stays inside after a paused narrow-to-wide resize', async ({ page })
   await page.waitForTimeout(100)
   await assertLabelInsideTimeline(page)
 })
+
+// ---- accessibility (Cyril's review on #107) ------------------------------------------------
+
+test('aria-valuetext on the timeline equals the visible label text', async ({ page }) => {
+  await mount(page)
+  await setStep(page, 40)
+  const label = page.locator('.frame-timestamp')
+  const labelText = await label.textContent()
+  const valuetext = await page.locator('.progress-bar').getAttribute('aria-valuetext')
+  expect(valuetext).toBe(labelText)
+})
+
+test('label is aria-hidden and carries data-guide', async ({ page }) => {
+  await mount(page)
+  await setStep(page, 40)
+  const label = page.locator('.frame-timestamp')
+  await expect(label).toHaveAttribute('aria-hidden', 'true')
+  await expect(label).toHaveAttribute('data-guide', 'frame-edit-time')
+})
+
+test('synthetic frame: aria-valuetext is "edit time unavailable"', async ({ page }) => {
+  const data = { ...syntheticData(), sourceHistoryLength: 0 }
+  await mount(page, data)
+  await setStep(page, 40)
+  const label = page.locator('.frame-timestamp--unavailable')
+  await expect(label).toBeVisible()
+  const valuetext = await page.locator('.progress-bar').getAttribute('aria-valuetext')
+  expect(valuetext).toBe('edit time unavailable')
+})
