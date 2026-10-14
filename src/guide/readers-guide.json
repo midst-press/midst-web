@@ -34,7 +34,7 @@
     },
     {
       "heading": "The date and time under the timeline",
-      "labels": ["Frame edit time", "Frame edit time unavailable"],
+      "labels": [],
       "paragraphs": [
         "Under the timeline, a date and time move along with the dot. They show when the poet made the change you are looking at, so you can see whether a poem took an evening or a year.",
         "If it says \"edit time unavailable\", the poem's record has no date for that change."

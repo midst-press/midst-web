@@ -625,6 +625,55 @@ body {
   height: auto;
 }
 
+/* The editor's user guide on /app#help. It sits inside the hero, whose box is positioned and lets
+   clicks through, so the guide takes clicks back and reads as left-aligned text. */
+.app-page .heroine .editor-guide {
+  margin-top: 80px;
+  padding-bottom: 15vh;
+  text-align: left;
+  pointer-events: auto;
+  scroll-margin-top: 15vh;
+}
+
+.app-page .heroine .editor-guide h1 {
+  font-size: 32px;
+}
+
+.app-page .heroine .editor-guide h2 {
+  font-size: 24px;
+  margin-top: 40px;
+}
+
+.app-page .heroine .editor-guide h3 {
+  font-size: 20px;
+  margin-top: 28px;
+}
+
+.app-page .heroine .editor-guide li {
+  font-size: 18px;
+  line-height: 25px;
+}
+
+.app-page .heroine .editor-guide pre,
+.app-page .heroine .editor-guide code {
+  font-family: monospace;
+  font-size: 15px;
+}
+
+.app-page .heroine .editor-guide table {
+  font-size: 15px;
+  line-height: 20px;
+  margin: 20px 0;
+}
+
+.app-page .heroine .editor-guide th,
+.app-page .heroine .editor-guide td {
+  border: 1px solid currentColor;
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
 .heroine.heroine--normal p {
   margin-bottom: 30px;
   line-height: 1.3;

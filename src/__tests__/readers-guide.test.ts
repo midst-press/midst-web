@@ -53,7 +53,7 @@ describe("the reader's guide", () => {
   it('names a control in bold exactly as the player labels it', () => {
     // Labels a sighted reader never sees (the poem area, the date under the timeline, the parts of the
     // speed slider) are tied to their section without being printed.
-    const unprinted = new Set(['Poem replay', 'Jump to', 'Frame edit time', 'Frame edit time unavailable', 'Playback frame rate', 'Playback speed controls'])
+    const unprinted = new Set(['Poem replay', 'Jump to', 'Playback frame rate', 'Playback speed controls'])
     for (const section of guide.sections) {
       const text = section.paragraphs.join(' ').toLowerCase()
       for (const label of section.labels.filter(name => !unprinted.has(name))) {

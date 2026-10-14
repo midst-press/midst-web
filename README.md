@@ -47,9 +47,11 @@ issue about aligning the React types.
 ## Development
 
 ```
-npm start              # dev server
-npm run build          # production build into ./dist
+MIDST_KEY_SCHEME=legacy npm start        # dev server
+MIDST_KEY_SCHEME=legacy npm run build    # production build into ./dist
 ```
+
+Both refuse to start without `MIDST_KEY_SCHEME`; see "Key scheme" below for which value to give.
 
 Both pass `--no-autoinstall` deliberately. Without it, Parcel silently installs missing polyfills on
 your machine and the build then fails only in CI, where autoinstall is off. A missing dependency
@@ -112,7 +114,8 @@ node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
 node tools/poem-ids.mjs           # the check the commit hook runs
 ```
 
-Nothing reads the id yet; object names are still built by `src/poems/poem-names.js`. A poem file can
+Under the `canonical` key scheme (below) the id is the poem's object name; under `legacy` nothing reads
+it and names are built by `src/poems/poem-names.js`. A poem file can
 be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
 
 ## Key scheme
