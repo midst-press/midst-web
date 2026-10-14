@@ -12,6 +12,8 @@ import { useParams } from 'react-router'
 // so only they suggest trying again. `missing` and `refused` share one sentence: the poems host answers
 // 403 for a file that is not there (see asset-fetch.js), so the browser cannot tell the two apart.
 const NOT_FOUND_OR_REFUSED = 'Unable to find the poem, but it is possible that access was refused.'
+export const NO_POEM_HERE = 'There is no poem at this address.'
+
 export const LOAD_FAILURE_MESSAGES: { [reason in PoemLoadFailure]: string } = {
   missing: NOT_FOUND_OR_REFUSED,
   refused: NOT_FOUND_OR_REFUSED,
@@ -39,7 +41,7 @@ function Poem(): ReactElement {
       sliderFrame.style.left = `calc(100vw * -${currentPoemIndex})`
     }
 
-    if (!poems[currentPoemIndex].loaded) {
+    if (currentPoemIndex > -1 && !poems[currentPoemIndex].loaded) {
       dispatch(loadPoemData(currentPoemIndex))
     }
   }, [poemUrl])
@@ -56,7 +58,12 @@ function Poem(): ReactElement {
           <meta name="description" content="" />
         </Helmet>
 
-        <div className="sliding-poems">
+        {currentPoemIndex === -1 &&
+          // An address no published poem has: an old link to a poem since unpublished or retitled, or a
+          // typo. Say so; showing the first poem would put the wrong poem under this address (#100).
+          <p className="sliding-poems__failure" role="alert">{NO_POEM_HERE}</p>}
+
+        {currentPoemIndex > -1 && <div className="sliding-poems">
           <div
             className="sliding-poems__frame"
             style={{ width: `${poems.length * 200}%` }}
@@ -88,7 +95,7 @@ function Poem(): ReactElement {
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </section>
     </div>
   )
