@@ -106,6 +106,10 @@ describe('POEM_LIST_FAILED', () => {
     expect(next.poems).toEqual([])
   })
 
+  it('shows no poem whatever the state held before', () => {
+    expect(reducer(loaded(), { type: POEM_LIST_FAILED, payload: { reason: 'malformed' } }).poems).toEqual([])
+  })
+
   it('does not mutate the input state', () => {
     failed()
     expect(initialState.poemList).toBe('loading')
