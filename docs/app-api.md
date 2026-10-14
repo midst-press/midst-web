@@ -8,14 +8,21 @@ It is a prototype: the aim is something Annelyse can use and react to. Every nam
 
 ## Calling it
 
-- **Base URL:** `MIDST_APP_API_URL`, set at build time like the other `MIDST_*_URL` values (`src/config.ts`).
-  It is the Lambda's function URL. With no value, the signed-in pages say the app is not available here.
+- **Build inputs**, set at build time like the other `MIDST_*_URL` values and taken from the stack's outputs
+  (midst-infra `beta/app.yaml`):
+  - `MIDST_APP_API_URL`: the HTTP API's endpoint (API Gateway, in front of the Lambda), the base of every route below.
+  - `MIDST_APP_AUTH_DOMAIN`: the managed login, `https://<prefix>.auth.<region>.amazoncognito.com`.
+  - `MIDST_APP_CLIENT_ID`: the user pool's client for this site.
+
+  There is no redirect input: the pages use `<the site's own origin>/signed-in`, which is the one callback the
+  client allows. Without all three, the signed-in pages say the app is not available here.
 - **Who you are:** every request carries `Authorization: Bearer <ID token>`, the Cognito ID token from
-  sign-in. The Lambda verifies it (signature, issuer, audience, expiry) and reads `cognito:groups`.
+  sign-in. The API's JWT authoriser verifies it (signature, issuer, audience, expiry) before the Lambda runs;
+  the Lambda verifies it again and reads `cognito:groups`.
 - **Groups:** `poet`, `publisher`, `admin`. A person may be in more than one. Each route below names the group
   it needs; `signed in` means any valid token.
 - **Bodies** are JSON, `Content-Type: application/json`, in both directions.
-- **CORS:** the function URL allows the site's own origin only.
+- **CORS:** the API allows the site's own origin only.
 
 ### Errors
 
@@ -30,11 +37,16 @@ Every error has the same body:
 | 400 | `invalid` | the body or a parameter is wrong; `message` says which |
 | 401 | `unauthenticated` | no token, or it is not valid or has expired: sign in again |
 | 403 | `forbidden` | signed in, but not in the group the route needs |
-| 404 | `not_found` | no such poem, submission or person |
+| 404 | `not_found` | no such poem, submission or person, or one that is not yours: a poet asking for another poet's submission gets 404, never 403, so the answer does not say whether it exists |
 | 409 | `conflict` | the published list changed since it was read; the body also carries the current `listEtag` |
+| 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
 
 `message` is a sentence a person can read. It never contains a poem's text, and never a token.
+
+**One exception:** a 401 the authoriser gives before the Lambda runs has API Gateway's own body,
+`{ "message": "Unauthorized" }`, with no `error`. Pages decide on the status, not on `error`: any 401 means
+forget the session and sign in again.
 
 ## Things the routes return
 
@@ -114,7 +126,8 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
    `.midst` file or is too large (the limit is in `message`).
 2. The browser `PUT`s the file to `uploadUrl` with exactly `uploadHeaders`.
 3. `POST /submissions/{submissionId}/complete` → `Submission` with status `received`.
-   The Lambda checks the file arrived and reads as a Midst file, converting an old-format one (#21).
+   The Lambda checks the file arrived and reads as a Midst file, converting an old-format one (#21), and writes
+   a zipped copy for review next to it, in the form the player already reads (`timelapse.midst.zip`).
    400 `invalid` with a reason when it does not; the submission stays `uploading` and can be tried again.
 
 - `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`, newest first.
@@ -123,7 +136,7 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
 
 - `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, newest first.
 - `GET /review/submissions/{submissionId}/timelapse` → `{ "url", "expiresAt" }`
-  A pre-signed GET of the submitted file, so the review page can play it.
+  A pre-signed GET of the review copy written by `complete`, so the review page plays it with the player as it is.
 - `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
   `Submission`. Accepting makes it an unpublished poem.
 
@@ -134,6 +147,9 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
   Invites the person: Cognito emails them a temporary password. Nobody can sign up on their own.
 - `PUT /admin/users/{username}/groups` `{ "groups": [...] }` → `Person`
 - `POST /admin/users/{username}/disable` and `/enable` → `Person`
+
+Both answer 409 `last_admin` rather than leave the pool with no admin: with none, nobody could invite anyone or
+change a group without going to the AWS console, which is how the first admin is added.
 
 ## The pages
 
