@@ -244,7 +244,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const containerWidth = el.parentElement.offsetWidth
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
   }, [])
-  useEffect(measureLabel, [labelText, measureLabel])
+  useLayoutEffect(measureLabel, [labelText, measureLabel])
   useEffect(() => {
     const el = timestampRef.current
     if (!el || !el.parentElement) return
