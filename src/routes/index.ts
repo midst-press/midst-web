@@ -1,5 +1,6 @@
 export { default as About } from './About'
 export { default as AboutTheApp } from './AboutTheApp'
+export { default as Admin } from './Admin'
 export { default as Contact } from './Contact'
 export { default as Faq } from './Faq'
 export { default as FaqForPoets } from './FaqForPoets'

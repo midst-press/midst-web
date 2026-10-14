@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
+import PublisherPoets from './PublisherPoets'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import {
@@ -39,8 +40,13 @@ function Publisher(): ReactElement {
   }, [])
 
   // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
+  // Sets state here too, so the whole page renders again and offers sign-in, even when the 401 came from the
+  // Poets section, whose own state is not this page's.
   const expired = (error: unknown) => {
-    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+    if (error instanceof ApiError && error.status === 401) {
+      forgetSession(browserDeps())
+      setProblem(error.message)
+    }
   }
 
   useEffect(() => {
@@ -168,6 +174,8 @@ function Publisher(): ReactElement {
           </ul>
         )}
         {reordered && <p className="publisher-hint">Save or undo the new order before publishing or changing anything else.</p>}
+
+        {call && <PublisherPoets call={call} onExpired={expired} />}
       </>
     )
   }

@@ -17,6 +17,7 @@ import LogoSvg from './LogoSvg'
 import {
   About,
   AboutTheApp,
+  Admin,
   Contact,
   Faq,
   FaqForPoets,
@@ -130,6 +131,7 @@ function App(): ReactElement {
           <Route path="/publisher" element={<Publisher />} />
           <Route path="/review" element={<Review />} />
           <Route path="/submit" element={<Submit />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/signed-in" element={<SignedIn />} />
           <Route path="/poem/:poemUrl" element={<Poem />} />
         </Routes>
