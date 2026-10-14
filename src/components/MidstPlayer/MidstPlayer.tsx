@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { IMidstFile } from '../../store/types'
-import { ChangeObj, clampLabelLeft, reconstructHTML } from './helpers'
+import { ChangeObj, reconstructHTML } from './helpers'
+import { clampLabelCentre } from './timestamp-position'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
 import { installFonts } from '../../fonts'
@@ -167,9 +168,9 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     && rawTimestamp != null && Number.isFinite(rawTimestamp)
   const frameTimestamp = hasRealTimestamp ? currentFrame!.timestamp : null
   const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
-  // Continuous bounding: clamp the label so it stays within the timeline container.
-  // Measure the rendered label width and bound left between 0 and 100% minus label width.
-  // Re-measure on container resize (ResizeObserver) so a paused resize does not leave a stale width.
+  // Continuous bounding: clamp the label's CENTRE so the label stays within the timeline container.
+  // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
+  // resize does not leave a stale width. Measurement runs on text change and resize, not per frame.
   const timestampRef = useRef<HTMLDivElement>(null)
   const [labelWidthPct, setLabelWidthPct] = useState(0)
   const measureLabel = useCallback(() => {
@@ -178,7 +179,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const containerWidth = el.parentElement.offsetWidth
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
   }, [])
-  useEffect(measureLabel, [frameTimestamp, playheadPercent, measureLabel])
+  useEffect(measureLabel, [frameTimestamp, measureLabel])
   useEffect(() => {
     const el = timestampRef.current
     if (!el || !el.parentElement) return
@@ -186,8 +187,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     observer.observe(el.parentElement)
     return () => observer.disconnect()
   }, [measureLabel])
-  const clampedLeft = clampLabelLeft(playheadPercent, labelWidthPct)
-  const playheadLeft = `${clampedLeft}%`
+  const clampedCentre = clampLabelCentre(playheadPercent, labelWidthPct)
+  const playheadLeft = `${clampedCentre}%`
   const playheadTransform = 'translateX(-50%)'
 
   // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
@@ -239,7 +240,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
             {frameTimestamp != null && (
-              <div ref={timestampRef} className="frame-timestamp" role="status" aria-label="Frame edit time"
+              <div ref={timestampRef} className="frame-timestamp"
                 style={{ left: playheadLeft, transform: playheadTransform }}>
                 {new Date(frameTimestamp).toLocaleString(undefined, {
                   year: 'numeric', month: 'short', day: 'numeric',
@@ -248,8 +249,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
               </div>
             )}
             {frameTimestamp == null && currentFrame != null && (
-              <div ref={timestampRef} className="frame-timestamp frame-timestamp--unavailable" role="status"
-                aria-label="Frame edit time unavailable"
+              <div ref={timestampRef} className="frame-timestamp frame-timestamp--unavailable"
                 style={{ left: playheadLeft, transform: playheadTransform }}>
                 edit time unavailable
               </div>
