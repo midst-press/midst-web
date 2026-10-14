@@ -171,9 +171,13 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
 
 - `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, newest first.
 - `GET /review/submissions/{submissionId}/timelapse` → `{ "url", "expiresAt" }`
-  A pre-signed GET of the review copy written by `complete`, so the review page plays it with the player as it is.
+  A pre-signed GET of the review copy written by `complete`, valid for five minutes, so the review page plays it
+  with the player as it is. 404 for a submission still `uploading`, which has no review copy.
 - `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
-  `Submission`. Accepting makes it an unpublished poem.
+  `Submission`. Accepting makes it an unpublished poem. `note` is optional, at most 2,000 characters; blank is
+  `null`. Only a submission that is `received` can be decided: anything else is 400 `invalid`.
+
+A submission's status becomes `published` when its poem is published, and `accepted` again if it is unpublished.
 
 ### Admin (`admin`)
 
