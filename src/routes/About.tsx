@@ -20,6 +20,9 @@ function About(): ReactElement {
         <p>
          Hit play on any poem in Midst, and you'll see exactly how it was written: blank page to final draft, and every edit in between.
         </p>
+        <p>
+          New here? <a href="/guide">How to watch a poem</a> explains each of the player's controls.
+        </p>
         <br />
 
         <h2>The Team</h2>
