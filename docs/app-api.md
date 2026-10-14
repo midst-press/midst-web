@@ -178,7 +178,7 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
   `null`. A decision is made only on a submission that is `received`, with one exception: accepting one that
   is already `accepted` is 200. The decision is recorded before the poem is made, so if making the poem fails
   the submission is left `accepted` without one; accepting again finishes it. That repeat leaves the recorded
-  decision and note as they were (a `note` sent with it is ignored) and returns the current `Submission`. Any other
+  decision and note as they were (a `note` sent with it is still checked, but not recorded) and returns the current `Submission`. Any other
   decision on a submission that is not `received` is 400 `invalid`.
 
 A submission's status becomes `published` when its poem is published, and `accepted` again if it is unpublished.
