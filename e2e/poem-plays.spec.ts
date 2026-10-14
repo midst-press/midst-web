@@ -22,7 +22,10 @@ const poems = SUBJECTS.map((file) => {
     file,
     meta,
     number: publishedFiles.findIndex(name => name.normalize('NFC') === `${file}.json`.normalize('NFC')) + 1,
-    keys: [names.processNoteObjectName(meta), names.timelapseObjectName(meta)],
+    // Legacy names only: they can be stored under a second Unicode spelling, which the checks below
+    // model. A canonical name is an id and has one spelling, so under that scheme there is nothing to
+    // model here; e2e/key-scheme.spec.ts checks what a canonical build asks for.
+    keys: process.env.MIDST_KEY_SCHEME === 'legacy' ? [names.processNoteObjectName(meta), names.timelapseObjectName(meta)] : [],
     route: `/poem/${names.poemUrl(meta.title)}/`,
     // The site renders EVERY poem into a sliding carousel, so `.editor` alone matches 50 elements.
     // Scope by the carousel class, which carries the poemId -- so this selector is derived from

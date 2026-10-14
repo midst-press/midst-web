@@ -1,4 +1,4 @@
-import { fetchAsset } from '../poems/asset-fetch'
+import { fetchPoemAsset } from '../poems/key-scheme'
 import { parseMidstFile } from '../components/midst-player-hack/midst-file'
 import { processNoteObjectName, timelapseObjectName } from '../poems/poem-names'
 import {
@@ -17,11 +17,18 @@ import {
   SET_SORT_TERM,
 } from '../store/types'
 
-jest.mock('../poems/asset-fetch', () => ({ fetchAsset: jest.fn() }))
-jest.mock('../config', () => ({ POEMS_URL: 'http://127.0.0.1:1/zq/' }))
+// The names are the real ones; only the request is faked.
+jest.mock('../poems/key-scheme', () => ({ ...jest.requireActual('../poems/key-scheme'), fetchPoemAsset: jest.fn() }))
+let mockScheme: string | undefined = 'legacy'
+jest.mock('../config', () => ({
+  POEMS_URL: 'http://127.0.0.1:1/zq/',
+  get KEY_SCHEME() {
+    return mockScheme
+  },
+}))
 
 const POEMS_URL = 'http://127.0.0.1:1/zq/'
-const mockFetchAsset = fetchAsset as unknown as jest.Mock
+const mockFetchAsset = fetchPoemAsset as unknown as jest.Mock
 
 const poemA = { poemId: 'zq-xv--other', author: 'Zq Xv', title: 'Other' }
 const poemB = { poemId: 'zq-xv--kj-wm', author: 'Zq Xv', title: 'Kj Wm' }
@@ -131,8 +138,8 @@ describe('loadPoemData success', () => {
       payload: { poemId: 'zq-xv--kj-wm', data: expected, processNote: '<p>zq note</p>\n' },
     })
     expect(mockFetchAsset.mock.calls).toEqual([
-      [POEMS_URL, 'zq-xv/zq-xv.md'],
-      [POEMS_URL, 'zq-xv/zq-xv--kj-wm.midst.zip'],
+      [POEMS_URL, 'zq-xv/zq-xv.md', 'legacy'],
+      [POEMS_URL, 'zq-xv/zq-xv--kj-wm.midst.zip', 'legacy'],
     ])
     expect(mockFetchAsset.mock.calls[0][1]).toBe(processNoteObjectName(poemB))
     expect(mockFetchAsset.mock.calls[1][1]).toBe(timelapseObjectName(poemB))
@@ -172,10 +179,55 @@ describe('loadPoemData success', () => {
     await loadPoemData(0)(dispatch, stateWith([poemFolder]))
 
     expect(mockFetchAsset.mock.calls).toEqual([
-      [POEMS_URL, 'zq-folder/zq-xv.md'],
-      [POEMS_URL, 'zq-folder/zq-xv--kj-wm.midst.zip'],
+      [POEMS_URL, 'zq-folder/zq-xv.md', 'legacy'],
+      [POEMS_URL, 'zq-folder/zq-xv--kj-wm.midst.zip', 'legacy'],
     ])
     expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  describe('under the canonical key scheme', () => {
+    const id = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
+    beforeEach(() => {
+      mockScheme = 'canonical'
+    })
+    afterEach(() => {
+      mockScheme = 'legacy'
+    })
+
+    it('asks for both files under the id, whatever the author, title or folder', async () => {
+      mockFetchAsset.mockResolvedValueOnce(okResponse()).mockResolvedValueOnce(okResponse())
+      const dispatch = jest.fn()
+
+      await loadPoemData(0)(dispatch, stateWith([{ ...poemFolder, id }]))
+
+      expect(mockFetchAsset.mock.calls).toEqual([
+        [POEMS_URL, `${id}/process-note.md`, 'canonical'],
+        [POEMS_URL, `${id}/timelapse.midst.zip`, 'canonical'],
+      ])
+      expect(dispatch.mock.calls[0][0].type).toBe(LOAD_POEM_DATA)
+    })
+
+    it('fails the load, asking for nothing, when the poem has no id', async () => {
+      const dispatch = jest.fn()
+
+      await loadPoemData(0)(dispatch, stateWith([poemB]))
+
+      expect(mockFetchAsset).not.toHaveBeenCalled()
+      expect(dispatch.mock.calls).toEqual(failedB('unknown'))
+    })
+  })
+
+  it('fails the load, asking for nothing, when no key scheme was built in', async () => {
+    mockScheme = undefined
+    const dispatch = jest.fn()
+    try {
+      await loadPoemData(0)(dispatch, stateWith([poemB]))
+    } finally {
+      mockScheme = 'legacy'
+    }
+
+    expect(mockFetchAsset).not.toHaveBeenCalled()
+    expect(dispatch.mock.calls).toEqual(failedB('unknown'))
   })
 })
 
