@@ -11,6 +11,7 @@ import {
   SET_PROCESS_NOTE_OPEN,
   SET_SORT_TERM,
 
+  IPoem,
   IState,
 } from './types'
 import moment from 'moment'
@@ -51,17 +52,17 @@ function createPoem(data: any) {
 
 const poems = poemData.map(createPoem)
 
+// Where each poem sits in the list, so poems that tie (one author's poems, when sorting by author)
+// come out in the same order whatever the previous sort was.
+const listPosition = new Map(poems.map((poem, index) => [poem.poemId, index]))
+
+// Sorts the poems in the state, so what has been loaded into them is kept.
 function sortPoems(draftState: IState) {
-  let finalPoems = Array.from(draftState.poems)
-
-  // @ts-ignore
-  finalPoems = sortBy(poems, draftState.sortTerm)
-
-  if (draftState.sortOrder === 'DESC') {
-    finalPoems = reverse(finalPoems)
-  }
-
-  return finalPoems
+  const sorted = sortBy(draftState.poems, [
+    draftState.sortTerm,
+    (poem: IPoem) => listPosition.get(poem.poemId),
+  ])
+  return draftState.sortOrder === 'DESC' ? reverse(sorted) : sorted
 }
 
 const initialState: IState = {
