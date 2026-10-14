@@ -1463,3 +1463,53 @@ background-size: contain;
   opacity: 0.7;
   user-select: text;
 }
+
+/* The beta app's signed-in pages (#110): plain and readable; a prototype for Annelyse to react to. */
+.app-account-page .heroine.heroine--normal h3 {
+  margin-top: 36px;
+}
+
+.publisher-list {
+  padding-left: 1.5em;
+}
+
+.publisher-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  font-size: 18px;
+}
+
+.publisher-list li[draggable='true'] {
+  cursor: grab;
+}
+
+.publisher-list li.publisher-dragging {
+  opacity: 0.5;
+}
+
+.publisher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 15px;
+}
+
+.publisher-author {
+  opacity: 0.75;
+}
+
+.publisher-notice,
+.publisher-problem,
+.publisher-hint {
+  font-size: 16px;
+}
+
+.publisher-problem {
+  color: #a00;
+}
