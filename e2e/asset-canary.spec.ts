@@ -118,3 +118,54 @@ test('the actual canary asks for canonical names once each, and refuses to run w
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   }
 })
+
+// Issue #36, item 2. Under the legacy scheme the site asks for a key all composed, then all decomposed,
+// so an object whose folder is in one form and whose file name is in the other answers neither and a
+// reader cannot open that poem. No such object exists today. The fetch does not try the mixed spellings
+// (every reader of every accented poem would pay for them); the canary is what says so if one is ever
+// uploaded.
+test('the actual canary reports a timelapse stored with its folder and file name in different Unicode forms', async () => {
+  const root = join(__dirname, '..')
+  const dir = join(root, 'test-results', `canary-mixed-${Date.now()}`)
+  mkdirSync(dir, { recursive: true })
+  for (const [file, author, published] of [['01', 'Ordinary', true], ['02', 'Synth\u00e9tique', true], ['03', 'Skipped', false]] as const) {
+    writeFileSync(join(dir, `${file}.json`), JSON.stringify({ author, title: 'x', published }))
+  }
+  const composed = '/synth\u00e9tique/synth\u00e9tique--x.midst.zip'
+  const decomposed = '/synthe\u0301tique/synthe\u0301tique--x.midst.zip'
+  // Stored: composed folder, decomposed file name.
+  const mixed = '/synth\u00e9tique/synthe\u0301tique--x.midst.zip'
+  expect([composed, decomposed]).not.toContain(mixed)
+  const requests: { method?: string, path: string }[] = []
+  const keys = new Set(['/ordinary/ordinary.md', '/ordinary/ordinary--x.midst.zip', '/synth\u00e9tique/synth\u00e9tique.md', mixed])
+  const server = createServer((request, response) => {
+    const path = decodeURIComponent(request.url || '')
+    requests.push({ method: request.method, path })
+    response.statusCode = keys.has(path) ? 200 : 403
+    response.end()
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address() as { port: number }
+  try {
+    const result = await new Promise<{ code: number | null, output: string }>((resolve, reject) => {
+      const child = spawn(process.execPath, [join(root, 'tools/poem-canary.mjs')], {
+        cwd: root, env: { ...process.env, MIDST_KEY_SCHEME: 'legacy', MIDST_POEMS_DIR: dir, MIDST_ASSETS_URL: `http://127.0.0.1:${address.port}/`, MIDST_CANARY_TIMEOUT: '5000' },
+      })
+      let output = ''
+      child.stdout.on('data', data => { output += data })
+      child.stderr.on('data', data => { output += data })
+      child.on('error', reject)
+      child.on('exit', code => resolve({ code, output }))
+    })
+    expect(result.code).toBe(1)
+    expect(result.output).toContain('timelapses reachable: 1/2')
+    expect(result.output).toContain('poem 2:')
+    expect(result.output).not.toContain('Synth\u00e9tique')
+    expect(result.output).not.toContain('synthe\u0301tique')
+    // It asked for the two spellings the site asks for, and neither is the stored one.
+    const asked = requests.map(request => request.path).filter(path => path.endsWith('--x.midst.zip') && !path.startsWith('/ordinary/'))
+    expect(asked.sort()).toEqual([composed, decomposed].sort())
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  }
+})
