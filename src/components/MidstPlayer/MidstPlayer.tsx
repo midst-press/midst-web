@@ -287,7 +287,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       <div className="control-container">
         <div className="controls" onKeyDown={event => event.stopPropagation()}>
           <div className="timeline-control">
-          <input type="range" aria-label="Timeline" className="progress-bar"
+          <input type="range" aria-label="Timeline" aria-valuetext={labelText ?? undefined} className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
             onChange={event => seekTo(Number(event.target.value))} />
@@ -299,7 +299,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
             {labelText != null && (
-              <div ref={timestampRef}
+              <div ref={timestampRef} data-guide="frame-edit-time" aria-hidden="true"
                 className={`frame-timestamp${frameTimestamp == null ? ' frame-timestamp--unavailable' : ''}`}
                 style={{ left: playheadLeft, transform: playheadTransform }}>
                 {labelText}
