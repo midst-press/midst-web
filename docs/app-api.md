@@ -139,8 +139,11 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 - `POST /publisher/poets/{username}/resend` → `Person`. Sends the invitation again, with a new temporary
   password. 409 `already_signed_in` once the poet has set their password; forgetting it is then Cognito's own
   "forgot password" on the sign-in page.
-- `POST /publisher/poets/{username}/disable` → `Person`. Only for someone whose one group is `poet`: anyone else
-  is 403 `forbidden`, so a publisher cannot disable a publisher or an admin. Admin manages those.
+- `POST /publisher/poets/{username}/disable` → `Person`.
+
+Resend and disable act only on someone whose one group is `poet`: anyone else is 403 `forbidden`, so a
+publisher cannot reset a publisher's or an admin's invitation, or disable them. Admin manages those. An
+unknown `username` is 404.
 
 ### Poet (`poet`)
 
