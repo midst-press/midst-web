@@ -12,7 +12,8 @@ import published from '../src/poems'
 // as they say (midst-web #100, item 1). The risk is a poem missing from the list, or a sort that hides one.
 //
 // Failures report positions and counts, never a poem's title or address: those come from the poems'
-// own metadata, and a CI log is not the place for them.
+// own metadata, and a CI log is not the place for them. (A failure's screenshot and trace are another
+// matter: they show the page as it was.)
 
 const poemsDir = join(__dirname, '../src/poems')
 const records = readdirSync(poemsDir)
@@ -76,10 +77,16 @@ test('every published poem is listed once, in the editor\'s order, and links to 
 })
 
 test('a listed poem opens its own page', async ({ page }) => {
-  const hrefs = await listed(page)
-  const choice = Math.floor(hrefs.length / 2)
+  // The page starts in the editor's order, which is the order of `published`.
+  const choice = Math.floor(published.length / 2)
   await page.locator('.table-of-contents a.poem-line').nth(choice).click()
-  await expect(page).toHaveURL(new RegExp(`${hrefs[choice].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  // Compared as a position in the list, so a failure prints a number, not the poem's address.
+  const at = async () => {
+    const path = decodeURI(new URL(page.url()).pathname)
+    // Against the addresses the metadata says each poem has, not the links the page rendered.
+    return published.map(hrefOf).findIndex(href => decodeURI(href) === path || decodeURI(href) === `${path}/`)
+  }
+  await expect.poll(at).toBe(choice)
 })
 
 for (const [column, term] of [['poem-author', 'authorId'], ['poem-title', 'slug'], ['poem-date', 'publishDate']] as const) {
