@@ -24,6 +24,10 @@
 #   variables  MIDST_KEY_SCHEME     legacy or canonical; must match what the poems bucket holds
 #              MIDST_SITE_BUCKET, MIDST_SITE_DISTRIBUTION, MIDST_POEMS_URL, MIDST_SITE_URL, AWS_REGION
 #                                   the site stack's bucket, DistributionId, PoemsUrl, SiteUrl, and region
+#              MIDST_APP_API_URL, MIDST_APP_AUTH_DOMAIN, MIDST_APP_CLIENT_ID
+#                                   the beta app stack's API URL, sign-in domain and app client, baked into the
+#                                   build for the /app pages (src/app/config.ts). deploy_site.sh passes its
+#                                   environment to the build, so setting them here is enough.
 # The environment admits only v* tags, so these keys cannot be used from a branch. A production site would
 # be its own environment with its own keys and values.
 name: deploy
@@ -92,6 +96,9 @@ jobs:
           SITE_DISTRIBUTION: ${{ vars.MIDST_SITE_DISTRIBUTION }}
           POEMS_URL: ${{ vars.MIDST_POEMS_URL }}
           SITE_URL: ${{ vars.MIDST_SITE_URL }}
+          MIDST_APP_API_URL: ${{ vars.MIDST_APP_API_URL }}
+          MIDST_APP_AUTH_DOMAIN: ${{ vars.MIDST_APP_AUTH_DOMAIN }}
+          MIDST_APP_CLIENT_ID: ${{ vars.MIDST_APP_CLIENT_ID }}
         run: >-
           bash deploy/beta/deploy_site.sh --web-repo "$GITHUB_WORKSPACE" --key-scheme "$KEY_SCHEME"
           --ref "refs/tags/$TAG" --tag "$TAG"
