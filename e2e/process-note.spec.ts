@@ -90,12 +90,11 @@ test('Escape and a click outside close the note', async ({ page, baseURL }) => {
   await page.keyboard.press('Escape')
   await expect(page.locator('.process-note')).not.toHaveClass(/open/)
   await openNote(page)
-  // A point outside the note's box, on whichever side of it the window has room.
-  const box = (await page.locator('.process-note').boundingBox())!
-  const viewport = page.viewportSize()!
-  const x = box.x + box.width + 20 < viewport.width ? box.x + box.width + 20 : box.x - 20
-  expect(x, 'the note fills the window: there is nowhere outside it to click').toBeGreaterThan(0)
-  await page.mouse.click(x, box.y + box.height / 2)
+  // A click on the poem itself, outside the note. A locator click, not page.mouse.click at computed
+  // coordinates: Playwright then checks that the click lands on the poem, so a note in the way is a
+  // reported error, never a click that silently misses. The coordinate form passed locally and failed
+  // on the CI runner, for a reason not established.
+  await page.locator(`${scope(file)} .editor`).click()
   await expect(page.locator('.process-note')).not.toHaveClass(/open/)
   await openNote(page)
   await note(page).click()
