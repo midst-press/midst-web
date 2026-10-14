@@ -34,7 +34,8 @@ const PENDING = 'midst-app-sign-in' // { state, verifier, returnTo } while the m
 const SESSION = 'midst-app-session'
 
 export const CALLBACK_PATH = '/signed-in'
-export const SCOPES = 'openid email profile'
+// What the site client allows (midst-infra beta/app.yaml); asking for more is refused with invalid_scope.
+export const SCOPES = 'openid email'
 
 export function base64url(bytes: Uint8Array): string {
   let binary = ''

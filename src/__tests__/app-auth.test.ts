@@ -62,7 +62,7 @@ describe('signInUrl', () => {
     expect(q.get('response_type')).toBe('code')
     expect(q.get('client_id')).toBe('zqclient')
     expect(q.get('redirect_uri')).toBe('https://site.example.invalid/signed-in')
-    expect(q.get('scope')).toBe('openid email profile')
+    expect(q.get('scope')).toBe('openid email')
     expect(q.get('code_challenge_method')).toBe('S256')
     expect(q.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(q.get('state')).toMatch(/^[A-Za-z0-9_-]+$/)

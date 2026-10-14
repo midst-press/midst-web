@@ -12,7 +12,9 @@
 const trimmed = (value: string | undefined): string => (value ?? '').replace(/\/+$/, '')
 
 export const APP_API_URL: string = trimmed(process.env.MIDST_APP_API_URL)
-export const APP_AUTH_DOMAIN: string = trimmed(process.env.MIDST_APP_AUTH_DOMAIN)
+// The stack's AuthDomain output has no scheme; a domain without one would be a path on this site.
+const withScheme = (value: string): string => (value && !/^https?:\/\//.test(value) ? `https://${value}` : value)
+export const APP_AUTH_DOMAIN: string = withScheme(trimmed(process.env.MIDST_APP_AUTH_DOMAIN))
 export const APP_CLIENT_ID: string = process.env.MIDST_APP_CLIENT_ID ?? ''
 
 export const APP_AVAILABLE: boolean = Boolean(APP_API_URL && APP_AUTH_DOMAIN && APP_CLIENT_ID)
