@@ -1,0 +1,150 @@
+# The beta app's API (prototype)
+
+The contract between the beta site's signed-in pages (poet, publisher, admin) and the one Lambda behind
+them. Tracking: #110. The pages are built against a local mock of this document and the Lambda against the
+document itself, so **change this file first** when either side needs something different.
+
+It is a prototype: the aim is something Annelyse can use and react to. Every name below may change.
+
+## Calling it
+
+- **Base URL:** `MIDST_APP_API_URL`, set at build time like the other `MIDST_*_URL` values (`src/config.ts`).
+  It is the Lambda's function URL. With no value, the signed-in pages say the app is not available here.
+- **Who you are:** every request carries `Authorization: Bearer <ID token>`, the Cognito ID token from
+  sign-in. The Lambda verifies it (signature, issuer, audience, expiry) and reads `cognito:groups`.
+- **Groups:** `poet`, `publisher`, `admin`. A person may be in more than one. Each route below names the group
+  it needs; `signed in` means any valid token.
+- **Bodies** are JSON, `Content-Type: application/json`, in both directions.
+- **CORS:** the function URL allows the site's own origin only.
+
+### Errors
+
+Every error has the same body:
+
+```json
+{ "error": "conflict", "message": "The published list changed since you loaded it." }
+```
+
+| status | `error` | when |
+|---|---|---|
+| 400 | `invalid` | the body or a parameter is wrong; `message` says which |
+| 401 | `unauthenticated` | no token, or it is not valid or has expired: sign in again |
+| 403 | `forbidden` | signed in, but not in the group the route needs |
+| 404 | `not_found` | no such poem, submission or person |
+| 409 | `conflict` | the published list changed since it was read; the body also carries the current `listEtag` |
+| 500 | `server` | anything else; `message` is safe to show and carries no internals |
+
+`message` is a sentence a person can read. It never contains a poem's text, and never a token.
+
+## Things the routes return
+
+**Poem** (one entry of the published list, or a poem not yet published):
+
+```json
+{
+  "poemId": "3f6c2b1e-8a4d-4c55-9b0e-2d7a1c9e4f10",
+  "title": "Zq xv",
+  "author": "Qz Vb",
+  "timelapseKey": "poems/3f6c2b1e-8a4d-4c55-9b0e-2d7a1c9e4f10/timelapse.midst.zip",
+  "processNoteKey": null,
+  "publishDate": "2026-10-20",
+  "highlighted": false
+}
+```
+
+`poemId` is the opaque id minted when a submission arrives (#41). Names never appear in a key; keys are
+recorded, not derived. `publishDate` and `highlighted` are `null` / `false` until the publisher sets them.
+
+**Submission:**
+
+```json
+{
+  "submissionId": "3f6c2b1e-8a4d-4c55-9b0e-2d7a1c9e4f10",
+  "title": "Zq xv",
+  "author": "Qz Vb",
+  "poet": "qz@example.invalid",
+  "submittedAt": "2026-10-15T09:30:00Z",
+  "status": "received",
+  "note": null
+}
+```
+
+`status` is one of `uploading` (the id exists, the file has not arrived), `received`, `accepted`, `declined`,
+`published`. An accepted submission is an unpublished poem with the same id. `note` is the publisher's note to
+the poet on a decision, or `null`. `poet` (the poet's email) is included only on the publisher's routes.
+
+**Person:**
+
+```json
+{ "username": "a1b2c3d4", "email": "qz@example.invalid", "groups": ["poet"], "status": "invited" }
+```
+
+`status` is `invited` (has not signed in yet), `active` or `disabled`.
+
+## Routes
+
+### Anyone signed in
+
+`GET /me` → `{ "username", "email", "groups": [...] }`
+
+### Publisher (`publisher`)
+
+The published list is `poems/published.json` in the publishing bucket (#12). Every change to it is a
+conditional write on its ETag, so each changing route takes the `listEtag` the page last read and answers
+409 `conflict` with the current one when the list moved. The page then reloads the list and says so.
+
+- `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
+  `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
+- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
+  Copies the poem into the publishing bucket and adds it at the end of the list.
+- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
+  Removes it from the list and deletes the publishing copy. The draft stays.
+- `PUT /publisher/order` `{ "poemIds": [...], "listEtag" }` → `{ "listEtag", "published" }`
+  400 `invalid` unless `poemIds` is exactly the published set, each once.
+- `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`
+  For a published poem.
+
+### Poet (`poet`)
+
+Submitting is three steps, so the file goes straight to the bucket and never through the Lambda:
+
+1. `POST /submissions` `{ "title", "author", "fileName", "sizeBytes" }` →
+   `{ "submissionId", "uploadUrl", "uploadHeaders": { ... }, "expiresAt" }`
+   `uploadUrl` is a pre-signed PUT for one key, valid for a few minutes. 400 `invalid` when the file is not a
+   `.midst` file or is too large (the limit is in `message`).
+2. The browser `PUT`s the file to `uploadUrl` with exactly `uploadHeaders`.
+3. `POST /submissions/{submissionId}/complete` → `Submission` with status `received`.
+   The Lambda checks the file arrived and reads as a Midst file, converting an old-format one (#21).
+   400 `invalid` with a reason when it does not; the submission stays `uploading` and can be tried again.
+
+- `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`, newest first.
+
+### Review (`publisher`)
+
+- `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, newest first.
+- `GET /review/submissions/{submissionId}/timelapse` → `{ "url", "expiresAt" }`
+  A pre-signed GET of the submitted file, so the review page can play it.
+- `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
+  `Submission`. Accepting makes it an unpublished poem.
+
+### Admin (`admin`)
+
+- `GET /admin/users` → `{ "users": [Person, ...] }`
+- `POST /admin/users` `{ "email", "groups": [...] }` → `Person`
+  Invites the person: Cognito emails them a temporary password. Nobody can sign up on their own.
+- `PUT /admin/users/{username}/groups` `{ "groups": [...] }` → `Person`
+- `POST /admin/users/{username}/disable` and `/enable` → `Person`
+
+## The pages
+
+| path | who | what |
+|---|---|---|
+| `/signed-in` | anyone | where the managed login returns to; finishes sign-in and goes on |
+| `/me` | signed in | who you are and your groups; sign out |
+| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight |
+| `/submit` | poet | submit a poem, and your submissions and where each stands |
+| `/review` | publisher | submissions: play, accept or decline with a note |
+| `/admin` | admin | people: invite, change groups, disable |
+
+Sign-in is Cognito's managed login, authorisation code with PKCE. The tokens are held in memory and in
+`sessionStorage` (so a reload keeps you signed in), never in `localStorage`.
