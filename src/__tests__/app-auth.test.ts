@@ -1,5 +1,5 @@
 import { webcrypto } from 'crypto'
-import { AuthDeps, AuthSettings, SignInError, base64url, challengeFor, claimsOf, completeSignIn, currentSession, signInUrl, signOut } from '../app/auth'
+import { AuthDeps, AuthSettings, SignInError, base64url, challengeFor, claimsOf, completeSignIn, currentSession, forgetSession, signInUrl, signOut } from '../app/auth'
 
 // The beta app's sign-in (docs/app-api.md): authorisation code with PKCE against Cognito's managed login.
 
@@ -162,6 +162,14 @@ describe('the session', () => {
   it('refuses a callback when no sign-in was started in this tab', async () => {
     const { d } = deps()
     await expect(completeSignIn(settings, d, '?code=c&state=s')).rejects.toThrow('did not start here')
+  })
+
+  it('forgetting the session leaves the managed login alone', async () => {
+    const { d } = deps()
+    const state = await startAndReturn(d)
+    await completeSignIn(settings, d, `?code=c&state=${state}`)
+    forgetSession(d)
+    expect(currentSession(d)).toBeNull()
   })
 
   it('reads non-ASCII claims', () => {

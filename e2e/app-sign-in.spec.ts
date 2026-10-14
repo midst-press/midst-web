@@ -77,6 +77,16 @@ test('an error from the API is shown in its own words', async ({ page, baseURL }
   await expect(page.getByRole('alert')).toHaveText('Zq is not allowed here.')
 })
 
+test('a 401 from the API gateway forgets the session and offers sign-in again', async ({ page, baseURL }) => {
+  await standIns(page, baseURL!, { status: 401, body: { message: 'Unauthorized' } })
+  await page.goto('/me')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Please sign in again.')
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0)
+  expect(await page.evaluate(() => window.sessionStorage.getItem('midst-app-session'))).toBeNull()
+})
+
 test('a callback nobody started is refused, and no session is kept', async ({ page, baseURL }) => {
   await standIns(page, baseURL!, { status: 200, body: {} })
   await page.goto('/signed-in?code=zq&state=forged')
