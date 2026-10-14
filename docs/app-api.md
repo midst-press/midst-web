@@ -159,7 +159,8 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
    a zipped copy for review next to it, in the form the player already reads (`timelapse.midst.zip`).
    400 `invalid` with a reason when it does not; the submission stays `uploading` and can be tried again.
 
-- `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`, newest first.
+- `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`, newest first. A submission still `uploading`
+  is left out: its file never arrived or was refused, and sending again starts a new submission (#123).
 
 ### Review (`publisher`)
 
@@ -172,7 +173,7 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
 ### Admin (`admin`)
 
 - `GET /admin/users` → `{ "users": [Person, ...] }`
-- `POST /admin/users` `{ "email", "groups": [...] }` → `Person`
+- `POST /admin/users` `{ "name", "email", "groups": [...] }` → `Person`
   Invites the person: Cognito emails them a temporary password. Nobody can sign up on their own.
 - `PUT /admin/users/{username}/groups` `{ "groups": [...] }` → `Person`
 - `POST /admin/users/{username}/disable` and `/enable` → `Person`
