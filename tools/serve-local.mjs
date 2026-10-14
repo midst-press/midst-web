@@ -39,7 +39,7 @@ const PREPARE = arg('prepare', '');
 
 const requireIndex = () => {
   if (existsSync(join(ROOT, 'index.html'))) return;
-  console.error(`No index.html under ${ROOT}. Build first:  npm run build`);
+  console.error(`No index.html under ${ROOT}. Build first:  MIDST_KEY_SCHEME=legacy npm run build  (or canonical; see README, "Key scheme")`);
   exit(2);
 };
 if (!PREPARE) requireIndex();
