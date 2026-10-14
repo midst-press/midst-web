@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "e2e:frame-budget": "playwright test --grep \"@frame-budget\"",
     "e2e:frame-budget:attest": "node tools/frame-budget-attest.mjs",
+    "prepare": "node tools/install-hooks.cjs",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:coverage-control": "node --test scripts/coverage-control-check.test.mjs"
@@ -159,8 +160,10 @@
   ],
   "jest": {
     "testEnvironment": "node",
+    "globalSetup": "<rootDir>/tools/require-hooks.cjs",
     "testMatch": [
-      "<rootDir>/src/**/__tests__/**/*.test.ts"
+      "<rootDir>/src/**/__tests__/**/*.test.ts",
+      "<rootDir>/tools/__tests__/**/*.test.cjs"
     ],
     "setupFiles": [
       "<rootDir>/src/__tests__/jest-key-scheme.setup.js"
