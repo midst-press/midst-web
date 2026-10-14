@@ -36,6 +36,7 @@ function createPoem(data: any) {
     poemId: `${authorId}--${url}`,
     hasScrollbar: data.hasScrollbar,
     highlighted: data.highlighted,
+    id: data.id,
     loaded: false,
     processNote: '',
     url,

@@ -29,6 +29,10 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+# Every build and every end-to-end run names its key scheme; there is no default (#41). The jobs run
+# under legacy, which is what production holds; the e2e job then builds again under canonical.
+env:
+  MIDST_KEY_SCHEME: legacy
 defaults:
   run:
     shell: /opt/homebrew/bin/bash -eo pipefail {0}
@@ -130,6 +134,12 @@ jobs:
         run: |
           echo "::warning::frame-budget e2e SKIPPED: runner has no GUI session; run npm run e2e:frame-budget locally"
           npx playwright test --grep-invert "@frame-budget"
+      # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
+      # the specs that touch object names; none of them is a frame-budget test.
+      - name: the same site under canonical keys
+        env:
+          MIDST_KEY_SCHEME: canonical
+        run: npx playwright test e2e/key-scheme.spec.ts e2e/poem-plays.spec.ts e2e/load-failure.spec.ts e2e/asset-canary.spec.ts
 
   # What the unit and e2e tests execute, as numbers. A second build and run on purpose: coverage needs an
   # unminified build to map back to src/, and the e2e job above must keep testing the build that
