@@ -11,7 +11,7 @@
     "build": "node tools/check-key-scheme.mjs && parcel build src/index.html --public-url / --no-autoinstall",
     "check:deps": "node tools/check-unused-deps.mjs",
     "coverage": "rm -rf coverage && jest --coverage --collectCoverageFrom='src/**/*.{ts,tsx,js,jsx}' --collectCoverageFrom=e2e/coverage-control.ts --coverageReporters=json --reporters=default --reporters=./scripts/coverage-jest-reporter.cjs && MIDST_COVERAGE=1 playwright test ${MIDST_COVERAGE_TEST_ARGS:-} && node scripts/coverage-merge.mjs",
-    "e2e:build": "MIDST_POEMS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_MEDIA_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_FONTS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/fonts/ npm run build -- ${MIDST_COVERAGE:+--no-optimize} && parcel build e2e/legacy-harness.html --public-url / --no-autoinstall ${MIDST_COVERAGE:+--no-optimize}",
+    "e2e:build": "MIDST_BUILD_TAG=v9.9.9-zq MIDST_BUILD_COMMIT=zq12345 MIDST_BUILD_DATE=2001-02-03T04:05:00Z MIDST_POEMS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_MEDIA_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_FONTS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/fonts/ npm run build -- ${MIDST_COVERAGE:+--no-optimize} && parcel build e2e/legacy-harness.html --public-url / --no-autoinstall ${MIDST_COVERAGE:+--no-optimize}",
     "e2e:fixtures": "node tools/make-e2e-fixtures.mjs",
     "e2e:serve": "node tools/serve-local.mjs --root dist --archive e2e/fixtures/poems --port ${MIDST_E2E_PORT:-8099} --host 127.0.0.1 --prepare \"npm run e2e:fixtures && npm run e2e:build\"",
     "start": "node tools/check-key-scheme.mjs && parcel src/index.html --no-autoinstall",
@@ -193,6 +193,7 @@
       "src/poems/key-scheme.js",
       "src/poems/index.ts",
       "src/config.ts",
+      "src/fonts.ts",
       "src/store/reducer.ts",
       "src/store/actions.ts",
       "src/components/midst-player-hack/midst-file.ts",
@@ -225,6 +226,12 @@
         "statements": 100
       },
       "./src/config.ts": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      },
+      "./src/fonts.ts": {
         "branches": 100,
         "functions": 100,
         "lines": 100,
