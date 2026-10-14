@@ -130,6 +130,16 @@ test('a date that fails to save for another reason is not left in the field eith
   await expect(page.getByLabel('Publish date of Zq 1')).toHaveValue('2026-01-02')
 })
 
+test('a 401 forgets the session and offers sign-in again', async ({ page, baseURL }) => {
+  await signedInAs(page, ['publisher'])
+  await page.route('https://api.example.invalid/**', route => route.request().method() === 'OPTIONS'
+    ? route.fulfill({ status: 204, headers: cors })
+    : route.fulfill({ status: 401, headers: cors, contentType: 'application/json', body: '{"message":"Unauthorized"}' }))
+  await page.goto('/publisher')
+  await expect(page.getByRole('alert')).toHaveText('Please sign in again.')
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+})
+
 test('Undo changes puts back the saved order, and nothing is written', async ({ page, baseURL }) => {
   const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [] }
   await signedInAs(page, ['publisher'])

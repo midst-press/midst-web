@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
-import { currentSession, signInUrl } from '../app/auth'
+import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import {
   Call, Poem, PublisherList, callerFor, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish,
@@ -38,8 +38,13 @@ function Publisher(): ReactElement {
     setOrder(next.published)
   }, [])
 
+  // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
+  const expired = (error: unknown) => {
+    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+  }
+
   useEffect(() => {
-    if (call) reload(call).catch(error => setProblem(error instanceof ApiError ? error.message : 'The list could not be loaded.'))
+    if (call) reload(call).catch(error => { expired(error); setProblem(error instanceof ApiError ? error.message : 'The list could not be loaded.') })
     // Loaded once per visit; each change reloads it.
   }, [])
 
@@ -54,6 +59,7 @@ function Publisher(): ReactElement {
       await reload(call)
       setNotice(done)
     } catch (error) {
+      expired(error)
       setFailures(count => count + 1)
       await reload(call).catch(() => undefined)
       if (error instanceof ApiError && error.code === 'conflict') {
@@ -72,7 +78,12 @@ function Publisher(): ReactElement {
   if (!APP_AVAILABLE) {
     content = <p>Publishing is not available on this site.</p>
   } else if (!session) {
-    content = <p>Sign in to publish. <button type="button" className="app-button" onClick={signIn}>Sign in</button></p>
+    content = (
+      <>
+        {problem && <p role="alert">{problem}</p>}
+        <p>Sign in to publish. <button type="button" className="app-button" onClick={signIn}>Sign in</button></p>
+      </>
+    )
   } else if (!session.groups.includes('publisher')) {
     content = <p>Your account cannot publish. Ask the editor to add you as a publisher.</p>
   } else if (!list) {
