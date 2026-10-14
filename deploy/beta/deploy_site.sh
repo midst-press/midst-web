@@ -2,13 +2,17 @@
 # deploy_site.sh -- build midst-web at a chosen commit and publish it to the site stack's bucket.
 #
 # Usage:
-#   deploy_site.sh --web-repo PATH --key-scheme legacy|canonical [--ref REF] [--tag TAG] [--stack NAME | --site BUCKET DISTRIBUTION POEMS_URL SITE_URL] [--dry-run] [--no-smoke]
+#   deploy_site.sh --web-repo PATH --key-scheme legacy|canonical --poem-list bundled|published [--ref REF] [--tag TAG] [--stack NAME | --site BUCKET DISTRIBUTION POEMS_URL SITE_URL] [--dry-run] [--no-smoke]
 #
 #   --web-repo  a clone of midst-web (any remote layout; REF must resolve in it after a fetch)
 #   --key-scheme  which object names the site asks the poems bucket for (midst-web #41). Required, and
 #               there is no default: it is built into the site and must match what the bucket holds,
 #               or every poem shows as not found. "legacy" is the author-and-title names;
 #               "canonical" is <id>/timelapse.midst.zip. Step 4 checks the choice against the bucket.
+#   --poem-list where the site gets its list of poems (midst-web #110). Required, and there is no default:
+#               "bundled" is the list built into the site; "published" is poems/published.json under the
+#               poems URL, fetched when the site starts. Step 4 checks whichever list the site will read:
+#               the canary for "bundled", check_published_list.py for "published".
 #   --ref       what to deploy; default origin/main. Resolved to a full SHA before anything runs.
 #   --tag       the release tag being deployed. It must name the same commit as REF, or nothing runs.
 #               Without it, the tag is the one REF's commit carries exactly (git describe --tags
@@ -59,12 +63,14 @@ REF=origin/main
 TAG=""
 WEB=""
 SCHEME=""
+POEM_LIST=""
 DRY=0
 SMOKE=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --web-repo) WEB="$2"; shift 2 ;;
     --key-scheme) SCHEME="${2:-}"; shift 2 ;;
+    --poem-list) POEM_LIST="${2:-}"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
     --tag) TAG="${2:-}"; shift 2 ;;
     --stack) STACK="$2"; shift 2 ;;
@@ -85,6 +91,11 @@ case "$SCHEME" in
   legacy|canonical) ;;
   "") echo "--key-scheme is required: legacy or canonical. There is no default." >&2; exit 1 ;;
   *) echo "--key-scheme must be legacy or canonical, not '$SCHEME'" >&2; exit 1 ;;
+esac
+case "$POEM_LIST" in
+  bundled|published) ;;
+  "") echo "--poem-list is required: bundled or published. There is no default." >&2; exit 1 ;;
+  *) echo "--poem-list must be bundled or published, not '$POEM_LIST'" >&2; exit 1 ;;
 esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 EXTRA="$HERE/site-extra"
@@ -119,7 +130,7 @@ WHO="$(aws sts get-caller-identity --query Arn --output text)"
 echo "deploy midst-web $SHA ($REF), tag ${TAG:-none}, committed $COMMITTED_AT"
 echo "  as     $WHO"
 echo "  site   ($SOURCE) bucket $BUCKET, distribution $DIST"
-echo "  poems  $POEMS_URL (key scheme: $SCHEME)"
+echo "  poems  $POEMS_URL (key scheme: $SCHEME, poem list: $POEM_LIST)"
 [ $DRY = 1 ] && echo "  DRY RUN: nothing will be written to AWS"
 
 WT="$(mktemp -d)/midst-web"
@@ -135,9 +146,14 @@ if [ "$SCHEME" != legacy ] && [ ! -f "$WT/src/poems/key-scheme.js" ]; then
   echo "midst-web $SHA predates key schemes and can only be deployed with --key-scheme legacy" >&2; exit 1
 fi
 
+# A commit from before the poem list was a build input would ignore the choice.
+if [ "$POEM_LIST" != bundled ] && [ ! -f "$WT/src/poems/poem-list.js" ]; then
+  echo "midst-web $SHA predates the published poem list and can only be deployed with --poem-list bundled" >&2; exit 1
+fi
+
 ( cd "$WT" && npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund > npm.log 2>&1 ) \
   || { echo "npm ci failed; last lines of its log:" >&2; tail -20 "$WT/npm.log" >&2; exit 1; }
-( cd "$WT" && MIDST_POEMS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" \
+( cd "$WT" && MIDST_POEMS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" MIDST_POEM_LIST="$POEM_LIST" \
     MIDST_BUILD_TAG="$TAG" MIDST_BUILD_COMMIT="$SHORT" MIDST_BUILD_DATE="$COMMITTED_AT" npm run build > build.log 2>&1 ) \
   || { echo "build failed; last lines of its log:" >&2; tail -20 "$WT/build.log" >&2; exit 1; }
 [ -s "$WT/dist/index.html" ] || { echo "build produced no dist/index.html" >&2; exit 1; }
@@ -146,14 +162,21 @@ echo "built: $(find "$WT/dist" -type f | wc -l | tr -d ' ') files"
 # The scheme is now inside the bundle. Before it goes anywhere, ask the bucket the same question the
 # site will: is every published poem there under these names? The canary prints poem numbers and
 # status codes only. It reads no credentials, and it runs on a dry run too.
+if [ "$POEM_LIST" = published ]; then
+  # The canary checks the bundled list. A published site reads published.json and its recorded keys instead.
+  python3 "$HERE/check_published_list.py" "$POEMS_URL" \
+    || { echo "the published list at $POEMS_URL cannot be read, or not every poem on it is reachable; nothing uploaded." >&2
+         exit 1; }
+else
 ( cd "$WT" && MIDST_ASSETS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" node tools/poem-canary.mjs > canary.log 2>&1 ) \
   || { echo "the poems at $POEMS_URL are not all reachable under key scheme '$SCHEME'; nothing uploaded." >&2
        tail -20 "$WT/canary.log" >&2; exit 1; }
 echo "poems reachable under '$SCHEME': $(grep -m1 '^timelapses reachable' "$WT/canary.log" | cut -d' ' -f3)"
+fi
 
 python3 -c 'import json,sys,datetime; print(json.dumps({"midst-web": sys.argv[1], "tag": sys.argv[3] or None,
-  "key_scheme": sys.argv[2], "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}))' \
-  "$SHA" "$SCHEME" "$TAG" > "$WT/deployed.json"
+  "key_scheme": sys.argv[2], "poem_list": sys.argv[4], "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}))' \
+  "$SHA" "$SCHEME" "$TAG" "$POEM_LIST" > "$WT/deployed.json"
 
 if [ $DRY = 1 ]; then
   aws s3 sync "$WT/dist" "s3://$BUCKET/" --exclude index.html --exclude README.md --dryrun | sed -n '1,20p'
