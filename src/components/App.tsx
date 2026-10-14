@@ -28,6 +28,7 @@ import {
   ReadersGuide,
   Me,
   Publisher,
+  Review,
   SignedIn,
   Submit,
 } from '../routes'
@@ -127,6 +128,7 @@ function App(): ReactElement {
           <Route path="/funding" element={<Funding />} />
           <Route path="/me" element={<Me />} />
           <Route path="/publisher" element={<Publisher />} />
+          <Route path="/review" element={<Review />} />
           <Route path="/submit" element={<Submit />} />
           <Route path="/signed-in" element={<SignedIn />} />
           <Route path="/poem/:poemUrl" element={<Poem />} />
