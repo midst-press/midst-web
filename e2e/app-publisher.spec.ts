@@ -8,7 +8,7 @@ import { test, expect } from './coverage'
 const API = 'https://api.example.invalid'
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, PUT' }
 
-const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null, highlighted: false })
+const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[] }
 
@@ -95,6 +95,22 @@ test('a change made with a stale list is refused, the list reloaded and the publ
   await page.getByRole('button', { name: 'Unpublish' }).click()
   await expect(page.getByRole('alert')).toContainText('Someone else changed the published list')
   await expect(published(page)).toHaveText(['Zq 1', 'Zq 2'])
+})
+
+test('a date that fails to save does not stay in the field: it shows what the server holds', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [{ ...poem(1), publishDate: '2026-01-02' }], unpublished: [], writes: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const date = page.getByLabel('Publish date of Zq 1')
+  await expect(date).toHaveValue('2026-01-02')
+  // Someone else sets another date first, so this save carries a stale list and is refused.
+  store.etag = 9
+  store.published[0].publishDate = '2026-03-04'
+  await date.fill('2026-05-06')
+  await date.blur()
+  await expect(page.getByRole('alert')).toContainText('Someone else changed the published list')
+  await expect(page.getByLabel('Publish date of Zq 1')).toHaveValue('2026-03-04')
 })
 
 test('Undo changes puts back the saved order, and nothing is written', async ({ page, baseURL }) => {
