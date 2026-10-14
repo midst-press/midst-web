@@ -16,7 +16,7 @@ When the timelapse reaches the end it stops on the finished poem. **Play** then 
 
 ## The timeline
 
-The line beside the buttons is the **timeline**. Its left end is the empty page and its right end is the finished poem. The dot shows where you are.
+The line beside the buttons is the **timeline**. Its left end is the first thing the poet put on the page and its right end is the finished poem. The dot shows where you are.
 
 Drag the dot, or click anywhere on the line, to go to that moment. The poem pauses there.
 
@@ -34,13 +34,15 @@ A poem with no labels above its timeline has no draft markers.
 
 Under the timeline, a date and time move along with the dot. They show when the poet made the change you are looking at, so you can see whether a poem took an evening or a year.
 
+If it says "edit time unavailable", the poem's record has no date for that change.
+
 ## Skip to the start or the end
 
-**Skip to start** takes you to the empty page. **Skip to end** takes you to the finished poem. The poem pauses in both cases.
+**Skip to start** takes you to the first thing the poet put on the page. **Skip to end** takes you to the finished poem. The poem pauses in both cases.
 
 ## Speed
 
-Press **Playback speed** (the dial) to open a slider. Move it up to watch faster and down to watch slower. The number beside it is the speed in frames per second (fps): how many of the poet's changes you see each second, from 1 to 60.
+Press **Playback speed** (the dial) to open a slider. Move it up to watch faster and down to watch slower. The number under it is the speed in frames per second (fps): how many of the poet's changes you see each second, from 1 to 60.
 
 Changing the speed does not pause the poem or move you along the timeline. Press the dial again, or click anywhere else, to close the slider.
 
@@ -48,7 +50,7 @@ Changing the speed does not pause the poem or move you along the timeline. Press
 
 Press Space to play or pause.
 
-Press Tab to move between the controls. When a control is selected, Space or Enter presses it.
+Press Tab to move between the controls. When a button is selected, Space or Enter presses it.
 
 When the timeline is selected, the arrow keys move one change at a time.
 
