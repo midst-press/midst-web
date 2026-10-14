@@ -1,5 +1,5 @@
 import { Call } from '../app/publisher'
-import { fileProblem, submitPoem } from '../app/submit'
+import { MAX_BYTES, fileProblem, submitPoem } from '../app/submit'
 
 // The poet's submission (docs/app-api.md, "Poet"): ask, upload, complete.
 
@@ -13,6 +13,9 @@ describe('fileProblem', () => {
     expect(fileProblem({ name: 'zq.midst.zip', size: 3 })).toContain('.midst')
     expect(fileProblem({ name: 'zq.txt', size: 3 })).toContain('.midst')
     expect(fileProblem({ name: 'zq.midst', size: 0 })).toBe('That file is empty.')
+    expect(fileProblem({ name: 'zq.midst', size: MAX_BYTES })).toBeNull()
+    expect(fileProblem({ name: 'zq.midst', size: MAX_BYTES + 1 })).toContain('larger than 20 MB')
+    expect(MAX_BYTES).toBe(20_971_520)
   })
 })
 

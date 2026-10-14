@@ -32,10 +32,14 @@ export const STATUS_WORDS: Record<SubmissionStatus, string> = {
   published: 'Published',
 }
 
+// The largest file the app accepts (docs/app-api.md, POST /submissions; #112).
+export const MAX_BYTES = 20 * 1024 * 1024
+
 /** Why a chosen file cannot be sent, or null when it can. The server checks again; this saves a round trip. */
 export function fileProblem(file: { name: string, size: number }): string | null {
   if (!/\.midst$/i.test(file.name)) return 'Please choose a Midst file: its name ends in .midst.'
   if (file.size === 0) return 'That file is empty.'
+  if (file.size > MAX_BYTES) return 'That file is larger than 20 MB, which is the most the app accepts.'
   return null
 }
 
