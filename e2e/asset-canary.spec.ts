@@ -27,7 +27,7 @@ test('the actual canary traverses alternate keys and still detects a missing tim
   const address = server.address() as { port: number }
   const run = () => new Promise<{ code: number | null, output: string }>((resolve, reject) => {
     const child = spawn(process.execPath, [join(root, 'tools/poem-canary.mjs')], {
-      cwd: root, env: { ...process.env, MIDST_POEMS_DIR: dir, MIDST_ASSETS_URL: `http://127.0.0.1:${address.port}/`, MIDST_CANARY_TIMEOUT: '5000' },
+      cwd: root, env: { ...process.env, MIDST_KEY_SCHEME: 'legacy', MIDST_POEMS_DIR: dir, MIDST_ASSETS_URL: `http://127.0.0.1:${address.port}/`, MIDST_CANARY_TIMEOUT: '5000' },
     })
     let output = ''
     child.stdout.on('data', data => { output += data })
@@ -52,6 +52,68 @@ test('the actual canary traverses alternate keys and still detects a missing tim
     expect(bad.output).not.toContain('synthe\u0301tique')
     expect(requests).toHaveLength(6)
     expect(requests.every(request => request.method === 'HEAD')).toBe(true)
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  }
+})
+
+// The canonical scheme: one HEAD per object under the poem's id, no second spelling, and no scheme
+// means no run at all.
+test('the actual canary asks for canonical names once each, and refuses to run without a scheme', async () => {
+  const root = join(__dirname, '..')
+  const dir = join(root, 'test-results', `canary-canonical-${Date.now()}`)
+  mkdirSync(dir, { recursive: true })
+  const first = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
+  const second = 'ffffffff-ffff-4fff-bfff-ffffffffffff'
+  writeFileSync(join(dir, '01.json'), JSON.stringify({ id: first, author: 'Ordinary', title: 'x', published: true }))
+  writeFileSync(join(dir, '02.json'), JSON.stringify({ id: second, author: 'Synth\u00e9tique', title: 'x', published: true }))
+  writeFileSync(join(dir, '03.json'), JSON.stringify({ author: 'Skipped', title: 'x', published: false }))
+  let missing = false
+  const requests: { method?: string, path: string }[] = []
+  const server = createServer((request, response) => {
+    const path = decodeURIComponent(request.url || '')
+    requests.push({ method: request.method, path })
+    response.statusCode = missing && path === `/${second}/timelapse.midst.zip` ? 403 : 200
+    response.end()
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address() as { port: number }
+  const run = (scheme?: string) => new Promise<{ code: number | null, output: string }>((resolve, reject) => {
+    const env: Record<string, string | undefined> = { ...process.env, MIDST_POEMS_DIR: dir, MIDST_ASSETS_URL: `http://127.0.0.1:${address.port}/`, MIDST_CANARY_TIMEOUT: '5000' }
+    delete env.MIDST_KEY_SCHEME
+    if (scheme !== undefined) env.MIDST_KEY_SCHEME = scheme
+    const child = spawn(process.execPath, [join(root, 'tools/poem-canary.mjs')], { cwd: root, env: env as NodeJS.ProcessEnv })
+    let output = ''
+    child.stdout.on('data', data => { output += data })
+    child.stderr.on('data', data => { output += data })
+    child.on('error', reject)
+    child.on('exit', code => resolve({ code, output }))
+  })
+  const expected = [first, second].flatMap(id => [`/${id}/timelapse.midst.zip`, `/${id}/process-note.md`]).sort()
+  try {
+    const good = await run('canonical')
+    expect(good.code).toBe(0)
+    expect(good.output).toContain('key scheme: canonical')
+    expect(good.output).toContain('timelapses reachable: 2/2')
+    expect(requests.map(request => request.path).sort()).toEqual(expected)
+    expect(requests.every(request => request.method === 'HEAD')).toBe(true)
+
+    requests.length = 0
+    missing = true
+    const bad = await run('canonical')
+    expect(bad.code).toBe(1)
+    expect(bad.output).toContain('timelapses reachable: 1/2')
+    expect(bad.output).toContain('poem 2:')
+    // Still four requests: a refused canonical name is not retried under another spelling.
+    expect(requests.map(request => request.path).sort()).toEqual(expected)
+
+    for (const scheme of [undefined, 'both']) {
+      requests.length = 0
+      const refused = await run(scheme)
+      expect(refused.code).toBe(2)
+      expect(refused.output).toContain('MIDST_KEY_SCHEME must be "legacy" or "canonical"')
+      expect(requests).toHaveLength(0)
+    }
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   }

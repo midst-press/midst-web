@@ -12,15 +12,22 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit, env } from 'node:process';
-import names from '../src/poems/poem-names.js';
-import assets from '../src/poems/asset-fetch.js';
+import keyScheme from '../src/poems/key-scheme.js';
 
 const BASE =
   env.MIDST_ASSETS_URL ?? 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/authors/production/';
 const POEMS = env.MIDST_POEMS_DIR ?? 'src/poems';
+// Required, no default: the canary must ask for the names the site it watches asks for (#41).
+let SCHEME;
+try {
+  SCHEME = keyScheme.parseScheme(env.MIDST_KEY_SCHEME);
+} catch (e) {
+  console.error(e.message);
+  exit(2);
+}
 const TIMEOUT_MS = Number(env.MIDST_CANARY_TIMEOUT ?? 45000);
 
-// Names come from src/poems/poem-names.js -- the SAME module the application uses. This file used
+// Names come from src/poems/key-scheme.js -- the SAME module the application uses. This file used
 // to carry a transcribed copy of the slug rules, which meant a canary that could report every poem
 // healthy while the site asked for names it had stopped agreeing with. There is now one definition,
 // and tools/test-poem-names.mjs pins its output against a committed snapshot.
@@ -34,13 +41,14 @@ for (const f of readdirSync(POEMS).filter((x) => x.endsWith('.json') && x !== 'o
   .sort((a, b) => a.normalize('NFC') < b.normalize('NFC') ? -1 : a.normalize('NFC') > b.normalize('NFC') ? 1 : 0)) {
   const d = JSON.parse(readFileSync(join(POEMS, f), 'utf8'));
   if (d.published !== true) continue;
+  const objects = keyScheme.objectNames(d, SCHEME);
   rows.push({
     number: rows.length + 1,
     meta: f,
     author: d.author,
     title: d.title,
-    zip: names.timelapseObjectName(d),
-    note: names.processNoteObjectName(d),
+    zip: objects.timelapse,
+    note: objects.processNote,
   });
 }
 
@@ -48,7 +56,7 @@ async function head(key) {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), TIMEOUT_MS);
   try {
-    const r = await assets.fetchAsset(BASE, key, { method: 'HEAD', signal: ac.signal });
+    const r = await keyScheme.fetchPoemAsset(BASE, key, SCHEME, { method: 'HEAD', signal: ac.signal });
     return r.status;
   } catch (e) {
     return e.name === 'AbortError' ? 'TIMEOUT' : e.constructor.name;
@@ -66,6 +74,7 @@ for (const r of rows) {
   if (n !== 200) bad.push({ ...r, status: n, kind: 'process note' });
 }
 
+console.log(`key scheme: ${SCHEME}`);
 console.log(`poems declared in ${POEMS}: ${rows.length}`);
 console.log(`timelapses reachable: ${ok}/${rows.length}`);
 

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import keyScheme from './src/poems/key-scheme.js'
 
 // End-to-end tests. Issue #13.
 //
@@ -14,6 +15,10 @@ import { defineConfig, devices } from '@playwright/test'
 //
 // The origins are inlined by Parcel at BUILD time, not read at runtime, so the server must be built
 // with them set — which is why webServer runs the build rather than assuming dist/ is current.
+
+// The site and its fixtures are built under one key scheme, named by whoever starts the run. There is
+// no default (#41); refusing here says so at once instead of as a failed build inside the web server.
+keyScheme.parseScheme(process.env.MIDST_KEY_SCHEME)
 
 const PORT = Number(process.env.MIDST_E2E_PORT ?? 8099)
 const BASE = `http://127.0.0.1:${PORT}`

@@ -14,8 +14,10 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
+import keyScheme from '../src/poems/key-scheme.js'
 
-export const ID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+// Defined once, beside the code that builds object names from it.
+export const ID_SHAPE = keyScheme.ID_SHAPE
 
 // Files that are not poems.
 const NOT_POEMS = new Set(['order.json'])

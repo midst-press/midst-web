@@ -1,3 +1,5 @@
+import { parseScheme } from './poems/key-scheme'
+
 export const BASE_SITE_TITLE = 'Midst'
 export const BASE_SITE_PAGE_TITLE = BASE_SITE_TITLE + ':'
 export const POEM_ARROW_KEY: 'timeline' | 'slide' = 'timeline'
@@ -18,6 +20,7 @@ export const POEM_ARROW_KEY: 'timeline' | 'slide' = 'timeline'
  *   MIDST_MEDIA_URL   author photographs
  *   MIDST_SHAPES_URL  decorative shapes
  *   MIDST_FONTS_URL   the font files named in font-faces.json (see fonts.ts)
+ *   MIDST_KEY_SCHEME  which object names the poems are asked for under (see poems/key-scheme.js)
  *
  * POEMS is separate from MEDIA on purpose: pointing poems at a local archive while photographs still
  * come from production is the common case for a demo, and conflating them would force an all-or-
@@ -29,6 +32,11 @@ const PROD_SHAPES = 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/site/shap
 export const POEMS_URL: string = process.env.MIDST_POEMS_URL || PROD_AUTHORS
 export const MEDIA_URL: string = process.env.MIDST_MEDIA_URL || PROD_AUTHORS
 export const SHAPES_URL: string = process.env.MIDST_SHAPES_URL || PROD_SHAPES
+
+/* Required, with no default: "legacy" (the names production holds) or "canonical" (<id>/...). `npm run
+ * build` refuses to start without it (tools/check-key-scheme.mjs), and a bundle built some other way
+ * throws here when it loads, so a site cannot quietly ask for the other scheme's names (#41). */
+export const KEY_SCHEME: 'legacy' | 'canonical' = parseScheme(process.env.MIDST_KEY_SCHEME)
 
 /* Fonts are served by the site itself, from fonts/ at its own origin, so the default is a path and
  * not a CloudFront literal: whoever deploys the site uploads the fonts beside it (#55). It is not
