@@ -26,6 +26,9 @@ import {
   Poem,
   Read,
   ReadersGuide,
+  Me,
+  Publisher,
+  SignedIn,
 } from '../routes'
 
 smoothscroll.polyfill()
@@ -121,6 +124,9 @@ function App(): ReactElement {
           <Route path="/guide" element={<ReadersGuide />} />
           <Route path="/app" element={<AboutTheApp />} />
           <Route path="/funding" element={<Funding />} />
+          <Route path="/me" element={<Me />} />
+          <Route path="/publisher" element={<Publisher />} />
+          <Route path="/signed-in" element={<SignedIn />} />
           <Route path="/poem/:poemUrl" element={<Poem />} />
         </Routes>
       </main>
