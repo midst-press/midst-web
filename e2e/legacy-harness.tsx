@@ -28,3 +28,16 @@ import './coverage-control'
     </div>, document.getElementById('legacy-root'),
   )
 }
+
+// Synthetic-only paired players for testing that local controls do not leak across instances.
+;(window as any).mountTwoPlayerOptions = (data: IMidstFile) => {
+  ReactDOM.render(
+    <div style={{ display: 'flex' }}>
+      {['first', 'second'].map(id =>
+        <div key={id} id={`player-options-${id}`} style={{ width: '50%', height: 600, position: 'relative' }}>
+          <MidstPlayer data={data} activePlayer={true} cursorFollowing={false} hasScrollbar={true} />
+        </div>,
+      )}
+    </div>, document.getElementById('legacy-root'),
+  )
+}
