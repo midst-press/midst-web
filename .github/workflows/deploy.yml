@@ -1,8 +1,13 @@
 # Deploys the site to the beta stack when a release is published, then hands that release's issues to the
 # verifier. "Run workflow" from a release TAG (not from main) deploys that release again.
 #
-#   1. refuse unless the run is for a tag that is on main and has a published GitHub release, and the
-#      release's "pre-release" box agrees with the tag (a tag with a "-" is a pre-release, one without is not)
+#   1. refuse unless the run is for a tag that is on main and has a published GitHub release, and the tag
+#      is a pre-release whose release has the "pre-release" box ticked. The version decides, as the About
+#      page's src/buildLabel.ts does (midst-infra #15, Stuart 14 Oct):
+#         v0.x.y, with or without a suffix          pre-release   beta
+#         v1.2.3-dev.N / -beta.N / -rc.N            pre-release   beta
+#         v1.2.3 (1.0 and later, no suffix)         release       production: none exists yet, so nothing
+#         anything else                             refused
 #   2. deploy/beta/deploy_site.sh: build at the tag with the About page's build inputs, check every poem
 #      is reachable, upload (never fonts/), invalidate, and check every poem page mounts the player
 #   3. tools/issue_flow.py released: each "awaiting release" issue whose fix is in this tag is labelled
@@ -44,25 +49,31 @@ jobs:
     steps:
       - name: The run is for a tag
         if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag'
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          echo "::error::Run this workflow from a release tag (Use workflow from: Tags), not from ${{ github.ref_name }}."
+          echo "::error::Run this workflow from a release tag (Use workflow from: Tags), not from $REF_NAME."
           exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ env.TAG }}
           fetch-depth: 0
-      - name: The tag is on main and its release agrees with it
+      - name: The tag is a pre-release on main, and its release agrees with it
         run: |
           set -euo pipefail
-          case "$TAG" in v[0-9]*) ;; *) echo "::error::$TAG is not a release tag (v...)"; exit 1 ;; esac
+          re='^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?$'
+          [[ "$TAG" =~ $re ]] || { echo "::error::$TAG is not a release tag (vMAJOR.MINOR.PATCH[-suffix])"; exit 1; }
+          if [ "${BASH_REMATCH[1]}" != 0 ] && [ -z "${BASH_REMATCH[4]}" ]; then
+            echo "::error::$TAG is a full release, which goes to production; there is no production environment yet, so nothing is deployed"
+            exit 1
+          fi
           sha="$(git rev-parse --verify "refs/tags/$TAG^{commit}")"
           git merge-base --is-ancestor "$sha" origin/main \
             || { echo "::error::$TAG ($sha) is not on main; nothing deployed"; exit 1; }
           pre="$(gh release view "$TAG" --json isPrerelease,isDraft --jq 'if .isDraft then "draft" else .isPrerelease end')" \
             || { echo "::error::$TAG has no GitHub release; publish one first"; exit 1; }
           [ "$pre" != draft ] || { echo "::error::the release for $TAG is a draft"; exit 1; }
-          case "$TAG" in *-*) want=true ;; *) want=false ;; esac
-          [ "$pre" = "$want" ] || { echo "::error::$TAG says pre-release=$want but its release says $pre"; exit 1; }
+          [ "$pre" = true ] || { echo "::error::$TAG is a pre-release, but its release does not have the pre-release box ticked"; exit 1; }
           echo "deploying $TAG ($sha), pre-release $pre"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
