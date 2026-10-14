@@ -67,6 +67,8 @@ export interface IPoem {
   hasScrollbar?: boolean
   hidden?: boolean
   highlighted: boolean
+  /* The opaque storage id (tools/poem-ids.mjs). Absent only on a poem still on the pending list. */
+  id?: string
   loaded: boolean
   loadFailure?: PoemLoadFailure | null
   poemId: string

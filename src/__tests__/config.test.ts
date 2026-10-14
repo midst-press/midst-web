@@ -5,16 +5,19 @@ const POEMS_OVERRIDE = 'http://127.0.0.1:8099/zq/poems/'
 const MEDIA_OVERRIDE = 'http://127.0.0.1:8099/zq/media/'
 const SHAPES_OVERRIDE = 'http://127.0.0.1:8099/zq/shapes/'
 
-const KEYS = ['MIDST_POEMS_URL', 'MIDST_MEDIA_URL', 'MIDST_SHAPES_URL', 'MIDST_FONTS_URL'] as const
+const KEYS = ['MIDST_POEMS_URL', 'MIDST_MEDIA_URL', 'MIDST_SHAPES_URL', 'MIDST_FONTS_URL', 'MIDST_KEY_SCHEME'] as const
 
 type ConfigModule = typeof import('../config')
 
 const saved: Record<string, string | undefined> = {}
 
-function loadConfig(env: Partial<Record<(typeof KEYS)[number], string>>): ConfigModule {
+// The origin tests are not about the key scheme, so they get a valid one unless they name their own;
+// `scheme: null` leaves it unset. The scheme's own tests are at the end of the file.
+function loadConfig(env: Partial<Record<(typeof KEYS)[number], string>>, scheme: string | null = 'legacy'): ConfigModule {
   for (const key of KEYS) {
     delete process.env[key]
   }
+  if (scheme !== null) process.env.MIDST_KEY_SCHEME = scheme
   for (const [key, value] of Object.entries(env)) {
     process.env[key] = value
   }
@@ -126,5 +129,23 @@ describe('config plain constants', () => {
     expect(config.BASE_SITE_TITLE).toBe('Midst')
     expect(config.BASE_SITE_PAGE_TITLE).toBe('Midst:')
     expect(config.POEM_ARROW_KEY).toBe('timeline')
+  })
+})
+
+describe('config key scheme', () => {
+  it.each(['legacy', 'canonical'] as const)('is %s when MIDST_KEY_SCHEME says so', scheme => {
+    expect(loadConfig({}, scheme).KEY_SCHEME).toBe(scheme)
+  })
+
+  it('refuses to load with no MIDST_KEY_SCHEME: there is no default', () => {
+    expect(() => loadConfig({}, null)).toThrow('MIDST_KEY_SCHEME must be "legacy" or "canonical"; it is not set')
+  })
+
+  it.each(['', 'Legacy', 'canonical ', 'both'])('refuses to load with MIDST_KEY_SCHEME=%p', value => {
+    expect(() => loadConfig({}, value)).toThrow('MIDST_KEY_SCHEME must be "legacy" or "canonical"')
+  })
+
+  it('does not change with the origins', () => {
+    expect(loadConfig({ MIDST_POEMS_URL: POEMS_OVERRIDE }, 'canonical').KEY_SCHEME).toBe('canonical')
   })
 })
