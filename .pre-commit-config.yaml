@@ -57,6 +57,12 @@ repos:
         entry: node --test tools/test-check-import-case.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-import-case\.mjs$'
+      - id: seed-published-self-test
+        name: the published-list seed refuses an inconsistent or unstaged list, and names no poem
+        language: system
+        entry: node --test tools/test-seed-published.mjs
+        pass_filenames: false
+        files: '^(tools/(test-)?seed-published\.mjs|src/poems/key-scheme\.js)$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail
