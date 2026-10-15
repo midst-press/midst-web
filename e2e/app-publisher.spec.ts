@@ -31,6 +31,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') return reply(200, list())
+    // The patrons section loads too (docs/app-api.md, "Patrons"); this spec does not edit it.
+    if (request.method() === 'GET' && url.pathname === '/publisher/patrons') return reply(200, { patronsEtag: 'none', patrons: [], closing: null })
     // The poet routes (docs/app-api.md, "Poets").
     const poets = store.poets ?? (store.poets = [])
     if (request.method() === 'GET' && url.pathname === '/publisher/poets') return reply(200, { poets })
