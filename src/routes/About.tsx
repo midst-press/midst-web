@@ -29,6 +29,7 @@ function About(): ReactElement {
 
         <p>
           Founder & Director: <a href="http://www.annelysegelman.com">Annelyse Gelman</a><br />
+          Software Engineer (2026-present): Stuart Swerdloff<br />
           Lead Software Engineer (2023-present): <a href="https://julietshafto.com/">Juliet Shafto</a><br />
           Lead Software Engineer (2019-2022): <a href="http://hem.rocks">Jason Gillis-Grier</a><br />
 
