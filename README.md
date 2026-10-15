@@ -198,7 +198,7 @@ A poem file can be left without an id only by listing it, with the reason, in `P
 
 ### Key scheme
 
-`MIDST_KEY_SCHEME` says which object names the site asks a bucket for. It has no default. A build, the canary, the fixture maker and the end-to-end suite each refuse to start without it.
+`MIDST_KEY_SCHEME` says which object names the site asks a bucket for. It has no default. A build, the canary, the fixture maker (for the bundled list) and the end-to-end suite each refuse to start without it.
 
 - `legacy`: names built from the author and title, as production holds them. Built by `src/poems/poem-names.js`.
 - `canonical`: `<id>/timelapse.midst.zip` and `<id>/process-note.md`, from the poem's id. Every published poem must have an id.
@@ -216,7 +216,7 @@ The scheme is built into the site. It must match what the bucket at `MIDST_POEMS
 `MIDST_POEM_LIST` says where the site gets its list of poems. It has no default. The build, the fixture maker and both end-to-end suites refuse to start without it.
 
 - `bundled`: the list built into the site (`src/poems/index.ts`), asked for under `MIDST_KEY_SCHEME`.
-- `published`: `published.json` under `MIDST_POEMS_URL`, fetched once when the site starts. `MIDST_POEMS_URL` must end in `/poems/`. The array order is the reading order. Each entry records the two keys its poem is fetched under: `poems/<id>/timelapse.midst.zip`, and a process note or `null`. The site fetches `MIDST_POEMS_URL` plus the key without its leading `poems/`, and derives no name. If the list cannot be fetched or is malformed, the site says the poems could not be loaded. It never falls back to the bundled list. `MIDST_KEY_SCHEME` is still required under `published`, but the build does not ask the bundled poem files for ids.
+- `published`: `published.json` under `MIDST_POEMS_URL`, fetched once when the site starts. `MIDST_POEMS_URL` must end in `/poems/`. The array order is the reading order. Each entry records the keys its poem is fetched under, a timelapse and a process note or `null`: `poems/<id>/timelapse.midst.zip` for the seeded poems, `poems/<id>/<generation>/…` for one published from the app. The site fetches `MIDST_POEMS_URL` plus the key without its leading `poems/`, and derives no name. If the list cannot be fetched or is malformed, the site says the poems could not be loaded. It never falls back to the bundled list. `MIDST_KEY_SCHEME` is still required under `published`, but the build does not ask the bundled poem files for ids.
 
 ```
 MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=published npm run build
@@ -269,7 +269,7 @@ The site is static. `npm run build` produces `./dist`.
 
 The beta site is deployed by the `deploy` workflow when a pre-release is published, or when you run the workflow from a release tag. The tag must be on `main`, must match `vMAJOR.MINOR.PATCH[-suffix]`, and its GitHub release must be published with the pre-release box ticked. A tag of `v1.0.0` or later with no suffix is a full release; no production environment exists yet, so it is refused.
 
-The workflow runs `deploy/beta/deploy_site.sh`. The script builds at the tag, checks that every poem is reachable (the canary for `bundled`, `check_published_list.py` for `published`), uploads to the site bucket with `index.html` last, writes `deployed.json`, invalidates the CloudFront distribution, and checks that every poem page mounts the player. It never uploads `fonts/`.
+The workflow runs `deploy/beta/deploy_site.sh`. The script builds at the tag, checks that every poem is reachable (the canary for `bundled`, `check_published_list.py` for `published`), uploads to the site bucket with `index.html` last, writes `deployed.json`, invalidates the CloudFront distribution, and checks that every poem page mounts the player. No font files are in the repository, so none are uploaded; the script itself does not exclude a `fonts/` folder.
 
 The workflow takes its settings from the `Beta` environment: `MIDST_KEY_SCHEME`, `MIDST_POEM_LIST`, `MIDST_SITE_BUCKET`, `MIDST_SITE_DISTRIBUTION`, `MIDST_POEMS_URL`, `MIDST_SITE_URL`, `AWS_REGION`, the three `MIDST_APP_*` values, and `MIDST_VERIFIER` (the person the released issues are handed to); and the secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. After a successful deploy, `tools/issue_flow.py released` hands the release's issues to the verifier.
 
