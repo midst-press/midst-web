@@ -59,7 +59,6 @@
     "react-router": "6.3.0",
     "react-router-dom": "6.3.0",
     "react-scrollbars-custom": "4.0.25",
-    "react-scrolllock": "5.0.1",
     "react-window": "1.8.6",
     "recursive-readdir-sync": "1.0.6",
     "redux": "4.0.5",
