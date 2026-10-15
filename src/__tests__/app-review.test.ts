@@ -1,6 +1,6 @@
 import { Call } from '../app/publisher'
 import { Submission, canPlay, reviewByline } from '../app/submit'
-import { PlayDeps, PlayError, ZipLib, decide, fetchTimelapse, reviewSubmissions, timelapseTicket } from '../app/review'
+import { POEM_LIST_UNKNOWN, PlayDeps, PlayError, ZipLib, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket } from '../app/review'
 
 // The review calls (docs/app-api.md, "Review") and the fetch, unzip and parse step behind Play.
 
@@ -27,6 +27,45 @@ describe('review calls', () => {
       ['/review/submissions/s%2F1/decision', { method: 'POST', body: { decision: 'accept', note: 'Zq note' } }],
       ['/review/submissions/s%2F1/decision', { method: 'POST', body: { decision: 'decline', note: '' } }],
     ])
+  })
+})
+
+describe('needsFinishing', () => {
+  const sub = (status: string, origin: 'upload' | 'archive' = 'upload') => ({ submissionId: 'sub-1', origin, status }) as Parameters<typeof needsFinishing>[0]
+  const poem = (poemId: string) => ({ poemId, title: 'Zq', author: 'Qz', timelapseKey: 'k', processNoteKey: null, publishDate: null, highlighted: false })
+  const ids = poemIdsOf({ published: [poem('sub-9')], unpublished: [poem('sub-8')] })
+
+  it('collects the ids of published and unpublished poems', () => {
+    expect([...ids].sort()).toEqual(['sub-8', 'sub-9'])
+  })
+
+  it('offers it for an accepted upload with no poem', () => {
+    expect(needsFinishing(sub('accepted'), ids)).toEqual({ offer: true, enabled: true })
+  })
+
+  it('does not offer it when the poem is unpublished or published', () => {
+    expect(needsFinishing(sub('accepted'), new Set(['sub-1']))).toEqual({ offer: false })
+    expect(needsFinishing(sub('accepted'), poemIdsOf({ published: [poem('sub-1')], unpublished: [] }))).toEqual({ offer: false })
+  })
+
+  it.each(['published', 'received', 'declined', 'uploading'])('does not offer it for status %s', status => {
+    expect(needsFinishing(sub(status), ids)).toEqual({ offer: false })
+    expect(needsFinishing(sub(status), null)).toEqual({ offer: false })
+  })
+
+  it('does not offer it for an archive record', () => {
+    expect(needsFinishing(sub('accepted', 'archive'), ids)).toEqual({ offer: false })
+    expect(needsFinishing(sub('accepted', 'archive'), null)).toEqual({ offer: false })
+  })
+
+  it('offers it disabled, with the reason, when the poem list is unknown', () => {
+    const result = needsFinishing(sub('accepted'), null)
+    expect(result).toEqual({ offer: true, enabled: false, reason: POEM_LIST_UNKNOWN })
+    expect(POEM_LIST_UNKNOWN).toContain('could not be loaded')
+  })
+
+  it('offers nothing while the poem list is still being read, so it never says the list failed when it has not', () => {
+    expect(needsFinishing(sub('accepted'), 'loading')).toEqual({ offer: false })
   })
 })
 
