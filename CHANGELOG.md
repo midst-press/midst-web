@@ -3,14 +3,15 @@
 - **The list of patrons can be changed without a new release.** The patrons on the home page and the
   Funding page are now read from the site rather than written into it. In the publisher's pages, the
   **Patrons** section adds, removes, renames and reorders patrons. It also sets whether each one is
-  named on the site (Public), not named (Private), or not yet asked (Undetermined), and edits the line
-  shown after the names, such as "Anonymous donors". If the list cannot be loaded, the page says so.
+  named on the site (Public) or not (Private); a patron not yet asked shows as Undetermined until the
+  publisher chooses. It edits the line shown after the names, such as "Anonymous donors". If the list
+  cannot be loaded, the page says so.
 - **The About page lists Stuart Swerdloff as software engineer**, and the Funding page names Juliet
   Shafto as one of Midst's two volunteer staff.
 - **Poems from the archive appear on the review and poet pages.** A poem that came from the Midst
-  archive, not through an upload, shows "from the archive" where an upload shows its date. It has no
-  Play button, because there is no uploaded copy to play. An upload whose date was lost says "date not
-  recorded" and never shows a made-up date.
+  archive, not through an upload, has no Play button, because there is no uploaded copy to play. One
+  with no date says "from the archive". An upload whose date was lost says "date not recorded" and never
+  shows a made-up date.
 - **The review page offers Finish accepting** for an accepted submission whose poem was never made. If
   the list of poems cannot be read, the button is shown unavailable, with the reason.
 - **The editor guide on About the App covers the editor's Find**: Command+F on a Mac or Ctrl+F on
