@@ -45,7 +45,6 @@
     "@types/uuid": "3.4.9",
     "@types/voca": "1.4.0",
     "global.css": "1.1.0",
-    "helmet": "5.0.2",
     "immer": "4.0.2",
     "import-lazy": "4.0.0",
     "insane": "2.6.2",
