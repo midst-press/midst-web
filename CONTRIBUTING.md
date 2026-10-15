@@ -17,7 +17,7 @@ The poems, their timelapses and process notes are the poets' work. They live in 
 never in this repository, an issue, a pull request or a CI log. That includes poem text, and titles or
 poets' names from unpublished work. Pre-commit hooks refuse poem data files, but they cannot recognise
 text, so the responsibility is yours. The end-to-end tests generate synthetic poems
-(`MIDST_KEY_SCHEME=legacy npm run e2e:fixtures`); use those.
+(`MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run e2e:fixtures`); use those.
 
 ## Licence
 
@@ -38,7 +38,10 @@ fine for development; the README's "Fonts" section says how to use a copy.
 `pre-commit` is a Python tool: `pipx install pre-commit==4.6.2` (the version CI uses; `uv tool install`
 works too). Install it before `npm ci`: `npm ci` installs this clone's git hooks for you
 (`tools/install-hooks.cjs`) and fails if it cannot, and `npm test` does not run in a clone without them. A
-commit made without the hooks skips every check below and the rule about closing keywords.
+commit made without the hooks skips every check below and the rule about closing keywords. One hook runs on
+push and refuses to rewrite a branch the remote already has: merge main in instead of rebasing, and add a commit
+instead of amending one that is pushed. A clone set up before that hook existed fails each commit, saying so, until
+`npm ci` (or `pre-commit install`) runs again.
 
 Several hooks call tools from `node_modules`, so run `npm ci` first.
 
@@ -66,7 +69,7 @@ The end-to-end commands, the fixture maker and the build refuse to start without
   pull request. In the pull request that finishes an issue, write `Completes #12`: see "How an issue gets
   closed" below.
 - **Replay and scrolling.** If you change how the player follows the writing (`src/components/MidstPlayer/`,
-  especially `follow.ts`), run `MIDST_KEY_SCHEME=legacy npm run e2e:frame-budget -- --headed` on a machine with a display if you can. These
+  especially `follow.ts`), run `MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run e2e:frame-budget -- --headed` on a machine with a display if you can. These
   tests measure the scrolling over time, so they need real frame timing. They are not required locally:
   the `frame-budget` workflow runs them on every pull request.
 
