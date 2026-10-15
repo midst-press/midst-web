@@ -5,9 +5,9 @@ import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
-import { Call, callerFor } from '../app/publisher'
+import { Call, callerFor, loadList } from '../app/publisher'
 import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
-import { Decision, PlayError, decide, fetchTimelapse, reviewSubmissions, timelapseTicket } from '../app/review'
+import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket } from '../app/review'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 
@@ -23,6 +23,8 @@ const readText = (blob: Blob) => new Promise<string>((resolve, reject) => {
 function Review(): ReactElement {
   const session = APP_AVAILABLE ? currentSession(browserDeps()) : null
   const [submissions, setSubmissions] = useState<Submission[] | null>(null)
+  // 'loading' while read; null when it could not be read, and then we cannot tell which accepted submissions lack a poem.
+  const [poemIds, setPoemIds] = useState<PoemIds>('loading')
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -38,7 +40,17 @@ function Review(): ReactElement {
     setProblem(error instanceof ApiError || error instanceof PlayError ? error.message : fallback)
   }
 
+  const reloadPoemIds = async (c: Call) => {
+    try {
+      setPoemIds(poemIdsOf(await loadList(c)))
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+      setPoemIds(null)
+    }
+  }
+
   useEffect(() => {
+    if (call) reloadPoemIds(call)
     if (call) reviewSubmissions(call).then(r => setSubmissions(r.submissions)).catch(error => failed(error, 'The submissions could not be loaded.'))
     // Loaded once per visit, and again after each decision.
   }, [])
@@ -63,7 +75,7 @@ function Review(): ReactElement {
     }
   }
 
-  const decideOn = async (submission: Submission, decision: Decision) => {
+  const decideOn = async (submission: Submission, decision: Decision, finishing = false) => {
     if (!call) return
     setBusy(true)
     setNotice(null)
@@ -77,10 +89,13 @@ function Review(): ReactElement {
       return
     }
     // The decision is saved. A failure from here on is only the list.
-    setNotice(`${decision === 'accept' ? 'Accepted' : 'Declined'} “${submission.title}”.`)
+    setNotice(`${finishing ? 'Finished accepting' : decision === 'accept' ? 'Accepted' : 'Declined'} “${submission.title}”.`)
     setNotes(n => ({ ...n, [submission.submissionId]: '' }))
     // Show it decided at once, so its buttons go even if the reload below fails.
     setSubmissions(list => list && list.map(s => (s.submissionId === submission.submissionId ? { ...s, ...decided } : s)))
+    // An accept makes a poem, so the old poem list is out of date until it is read again.
+    setPoemIds('loading')
+    const poems = reloadPoemIds(call)
     try {
       setSubmissions((await reviewSubmissions(call)).submissions)
     } catch (error) {
@@ -88,6 +103,7 @@ function Review(): ReactElement {
       if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
       setProblem('The decision was saved, but the list could not be refreshed. Reload the page to see it.')
     } finally {
+      await poems
       setBusy(false)
     }
   }
@@ -133,6 +149,16 @@ function Review(): ReactElement {
                   <button type="button" disabled={busy} onClick={() => decideOn(s, 'accept')} aria-label={`Accept ${s.title}`}>Accept</button>
                   <button type="button" disabled={busy} onClick={() => decideOn(s, 'decline')} aria-label={`Decline ${s.title}`}>Decline</button>
                   </>}
+                  {(() => {
+                    const finishing = needsFinishing(s, poemIds)
+                    if (!finishing.offer) return null
+                    const reasonId = `finish-reason-${s.submissionId}`
+                    return <>
+                      <button type="button" disabled={busy || !finishing.enabled} onClick={() => decideOn(s, 'accept', true)}
+                        aria-label={`Finish accepting ${s.title}`} aria-describedby={finishing.enabled ? undefined : reasonId}>Finish accepting</button>
+                      {!finishing.enabled && <span id={reasonId} className="publisher-problem">{finishing.reason}</span>}
+                    </>
+                  })()}
                 </span>
               </li>
             ))}
