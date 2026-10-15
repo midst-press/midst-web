@@ -1,7 +1,5 @@
 {
   "note": "Declared-but-unused dependencies that already existed. Warned about, not blocking. Shrink this list; never grow it. Regenerate with: node tools/check-unused-deps.mjs --update-baseline",
   "generated": "2026-10-08",
-  "unused": [
-    "zip-js"
-  ]
+  "unused": []
 }
