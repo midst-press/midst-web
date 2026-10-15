@@ -61,7 +61,6 @@
     "react-scrollbars-custom": "4.0.25",
     "redux": "4.0.5",
     "redux-devtools-extension": "2.13.8",
-    "redux-saga": "1.1.3",
     "redux-thunk": "2.3.0",
     "roman-numeral-to-decimal": "1.0.1",
     "scroll-into-view": "1.14.1",
