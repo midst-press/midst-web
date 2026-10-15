@@ -102,11 +102,11 @@ the poet on a decision, or `null`. `poet` (the poet's email) is included only on
 `null` for an archive record with no poet.
 
 `origin` is always there: `upload` for a poem sent through the app, `archive` for a poem that came from an
-archive and was never uploaded. An **archive record** has `submittedAt` `null` (it was never submitted), is stored
-`accepted` (shown as `published` while its poem is on the published list), and has no review copy. It may also
-carry `recordedBy`, a string saying who recorded it; the field is left out when there is none, and only a
-migration writes it. A page shows "from the archive" in place of the date, and never makes a date of a `null`
-`submittedAt`.
+archive and was never uploaded. An **archive record**'s `submittedAt` is the time of the last edit in the poem's
+own file (Stuart, 16 Oct), or `null` when the file has no times. It is stored `accepted` (shown as `published`
+while its poem is on the published list), and has no review copy. It may also carry `recordedBy`, a string saying
+who recorded it; the field is left out when there is none, and only a migration writes it. A page shows "from the
+archive" in place of a `null` `submittedAt`, and never makes a date of one.
 
 **Person:**
 
@@ -177,15 +177,16 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
 - `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`. A submission still `uploading`
   is left out: `complete` never accepted a file for it, and sending again starts a new submission (#123, #125).
   An archive record is listed only when its poet's username equals the caller's; one with no poet matches nobody.
-  Newest `submittedAt` first; archive records, whose `submittedAt` is `null`, come after every upload, newest
-  `decidedAt` first.
+  Newest `submittedAt` first; records whose `submittedAt` is `null` come after all the others, newest `decidedAt`
+  first.
 
 `complete` on an archive record is 409 `archive`: it was never uploaded.
 
 ### Review (`publisher`)
 
 - `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, archive records included.
-  Newest `submittedAt` first; archive records come after every upload, newest `decidedAt` first.
+  Newest `submittedAt` first; records whose `submittedAt` is `null` come after all the others, newest `decidedAt`
+  first.
 - `GET /review/submissions/{submissionId}/timelapse` → `{ "url", "expiresAt" }`
   A pre-signed GET of the review copy written by `complete`, valid for five minutes, so the review page plays it
   with the player as it is. 404 for a submission still `uploading`, which has no review copy. 409 `archive` for

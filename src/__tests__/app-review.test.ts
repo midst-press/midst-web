@@ -94,8 +94,14 @@ describe('the review list for an archive record', () => {
     expect(line).not.toMatch(/,\s*,/)
   })
 
-  it('keeps the poet of an archive record that has one, and still shows no date', () => {
+  it('keeps the poet of an archive record that has one', () => {
     expect(reviewByline({ ...archive, poet: 'qz@example.invalid' })).toBe('by Qz Vb, qz@example.invalid, from the archive')
+  })
+
+  it('shows the date of an archive record whose file gave one, and still offers nothing to play', () => {
+    const dated = { ...archive, poet: 'qz@example.invalid', submittedAt: '2021-01-06T21:14:03.512Z' }
+    expect(reviewByline(dated)).toBe(`by Qz Vb, qz@example.invalid, ${new Date('2021-01-06T21:14:03.512Z').toLocaleDateString()}`)
+    expect(canPlay(dated)).toBe(false)
   })
 
   it('shows author, poet and date for an upload, as before', () => {

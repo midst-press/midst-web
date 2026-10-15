@@ -13,7 +13,7 @@ export interface Submission {
   author: string
   /** Where the record came from: an upload through the app, or a poem from the archive that was never uploaded. */
   origin: 'archive' | 'upload'
-  /** Null for an archive record, which was never submitted. */
+  /** For an archive record, the last edit in its own file (Stuart, 16 Oct); null when the file has no times. */
   submittedAt: string | null
   status: SubmissionStatus
   note: string | null
@@ -25,9 +25,9 @@ export interface Submission {
 
 export const ARCHIVE_WORDS = 'from the archive'
 
-/** When a submission arrived, for a person: the local date, or "from the archive". A null time is never made into a date. */
-export const whenWords = (s: Pick<Submission, 'origin' | 'submittedAt'>): string =>
-  (s.origin === 'archive' || s.submittedAt === null ? ARCHIVE_WORDS : new Date(s.submittedAt).toLocaleDateString())
+/** When a submission arrived, for a person: the local date, or "from the archive" when there is no time. A null time is never made into a date. */
+export const whenWords = (s: Pick<Submission, 'submittedAt'>): string =>
+  (s.submittedAt === null ? ARCHIVE_WORDS : new Date(s.submittedAt).toLocaleDateString())
 
 /** The publisher's line under a title: "by Author, poet, when", leaving out a poet there is none of. */
 export const reviewByline = (s: Pick<Submission, 'origin' | 'submittedAt' | 'author' | 'poet'>): string =>

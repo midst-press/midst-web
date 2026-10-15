@@ -45,20 +45,21 @@ const upload: Submission = { submissionId: 's-1', title: 'Zq xv', author: 'Qz Vb
 const archive: Submission = { submissionId: 's-2', title: 'Zq xv', author: 'Qz Vb', origin: 'archive', submittedAt: null, status: 'accepted', note: null, poet: null }
 
 describe('whenWords', () => {
-  it('says "from the archive" for an archive record, with no date and no 1970', () => {
+  it('says "from the archive" for an archive record whose file has no times, with no date and no 1970', () => {
     expect(whenWords(archive)).toBe('from the archive')
     expect(whenWords(archive)).not.toContain('1970')
   })
 
-  it('never makes a date of a null submittedAt, whatever the origin says', () => {
-    expect(whenWords({ origin: 'upload', submittedAt: null })).toBe('from the archive')
+  it('never makes a date of a null submittedAt', () => {
+    expect(whenWords({ submittedAt: null })).toBe('from the archive')
   })
 
   it('shows the local date of an upload, as before', () => {
     expect(whenWords(upload)).toBe(new Date('2026-10-15T09:30:00Z').toLocaleDateString())
   })
 
-  it('shows "from the archive" for an archive origin even when it carries a time', () => {
-    expect(whenWords({ origin: 'archive', submittedAt: '2026-10-15T09:30:00Z' })).toBe('from the archive')
+  it('shows the date of an archive record that has one: the last edit in its own file', () => {
+    const lastEdit = '2021-01-06T21:14:03.512Z'
+    expect(whenWords({ ...archive, submittedAt: lastEdit })).toBe(new Date(lastEdit).toLocaleDateString())
   })
 })
