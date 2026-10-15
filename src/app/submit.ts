@@ -11,11 +11,30 @@ export interface Submission {
   submissionId: string
   title: string
   author: string
-  submittedAt: string
+  /** Where the record came from: an upload through the app, or a poem from the archive that was never uploaded. */
+  origin: 'archive' | 'upload'
+  /** Null for an archive record, which was never submitted. */
+  submittedAt: string | null
   status: SubmissionStatus
   note: string | null
-  poet?: string
+  /** The poet's email, on the publisher's routes only; null for an archive record with no poet. */
+  poet?: string | null
+  /** Who recorded an archive record, when the migration that wrote it said. */
+  recordedBy?: string
 }
+
+export const ARCHIVE_WORDS = 'from the archive'
+
+/** When a submission arrived, for a person: the local date, or "from the archive". A null time is never made into a date. */
+export const whenWords = (s: Pick<Submission, 'origin' | 'submittedAt'>): string =>
+  (s.origin === 'archive' || s.submittedAt === null ? ARCHIVE_WORDS : new Date(s.submittedAt).toLocaleDateString())
+
+/** The publisher's line under a title: "by Author, poet, when", leaving out a poet there is none of. */
+export const reviewByline = (s: Pick<Submission, 'origin' | 'submittedAt' | 'author' | 'poet'>): string =>
+  `by ${[s.author, ...(s.poet ? [s.poet] : []), whenWords(s)].join(', ')}`
+
+/** An upload that never completed has no review copy, and an archive record never had one. */
+export const canPlay = (s: Pick<Submission, 'origin' | 'status'>): boolean => s.origin !== 'archive' && s.status !== 'uploading'
 
 interface UploadTicket {
   submissionId: string

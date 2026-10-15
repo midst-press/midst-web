@@ -1,5 +1,5 @@
 import { Call } from '../app/publisher'
-import { MAX_BYTES, fileProblem, submitPoem } from '../app/submit'
+import { MAX_BYTES, Submission, fileProblem, submitPoem, whenWords } from '../app/submit'
 
 // The poet's submission (docs/app-api.md, "Poet"): ask, upload, complete.
 
@@ -38,5 +38,27 @@ describe('submitPoem', () => {
       await expect(submitPoem(call, put, { title: 'Zq', author: 'Qz' }, file)).rejects.toThrow('could not be uploaded')
       expect(call).toHaveBeenCalledTimes(1)
     }
+  })
+})
+
+const upload: Submission = { submissionId: 's-1', title: 'Zq xv', author: 'Qz Vb', origin: 'upload', submittedAt: '2026-10-15T09:30:00Z', status: 'received', note: null }
+const archive: Submission = { submissionId: 's-2', title: 'Zq xv', author: 'Qz Vb', origin: 'archive', submittedAt: null, status: 'accepted', note: null, poet: null }
+
+describe('whenWords', () => {
+  it('says "from the archive" for an archive record, with no date and no 1970', () => {
+    expect(whenWords(archive)).toBe('from the archive')
+    expect(whenWords(archive)).not.toContain('1970')
+  })
+
+  it('never makes a date of a null submittedAt, whatever the origin says', () => {
+    expect(whenWords({ origin: 'upload', submittedAt: null })).toBe('from the archive')
+  })
+
+  it('shows the local date of an upload, as before', () => {
+    expect(whenWords(upload)).toBe(new Date('2026-10-15T09:30:00Z').toLocaleDateString())
+  })
+
+  it('shows "from the archive" for an archive origin even when it carries a time', () => {
+    expect(whenWords({ origin: 'archive', submittedAt: '2026-10-15T09:30:00Z' })).toBe('from the archive')
   })
 })

@@ -6,7 +6,7 @@ import { ApiError } from '../app/api'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
-import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem } from '../app/submit'
+import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
 
 // The poet's page (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21): send a poem as a .midst
 // file, and see where each submission stands. A prototype; the wording is Annelyse's to choose.
@@ -101,7 +101,7 @@ function Submit(): ReactElement {
           <ul className="publisher-list" aria-label="Your submissions">
             {submissions.map(s => (
               <li key={s.submissionId}>
-                <span className="publisher-poem"><strong>{s.title}</strong> <span className="publisher-author">{new Date(s.submittedAt).toLocaleDateString()}</span></span>
+                <span className="publisher-poem"><strong>{s.title}</strong> <span className="publisher-author">{whenWords(s)}</span></span>
                 <span className="publisher-actions">{STATUS_WORDS[s.status]}{s.note ? `: ${s.note}` : ''}</span>
               </li>
             ))}
