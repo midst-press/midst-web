@@ -35,7 +35,7 @@ function fixtureZip(): Buffer {
 }
 
 interface Submission { submissionId: string, title: string, author: string, poet: string | null, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
-interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean }
+interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean, unpublished?: string[], published?: string[], poemsFail?: boolean, poemReads?: number }
 
 const submission = (n: number, over: Partial<Submission> = {}): Submission =>
   ({ submissionId: `sub-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, poet: `qz${n}@example.invalid`, origin: 'upload', submittedAt: `2026-10-0${n}T09:00:00Z`, status: 'received', note: null, ...over })
@@ -59,6 +59,12 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       store.listReads += 1
       return reply(200, { submissions: store.submissions })
     }
+    if (request.method() === 'GET' && url.pathname === '/publisher/poems') {
+      store.poemReads = (store.poemReads ?? 0) + 1
+      if (store.poemsFail) return reply(503, { message: 'Service Unavailable' })
+      const poem = (poemId: string) => ({ poemId, title: poemId, author: 'Qz', timelapseKey: 'k', processNoteKey: null, publishDate: null, highlighted: false })
+      return reply(200, { listEtag: 'e', published: (store.published ?? []).map(poem), unpublished: (store.unpublished ?? []).map(poem) })
+    }
     const timelapse = /^\/review\/submissions\/([^/]+)\/timelapse$/.exec(url.pathname)
     if (request.method() === 'GET' && timelapse) return reply(200, { url: `${FILES}/review/${timelapse[1]}/timelapse.midst.zip`, expiresAt: 'x' })
     const decision = /^\/review\/submissions\/([^/]+)\/decision$/.exec(url.pathname)
@@ -70,6 +76,12 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       const body = request.postDataJSON() as { decision: string, note: string }
       store.decisions.push({ id: decision[1], ...body })
       const target = store.submissions.find(s => s.submissionId === decision[1])!
+      // The repeat accept: makes the poem if missing, leaves the decision and note as they were.
+      if (target.status === 'accepted' && body.decision === 'accept') {
+        store.unpublished = (store.unpublished ?? []).includes(target.submissionId) ? store.unpublished! : [...(store.unpublished ?? []), target.submissionId]
+        return reply(200, target)
+      }
+      if (body.decision === 'accept') store.unpublished = [...(store.unpublished ?? []), target.submissionId]
       Object.assign(target, { status: body.decision === 'accept' ? 'accepted' : 'declined', note: body.note || null })
       return reply(200, target)
     }
@@ -210,4 +222,43 @@ test('Play with an expired link says so in words, and shows no player', async ({
   await page.getByRole('button', { name: 'Play Zq 1' }).click()
   await expect(page.getByRole('alert')).toContainText('may have expired')
   await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('an accepted submission with no poem offers Finish accepting, which accepts again and reloads', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [submission(1, { status: 'accepted', note: 'Zq welcome' })], decisions: [], listReads: 0 }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  const finish = row(page, 'Zq 1').getByRole('button', { name: 'Finish accepting Zq 1' })
+  await expect(finish).toBeEnabled()
+  await finish.click()
+  await expect(page.getByRole('status')).toContainText('Finished accepting “Zq 1”')
+  await expect(finish).toHaveCount(0)
+  expect(store.listReads).toBe(2)
+  expect(store.decisions).toEqual([{ id: 'sub-1', decision: 'accept', note: '' }])
+  await expect(row(page, 'Zq 1')).toContainText('Accepted: Zq welcome')
+})
+
+test('an accepted submission whose poem is on the publisher\'s list offers no Finish accepting', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [submission(2, { status: 'accepted' }), submission(1, { status: 'published' })], decisions: [], listReads: 0, unpublished: ['sub-2'], published: ['sub-1'] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await expect(row(page, 'Zq 2')).toBeVisible()
+  // Only once the list has been served: while it loads nothing is offered either, which would pass for the wrong reason.
+  await expect.poll(() => store.poemReads).toBe(1)
+  await expect(row(page, 'Zq 2').getByRole('button', { name: 'Play Zq 2' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Finish accepting/ })).toHaveCount(0)
+})
+
+test('when the poem list cannot be loaded, Finish accepting is disabled and says why', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [submission(1, { status: 'accepted' })], decisions: [], listReads: 0, poemsFail: true }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  const finish = row(page, 'Zq 1').getByRole('button', { name: 'Finish accepting Zq 1' })
+  await expect(finish).toBeDisabled()
+  const reason = 'Can\'t tell whether this poem was made: the list of poems could not be loaded. Reload the page to try again.'
+  await expect(row(page, 'Zq 1')).toContainText(reason)
+  await expect(finish).toHaveAccessibleDescription(reason)
 })
