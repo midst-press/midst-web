@@ -48,8 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      # --legacy-peer-deps: React 18 against @types/react 16.9; see #11.
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
       # threshold, so an untested file counts as 0% and any drop fails this step.
       # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
@@ -92,7 +91,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npm run build
       - name: record what was built
         run: echo "files=$(find dist -type f | wc -l | tr -d ' ') kilobytes=$(du -sk dist | cut -f1)"
@@ -108,7 +107,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npx playwright install chromium
       # Jobs on this runner share one host, and CI runs in parallel, so a fixed port could collide.
       # playwright.config.ts and the e2e npm scripts all read MIDST_E2E_PORT.
@@ -161,7 +160,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npx playwright install chromium
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"

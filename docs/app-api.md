@@ -222,10 +222,13 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
 - `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
   `Submission`. Accepting makes it an unpublished poem. `note` is optional, at most 2,000 characters; blank is
   `null`. A decision is made only on a submission that is `received`, with one exception: accepting one that
-  is already `accepted` is 200. The decision is recorded before the poem is made, so if making the poem fails
-  the submission is left `accepted` without one; accepting again finishes it. That repeat leaves the recorded
-  decision and note as they were (a `note` sent with it is still checked, but not recorded) and returns the current `Submission`. Any other
-  decision on a submission that is not `received` is 400 `invalid`. On an archive record it is 409 `archive`.
+  is already `accepted` is allowed, and idempotent. The decision is recorded before the poem is made, so if making
+  the poem fails the submission is left `accepted` without one; accepting again makes the poem if it is missing,
+  leaves the recorded decision and note as they were (a `note` sent with it is still checked, but not recorded)
+  and returns the current `Submission` with 200. The review page offers this as "Finish accepting" when an
+  `accepted` submission's poem is not on the publisher's list (`GET /publisher/poems`), and, if that list could
+  not be loaded, shows the button disabled with the reason. Any other decision on a submission that is not
+  `received` is 400 `invalid`. On an archive record it is 409 `archive`.
 
 A submission's status becomes `published` when its poem is published, and `accepted` again if it is unpublished.
 

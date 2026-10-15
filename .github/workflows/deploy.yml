@@ -88,7 +88,7 @@ jobs:
           node-version-file: .nvmrc
       - name: Browser for the smoke check
         run: |
-          npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium
       - name: Deploy
         env:
