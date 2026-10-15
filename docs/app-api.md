@@ -155,6 +155,17 @@ Resend and disable act only on someone whose one group is `poet`: anyone else is
 publisher cannot reset a publisher's or an admin's invitation, or disable them. Admin manages those. An
 unknown `username` is 404.
 
+**Patrons** (#58): the names the site thanks on its home and Funding pages are `poems/patrons.json` in the
+publishing bucket, `{ "version": 1, "updated", "patrons": ["<name>", ...], "closing": "<line>" | null }`, served
+beside `published.json` with a one-minute `Cache-Control`. The site reads it directly; these routes edit it.
+
+- `GET /publisher/patrons` → `{ "patronsEtag", "patrons": [...], "closing" }`. Before the first save:
+  `"patronsEtag": "none"`, no names, `"closing": null`.
+- `PUT /publisher/patrons` `{ "patronsEtag", "patrons": [...], "closing" }` → the same shape, as saved. Replaces
+  the whole list, names in the order given. Each name, and `closing` unless it is null, is one line of 1 to 200
+  characters after trimming; at most 1000 names; otherwise 400 `invalid`. 409 `conflict`, with the current
+  `patronsEtag`, when someone else saved first.
+
 ### Poet (`poet`)
 
 Submitting is three steps, so the file goes straight to the bucket and never through the Lambda:
@@ -218,7 +229,7 @@ change a group without going to the AWS console, which is how the first admin is
 |---|---|---|
 | `/signed-in` | anyone | where the managed login returns to; finishes sign-in and goes on |
 | `/me` | signed in | who you are and your groups; sign out |
-| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable |
+| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable; patrons: edit the list |
 | `/submit` | poet | submit a poem, and your submissions and where each stands |
 | `/review` | publisher | submissions: play, accept or decline with a note |
 | `/admin` | admin | publishers and admins: invite, change groups, disable |
