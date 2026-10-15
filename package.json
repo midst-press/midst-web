@@ -29,7 +29,6 @@
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
-    "@fortawesome/fontawesome-free": "5.12.1",
     "@rooks/use-window-size": "4.6.1",
     "@tiptap/pm": "2.5.4",
     "@tiptap/react": "2.5.4",
