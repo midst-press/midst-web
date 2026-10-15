@@ -21,7 +21,7 @@ function Funding(): ReactElement {
         </p>
 
         <p>
-          We hope to continue to grow and to regularly share diverse new work from contemporary writers, serving as a growing library of poetry-as-process. We currently have two "staff" members (Annelyse Gelman and Jason Gillis-Grier), both volunteers, and each contributor is currently paid $50. These commission fees are pulled from runner-up earnings from UT Austin's Keene Prize and from Midst's <a href="http://www.patreon.com/midstpoetry">patrons</a>. As Midst evolves, we'll continue to share up-to-date information on funding here. We believe transparency like this is important to build a healthy, thriving literary community where people trust each other.
+          We hope to continue to grow and to regularly share diverse new work from contemporary writers, serving as a growing library of poetry-as-process. We currently have two "staff" members (Annelyse Gelman and Juliet Shafto), both volunteers, and each contributor is currently paid $50. These commission fees are pulled from runner-up earnings from UT Austin's Keene Prize and from Midst's <a href="http://www.patreon.com/midstpoetry">patrons</a>. As Midst evolves, we'll continue to share up-to-date information on funding here. We believe transparency like this is important to build a healthy, thriving literary community where people trust each other.
         </p>
 
         <p>
