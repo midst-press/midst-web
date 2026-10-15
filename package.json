@@ -38,7 +38,6 @@
     "@types/marked": "1.1.0",
     "@types/node": "12.12.42",
     "@types/react": "16.9.53",
-    "@types/react-custom-scrollbars": "4.0.6",
     "@types/react-dom": "16.8.4",
     "@types/react-helmet": "5.0.16",
     "@types/react-redux": "7.1.9",
