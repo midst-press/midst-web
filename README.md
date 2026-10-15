@@ -29,8 +29,6 @@ npm install <pkg>      # only to change dependencies; commit the lockfile change
 
 `npm ci` fails when `package.json` and `package-lock.json` disagree. That is the consistency check.
 
-`.npmrc` sets `legacy-peer-deps=true`. React 18 is installed while several packages declare peer support for React 15-17 only (`react-custom-scrollbars`, `react-helmet`, `@types/react` 16.9). The flag only stops npm refusing to resolve; the mismatch itself is tracked on GitHub (midst-web #11).
-
 ### Git hooks
 
 `npm ci` installs the git hooks for this clone (the `prepare` script runs `tools/install-hooks.cjs`) and fails if it cannot. `npm test` refuses to run in a clone without them. Outside a git clone, or when `CI` is set, the install does nothing.
