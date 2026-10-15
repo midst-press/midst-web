@@ -287,25 +287,38 @@ shasum -a 256 -c tools/midst-infra-copies.sha256
 
 ## Copies of midst-editor files
 
-Four files are copied byte for byte from midst-editor `main`, and four editor test files are copied with them:
+Four files are copied byte for byte from midst-editor, and four editor test files are copied with them:
 
 - `src/components/MidstPlayer/follow.ts` and `helpers.ts`
 - `src/buildLabel.ts`
 - `src/guide/editor-user-guide.md`
 - tests: `src/__tests__/editor-follow.test.ts`, `editor-followMore.test.ts`, `editor-trackingUtils.test.ts`, `editor-buildLabel.test.ts`
 
-A test copy must equal its original except for a header note and the import path. To bring a copy up to date, copy the original and reapply those two.
+A test copy must equal its original except for a header note and the import path.
 
-The `editor-helpers-identical` hook compares the copies with your editor checkout's `origin/main`:
+The copies are held to one editor commit, recorded in `tools/editor-copies-pin`, and not to whatever editor `main` is now. So an editor merge that changes a copied file doesn't turn every website branch red (#152). The `editor-helpers-identical` hook fails when:
+- a copy differs from that commit;
+- the pin is not a full SHA, or not on editor `main`;
+- your editor checkout doesn't have the pinned commit, or its origin is not `midst-editor`;
+- `MIDST_EDITOR_ROOT` is not set;
+- `origin/main` moves during the comparison.
+
+When editor `main` has changed a copied file since the pin, every run prints a WARNING naming the files: a copy PR is due. It doesn't fail.
 
 ```
 git -C "$MIDST_EDITOR_ROOT" fetch origin
 node tools/check-editor-helpers.mjs
 ```
 
-It throws when `MIDST_EDITOR_ROOT` is not set, when the checkout's origin is not `midst-editor`, or when `origin/main` moves during the comparison. Hooks that write files skip `follow.ts`, `helpers.ts` and three of the test copies, so formatting does not change them.
+A copy PR copies the originals (reapplying each test copy's header note and import path), then moves the pin to editor `main` and checks in one step, committing the pin with the copies:
 
-CI on Gitea clones editor `main` with a read-only deploy key (`MIDST_EDITOR_DEPLOY_KEY`). CI on GitHub checks out the public repository with no credential.
+```
+node tools/check-editor-helpers.mjs --pin-to-main
+```
+
+Hooks that write files skip `follow.ts`, `helpers.ts` and three of the test copies, so formatting does not change them.
+
+CI on Gitea clones editor `main`, with its history, using a read-only deploy key (`MIDST_EDITOR_DEPLOY_KEY`). CI on GitHub checks out the public repository, also with history, and with no credential. So on GitHub the pin must be an editor commit that has been published there.
 
 ## Contributing
 

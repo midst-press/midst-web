@@ -37,7 +37,7 @@ repos:
   - repo: local
     hooks:
       - id: editor-helpers-identical
-        name: copied player helpers and their tests match midst-editor main
+        name: copied player helpers and their tests match the pinned midst-editor commit
         language: system
         entry: node tools/check-editor-helpers.mjs
         pass_filenames: false

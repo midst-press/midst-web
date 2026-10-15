@@ -10,7 +10,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
-import { check, expectedTestCopy, headerNote } from './check-editor-helpers.mjs'
+import { check, expectedTestCopy, headerNote, PIN_FILE } from './check-editor-helpers.mjs'
 
 const EDITOR_FILES = {
   'src/renderer/components/Replay/follow.ts': 'export const ease = (zq: number) => zq\n',
@@ -60,13 +60,18 @@ function fixture(t, origin = 'stuartswerdloff@gitea-server:The_Kindled/midst-edi
     const original = EDITOR_FILES[upstream]
     write(web, local, originalImport ? expectedTestCopy(original, upstream, originalImport, copyImport) : original)
   }
-  return { editor, web }
+  const pinTo = commit => write(web, PIN_FILE, `${commit}\n`)
+  pinTo(git('rev-parse', 'HEAD').toString().trim())
+  return { editor, web, git, pinTo }
 }
+const commitAll = (git, message) =>
+  git('-c', 'user.name=zq', '-c', 'user.email=zq@example.invalid', 'commit', '--quiet', '--no-verify', '-am', message)
 const edit = (root, path, change) => writeFileSync(join(root, path), change(readFileSync(join(root, path), 'utf8')))
 
-test('faithful copies pass and the editor main SHA is reported', t => {
-  const { editor, web } = fixture(t)
-  assert.match(check(editor, web), /^[a-f0-9]{40}$/)
+test('faithful copies pass, and the pin, editor main and nothing behind are reported', t => {
+  const { editor, web, git } = fixture(t)
+  const head = git('rev-parse', 'HEAD').toString().trim()
+  assert.deepEqual(check(editor, web), { pin: head, main: head, behind: [] })
 })
 
 test('the note goes first, or directly after a jest-environment docblock', () => {
@@ -116,14 +121,46 @@ test('a copied test fails without its note, with an altered note, with an added 
   }
 })
 
-test('a change on editor main fails the copy until it is copied again', t => {
-  const { editor, web } = fixture(t)
+// midst-web #152: an editor merge must not turn the website red; it is reported until a copy PR lands.
+test('a change on editor main is reported as behind, and fails nothing, until the copy PR moves the pin', t => {
+  const { editor, web, git, pinTo } = fixture(t)
+  const pinned = git('rev-parse', 'HEAD').toString().trim()
   edit(editor, 'src/__tests__/trackingUtils.test.ts', text => text + "it('later', () => {});\n")
-  const git = gitIn(editor)
-  git('-c', 'user.name=zq', '-c', 'user.email=zq@example.invalid', 'commit', '--quiet', '--no-verify', '-am', 'xv')
-  assert.match(check(editor, web), /^[a-f0-9]{40}$/, 'origin/main has not moved yet')
+  commitAll(git, 'xv')
   git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+  const main = git('rev-parse', 'HEAD').toString().trim()
+  assert.deepEqual(check(editor, web), { pin: pinned, main, behind: ['src/__tests__/trackingUtils.test.ts'] })
+  // Moving the pin without copying is caught: the copy no longer matches the pinned commit.
+  pinTo(main)
   assert.throws(() => check(editor, web), /Copied editor test differs.*editor-trackingUtils/)
+  // Copying as well clears it.
+  const [local, upstream, originalImport, copyImport] = WEB_COPIES.find(([l]) => l.endsWith('editor-trackingUtils.test.ts'))
+  write(web, local, expectedTestCopy(readFileSync(join(editor, upstream), 'utf8'), upstream, originalImport, copyImport))
+  assert.deepEqual(check(editor, web), { pin: main, main, behind: [] })
+})
+
+test('a pin that is not on editor main is refused, even when the copies match it', t => {
+  const { editor, web, git, pinTo } = fixture(t)
+  git('checkout', '--quiet', '-b', 'side')
+  edit(editor, 'src/shared/buildLabel.ts', text => text + '// side\n')
+  commitAll(git, 'side')
+  pinTo(git('rev-parse', 'HEAD').toString().trim())
+  write(web, 'src/buildLabel.ts', readFileSync(join(editor, 'src/shared/buildLabel.ts'), 'utf8'))
+  assert.throws(() => check(editor, web), /is not on editor main/)
+})
+
+test('a pin the checkout does not have is refused, and says to fetch', t => {
+  const { editor, web, pinTo } = fixture(t)
+  pinTo('0123456789abcdef0123456789abcdef01234567')
+  assert.throws(() => check(editor, web), /is not in .*: fetch midst-editor/)
+})
+
+test('a pin that is not one full SHA is refused', t => {
+  const { editor, web, git, pinTo } = fixture(t)
+  for (const bad of ['', 'main', git('rev-parse', '--short', 'HEAD').toString().trim(), 'zq\nxv']) {
+    pinTo(bad)
+    assert.throws(() => check(editor, web), /must hold one full editor commit SHA/)
+  }
 })
 
 test('a checkout that is not midst-editor is refused', t => {
