@@ -63,7 +63,6 @@
     "redux-devtools-extension": "2.13.8",
     "redux-thunk": "2.3.0",
     "smoothscroll-polyfill": "0.4.4",
-    "striptags": "3.1.1",
     "tone": "13.8.34",
     "uuid": "3.4.0",
     "voca": "1.4.0",
