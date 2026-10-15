@@ -6,7 +6,7 @@ import { ApiError } from '../app/api'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor } from '../app/publisher'
-import { STATUS_WORDS, Submission } from '../app/submit'
+import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
 import { Decision, PlayError, decide, fetchTimelapse, reviewSubmissions, timelapseTicket } from '../app/review'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
@@ -116,13 +116,13 @@ function Review(): ReactElement {
             {submissions.map(s => (
               <li key={s.submissionId}>
                 <span className="publisher-poem">
-                  <strong>{s.title}</strong> <span className="publisher-author">by {s.author}, {s.poet}, {new Date(s.submittedAt).toLocaleDateString()}</span>
+                  <strong>{s.title}</strong> <span className="publisher-author">{reviewByline(s)}</span>
                   <br />
                   {STATUS_WORDS[s.status]}{s.note ? `: ${s.note}` : ''}
                 </span>
                 <span className="publisher-actions">
-                  {/* An upload that never completed has no review copy to play. */}
-                  {s.status !== 'uploading' && <button type="button" disabled={busy} onClick={() => play(s)} aria-label={`Play ${s.title}`}>Play</button>}
+                  {/* An upload that never completed has no review copy to play, and nor does an archive record. */}
+                  {canPlay(s) && <button type="button" disabled={busy} onClick={() => play(s)} aria-label={`Play ${s.title}`}>Play</button>}
                   {/* Only a submission still waiting to be read is decided here; a decided one shows its status. */}
                   {s.status === 'received' && <>
                   <label>
