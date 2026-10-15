@@ -46,7 +46,6 @@
     "@types/voca": "1.4.0",
     "global.css": "1.1.0",
     "immer": "4.0.2",
-    "import-lazy": "4.0.0",
     "insane": "2.6.2",
     "jquery": "3.5.1",
     "jquery-ui": "1.12.1",
