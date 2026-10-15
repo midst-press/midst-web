@@ -38,7 +38,10 @@ def is_key(value):
 
 def recorded_keys(listing):
     """Every key the site will fetch from a parsed published.json; raises ValueError if it is not well formed."""
-    if not isinstance(listing, dict) or listing.get("version") != 1 or not isinstance(listing.get("poems"), list):
+    # The site's test is `json.version !== 1`. Python's True == 1, so a boolean is refused by name (alden-ec2221c7);
+    # 1.0 stays accepted, as it is by the site.
+    version = listing.get("version") if isinstance(listing, dict) else None
+    if isinstance(version, bool) or version != 1 or not isinstance(listing.get("poems"), list):
         raise ValueError("published.json does not have version 1 and a list of poems")
     keys = []
     seen = set()
