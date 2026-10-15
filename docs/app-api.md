@@ -179,7 +179,9 @@ The routes:
     why. Only the Patreon sync (a later PR) makes someone undetermined.
 - 409 `conflict`, with the current `patronsEtag`, when someone else saved first.
 - 500 `public_copy_failed`, with the new `patronsEtag`, when the list was saved but the site's copy was not
-  written. Saving again writes it.
+  written; until the next save, the copy may still name someone just made private. Saving again writes it.
+- The site's copy may briefly be one save behind when two saves overlap; a save that answers 200 leaves it derived
+  from a list at least as new as its own.
 
 ### Poet (`poet`)
 
