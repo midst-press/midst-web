@@ -155,16 +155,31 @@ Resend and disable act only on someone whose one group is `poet`: anyone else is
 publisher cannot reset a publisher's or an admin's invitation, or disable them. Admin manages those. An
 unknown `username` is 404.
 
-**Patrons** (#58): the names the site thanks on its home and Funding pages are `poems/patrons.json` in the
-publishing bucket, `{ "version": 1, "updated", "patrons": ["<name>", ...], "closing": "<line>" | null }`, served
-beside `published.json` with a one-minute `Cache-Control`. The site reads it directly; these routes edit it.
+**Patrons** (#58). Every patron has a `visibility`: `public`, `private` or `undetermined` (not yet asked). Only
+public patrons are named on the site.
 
-- `GET /publisher/patrons` → `{ "patronsEtag", "patrons": [...], "closing" }`. Before the first save:
-  `"patronsEtag": "none"`, no names, `"closing": null`.
-- `PUT /publisher/patrons` `{ "patronsEtag", "patrons": [...], "closing" }` → the same shape, as saved. Replaces
-  the whole list, names in the order given. Each name, and `closing` unless it is null, is one line of 1 to 200
-  characters after trimming; at most 1000 names; otherwise 400 `invalid`. 409 `conflict`, with the current
-  `patronsEtag`, when someone else saved first.
+- The full list is private: `patrons/patrons.json` in the draft bucket,
+  `{ "version": 1, "updated", "patrons": [{ "id", "name", "visibility" }, ...], "closing": "<line>" | null }`.
+- Every save also writes the site's copy, `site/patrons.json` in the publishing bucket, served at
+  `/site/patrons.json` with a one-minute `Cache-Control`. It holds the public names only, in order:
+  `{ "version": 1, "updated", "patrons": ["<name>", ...], "closing" }`. The site reads that file, never the routes.
+
+The routes:
+
+- `GET /publisher/patrons` → `{ "patronsEtag", "patrons": [{ "id", "name", "visibility" }, ...], "closing" }`. Before
+  the first save: `"patronsEtag": "none"`, no patrons, `"closing": null`.
+- `PUT /publisher/patrons` `{ "patronsEtag", "patrons": [{ "id"?, "name", "visibility" }, ...], "closing" }` → the
+  same shape as GET, as saved. Replaces the whole list in the order given: add (no `id`; the server makes one),
+  remove, reorder, rename, change visibility. Each name, and `closing` unless it is null, is one line of 1 to 200
+  characters after trimming; at most 1000 patrons; otherwise 400 `invalid`.
+- Visibility, per patron, against what is stored:
+  - public to private, and private to public: allowed;
+  - undetermined to public or private: allowed (someone who says no becomes private);
+  - anything to undetermined, or a new patron as undetermined: 400 `refused`, with a message naming the patron and
+    why. Only the Patreon sync (a later PR) makes someone undetermined.
+- 409 `conflict`, with the current `patronsEtag`, when someone else saved first.
+- 500 `public_copy_failed`, with the new `patronsEtag`, when the list was saved but the site's copy was not
+  written. Saving again writes it.
 
 ### Poet (`poet`)
 

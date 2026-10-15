@@ -1,5 +1,4 @@
 import { PATRONS_URL, loadPatrons, parsePatrons } from '../patrons'
-import { POEMS_URL } from '../config'
 
 // The site's read of patrons.json (#58). Names are invented.
 
@@ -34,10 +33,10 @@ describe('loadPatrons', () => {
   const answer = (status: number, body: unknown) =>
     jest.fn(async () => ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response)
 
-  it('reads patrons.json beside published.json, revalidating, and parses it', async () => {
+  it('reads /site/patrons.json from the site’s own origin, revalidating, and parses it', async () => {
     const request = answer(200, FILE)
     expect(await loadPatrons(request)).toEqual({ patrons: ['Zq Vel', 'Orrin Taf'], closing: 'Anonymous donors' })
-    expect(PATRONS_URL).toBe(`${POEMS_URL}patrons.json`)
+    expect(PATRONS_URL).toBe('/site/patrons.json')
     expect(request).toHaveBeenCalledWith(PATRONS_URL, { cache: 'no-cache' })
   })
 

@@ -1,20 +1,19 @@
 /*
- * The patrons the site thanks (#58). They are data, not code: poems/patrons.json in the publishing bucket, beside
- * published.json and served from the same place, which the publisher edits on their page (docs/app-api.md,
- * "Patrons"). The site reads it when a page that shows them is opened.
+ * The patrons the site thanks (#58). They are data, not code: /site/patrons.json, public site data served by the
+ * same distribution as the site (site/ in the publishing bucket). It holds only the patrons who agreed to be named;
+ * the back end writes it whenever the publisher saves the full list on their page (docs/app-api.md, "Patrons").
+ * The site reads it when a page that shows them is opened.
  *
  *   { "version": 1, "updated": "<ISO time>", "patrons": ["<name>", ...], "closing": "Anonymous donors" | null }
  *
  * The names are shown in the order given, then the closing line.
  */
-import { POEMS_URL } from './config'
-
 export interface Patrons {
   patrons: string[]
   closing: string | null
 }
 
-export const PATRONS_URL = `${POEMS_URL}patrons.json`
+export const PATRONS_URL = '/site/patrons.json'
 
 const isLine = (value: unknown): value is string => typeof value === 'string' && value.trim() !== ''
 
