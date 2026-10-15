@@ -47,7 +47,10 @@
 #      tools/poem-canary.mjs, HEAD requests, no credentials); if a timelapse is unreachable, stop
 #      before anything is uploaded
 #   5. sync dist/ to the site bucket, index.html last and uncached, so a visitor never gets a
-#      new index.html pointing at assets that are not uploaded yet
+#      new index.html pointing at assets that are not uploaded yet. Files whose names carry Parcel's
+#      content hash (name.<8 hex>.ext, and their .map) go first, every one re-sent, with Cache-Control
+#      "public, max-age=31536000, immutable": a changed file gets a new name (midst-infra #75). Every
+#      other file keeps the bucket's default. A build with no hashed file is refused.
 #   6. upload site-extra/ (robots.txt, .well-known/tdmrep.json: the AI-training opt-out)
 #   7. upload deployed.json: the midst-web SHA, the tag, the key scheme and the time, so "what is deployed?" has an answer
 #   8. invalidate the distribution and wait for it
@@ -178,13 +181,41 @@ python3 -c 'import json,sys,datetime; print(json.dumps({"midst-web": sys.argv[1]
   "key_scheme": sys.argv[2], "poem_list": sys.argv[4], "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}))' \
   "$SHA" "$SCHEME" "$TAG" "$POEM_LIST" > "$WT/deployed.json"
 
+# Parcel names a bundled file name.<8 hex>.ext, so a changed file is a new name and a name never changes
+# content: those are cached a year as immutable (midst-infra #75). The list is made from the build itself.
+IMMUTABLE='public, max-age=31536000, immutable'
+python3 -c '
+import os, re, sys
+root = sys.argv[1]
+for d, _, files in os.walk(root):
+    for f in files:
+        rel = os.path.relpath(os.path.join(d, f), root)
+        if re.search(r"\.[0-9a-f]{8}\.[A-Za-z0-9]+(\.map)?$", rel):
+            sys.stdout.write(rel + "\0")' "$WT/dist" > "$WT/hashed.list" \
+  || { echo "could not list the build's files (python's error is above); nothing uploaded." >&2; exit 1; }
+HASHED=()
+while IFS= read -r -d '' f; do HASHED+=("$f"); done < "$WT/hashed.list"
+[ "${#HASHED[@]}" -gt 0 ] || { echo "the build has no content-hashed files (name.<8 hex>.ext); nothing uploaded." >&2; exit 1; }
+HASHED_ARGS=(--exclude '*')
+REST_ARGS=(--exclude index.html --exclude README.md)
+for f in "${HASHED[@]}"; do
+  case "$f" in *[\*\?\[\]]*) echo "a hashed file name holds a glob character, so it cannot be named to aws s3 sync: $f" >&2; exit 1 ;; esac
+  HASHED_ARGS+=(--include "$f"); REST_ARGS+=(--exclude "$f")
+done
+echo "content-hashed files, cached a year as immutable: ${#HASHED[@]}"
+
 if [ $DRY = 1 ]; then
-  aws s3 sync "$WT/dist" "s3://$BUCKET/" --exclude index.html --exclude README.md --dryrun | sed -n '1,20p'
+  aws s3 cp "$WT/dist" "s3://$BUCKET/" --recursive "${HASHED_ARGS[@]}" --cache-control "$IMMUTABLE" --dryrun | sed -n '1,20p'
+  aws s3 sync "$WT/dist" "s3://$BUCKET/" "${REST_ARGS[@]}" --dryrun | sed -n '1,20p'
   echo "(dry run) then index.html, site-extra/, deployed.json, and an invalidation of /* on $DIST"
   exit 0
 fi
 
-aws s3 sync "$WT/dist" "s3://$BUCKET/" --exclude index.html --exclude README.md --only-show-errors
+# cp, not sync: sync skips a file already in the bucket at the same size and time, which would leave a bundle
+# from an earlier deploy without the header. A hashed name never changes content, so re-sending is safe
+# (river-2fc1630e, review of #77).
+aws s3 cp "$WT/dist" "s3://$BUCKET/" --recursive "${HASHED_ARGS[@]}" --cache-control "$IMMUTABLE" --only-show-errors
+aws s3 sync "$WT/dist" "s3://$BUCKET/" "${REST_ARGS[@]}" --only-show-errors
 aws s3 cp "$WT/dist/index.html" "s3://$BUCKET/index.html" --cache-control no-cache --only-show-errors
 aws s3 cp "$EXTRA/robots.txt" "s3://$BUCKET/robots.txt" --content-type text/plain --only-show-errors
 aws s3 cp "$EXTRA/.well-known/tdmrep.json" "s3://$BUCKET/.well-known/tdmrep.json" \
