@@ -38,7 +38,10 @@ fine for development; the README's "Fonts" section says how to use a copy.
 `pre-commit` is a Python tool: `pipx install pre-commit==4.6.2` (the version CI uses; `uv tool install`
 works too). Install it before `npm ci`: `npm ci` installs this clone's git hooks for you
 (`tools/install-hooks.cjs`) and fails if it cannot, and `npm test` does not run in a clone without them. A
-commit made without the hooks skips every check below and the rule about closing keywords.
+commit made without the hooks skips every check below and the rule about closing keywords. One hook runs on
+push and refuses to rewrite a branch the remote already has: merge main in instead of rebasing, and add a commit
+instead of amending one that is pushed. A clone set up before that hook existed fails each commit, saying so, until
+`npm ci` (or `pre-commit install`) runs again.
 
 Several hooks call tools from `node_modules`, so run `npm ci` first.
 

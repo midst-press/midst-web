@@ -10,7 +10,10 @@
 # will certainly destroy its diffability against upstream. One anchor, aliased by every hook that
 # WRITES, so the list cannot drift between them. Hooks that only VALIDATE (check-json, check-yaml)
 # deliberately still cover these files.
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+# The checks run on commit, and in CI by `pre-commit run`. Only the hooks below that name another stage run there:
+# the closing-keyword check on the commit message, the force-push refusal on push.
+default_stages: [pre-commit, manual]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -154,8 +157,24 @@ repos:
         entry: python3 tools/closing_refs.py --message-file
         stages: [commit-msg]
       - id: midst-infra-copies
-        name: tools/closing_refs.py, tools/issue_flow.py and deploy/beta/ are copies from midst-infra (change them there first, then here with the checksums)
+        name: tools/closing_refs.py, tools/issue_flow.py, tools/refuse_force_push.py and deploy/beta/ are copies from midst-infra (change them there first, then here with the checksums)
         language: system
         entry: shasum -a 256 -c tools/midst-infra-copies.sha256
         pass_filenames: false
-        files: '^(tools/(closing_refs\.py|issue_flow\.py|midst-infra-copies\.sha256)|deploy/beta/.*)$'
+        files: '^(tools/(closing_refs\.py|issue_flow\.py|refuse_force_push\.py|midst-infra-copies\.sha256)|deploy/beta/.*)$'
+
+      # ---- a pushed branch is never rewritten. The servers refuse it (Gitea and GitHub); this says so before
+      # anything is sent, and what to do instead. A copy from midst-infra, tested there. ----
+      - id: refuse-force-push
+        name: no rewriting a pushed branch (merge the base in instead of rebasing)
+        language: system
+        entry: python3 tools/refuse_force_push.py
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
+      - id: pre-push-hook-installed
+        name: this clone has the pre-push hook (npm ci or pre-commit install adds it)
+        language: system
+        entry: python3 tools/refuse_force_push.py --installed
+        always_run: true
+        pass_filenames: false
