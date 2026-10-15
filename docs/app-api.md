@@ -105,8 +105,8 @@ the poet on a decision, or `null`. `poet` (the poet's email) is included only on
 archive and was never uploaded. An **archive record**'s `submittedAt` is the time of the last edit in the poem's
 own file (Stuart, 16 Oct), or `null` when the file has no times. It is stored `accepted` (shown as `published`
 while its poem is on the published list), and has no review copy. It may also carry `recordedBy`, a string saying
-who recorded it; the field is left out when there is none, and only a migration writes it. A page shows "from the
-archive" in place of a `null` `submittedAt`, and never makes a date of one.
+who recorded it; the field is left out when there is none, and only a migration writes it. A page never makes a date
+of a `null` `submittedAt`: it shows "from the archive" for an archive record and "date not recorded" for any other.
 
 **Person:**
 

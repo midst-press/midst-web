@@ -25,9 +25,17 @@ export interface Submission {
 
 export const ARCHIVE_WORDS = 'from the archive'
 
-/** When a submission arrived, for a person: the local date, or "from the archive" when there is no time. A null time is never made into a date. */
-export const whenWords = (s: Pick<Submission, 'submittedAt'>): string =>
-  (s.submittedAt === null ? ARCHIVE_WORDS : new Date(s.submittedAt).toLocaleDateString())
+export const NO_DATE_WORDS = 'date not recorded'
+
+/**
+ * When a submission arrived, for a person: the local date; with no time, "from the archive" for an archive record and
+ * "date not recorded" otherwise, so a lost date on an upload is not passed off as provenance (silas-397300f6, review
+ * of #157). A null time is never made into a date.
+ */
+export const whenWords = (s: Pick<Submission, 'origin' | 'submittedAt'>): string => {
+  if (s.submittedAt !== null) return new Date(s.submittedAt).toLocaleDateString()
+  return s.origin === 'archive' ? ARCHIVE_WORDS : NO_DATE_WORDS
+}
 
 /** The publisher's line under a title: "by Author, poet, when", leaving out a poet there is none of. */
 export const reviewByline = (s: Pick<Submission, 'origin' | 'submittedAt' | 'author' | 'poet'>): string =>

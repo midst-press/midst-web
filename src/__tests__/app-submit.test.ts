@@ -50,8 +50,8 @@ describe('whenWords', () => {
     expect(whenWords(archive)).not.toContain('1970')
   })
 
-  it('never makes a date of a null submittedAt', () => {
-    expect(whenWords({ submittedAt: null })).toBe('from the archive')
+  it('says "date not recorded" for an upload with no time, never "from the archive" and never a date', () => {
+    expect(whenWords({ origin: 'upload', submittedAt: null })).toBe('date not recorded')
   })
 
   it('shows the local date of an upload, as before', () => {
