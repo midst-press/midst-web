@@ -60,7 +60,7 @@ Both refuse to start without `MIDST_KEY_SCHEME` and `MIDST_POEM_LIST`. See "Key 
 
 Both pass `--no-autoinstall` to Parcel on purpose. A missing dependency fails where you can see it, not only in CI.
 
-Without the `MIDST_APP_*` variables the build has no signed-in pages (see "The beta app"). Without `MIDST_POEMS_URL` the site reads poems from the production bucket.
+Without all three `MIDST_APP_*` variables the beta app is not available: its pages are still in the build, and each says so (see "The beta app"). Without `MIDST_POEMS_URL` the site reads poems from the production bucket.
 
 ## Tests
 
@@ -132,7 +132,7 @@ This runs the unit tests, then the end-to-end suite with `MIDST_COVERAGE=1`, and
 - The coverage run builds the end-to-end bundle without minifying (`--no-optimize`), because a minified bundle cannot be mapped back. So it does not test the build that ships.
 - It reports three layers over every file: unit only, end-to-end only, and combined. A file no test loads is listed at 0%.
 - Jest also writes `coverage/unit/coverage-final.json`. The report does not read it, because Jest's converter counts every line as a statement and its maps cannot be merged with these. The floors in `package.json` are Jest's own figures.
-- `e2e/coverage-control.ts` holds one function that runs when the module loads and one that nothing calls. The script withholds every figure unless each layer shows exactly that.
+- `e2e/coverage-control.ts` holds one function that runs when the module loads and one that nothing calls. The script withholds every figure unless the end-to-end layer, and the unit layer when one was recorded, shows exactly that. With no unit layer recorded (`coverage/unit-raw` absent) it says so and reports end-to-end figures only, the combined equal to them; `npm run coverage` records the unit layer first, so this happens only when the reporter is run on its own.
 - It prints file paths and percentages, never source text. The raw recordings in `coverage/raw/` hold built JavaScript and stay on disk.
 
 The `asset-canary`, `asset-fetch` and `midst-file` specs run `src/` code in Node, not in a page, so this report does not count what they execute. Coverage shows what ran, not what was asserted. The combined figure is not a gate.
@@ -249,7 +249,7 @@ The `canary` workflow runs it daily at 06:17 UTC under `legacy` and opens an iss
 
 ## The beta app
 
-The beta app is a set of signed-in pages in the same bundle: a poet submits a poem, a publisher reviews and publishes, an admin manages publishers. Sign-in is Cognito's managed login. It is built only when `MIDST_APP_API_URL`, `MIDST_APP_AUTH_DOMAIN` and `MIDST_APP_CLIENT_ID` are set.
+The beta app is a set of signed-in pages in the same bundle: a poet submits a poem, a publisher reviews and publishes, an admin manages publishers. Sign-in is Cognito's managed login. The app is available only when `MIDST_APP_API_URL`, `MIDST_APP_AUTH_DOMAIN` and `MIDST_APP_CLIENT_ID` are all set; otherwise its routes are still there and each page says the app is not available.
 
 | Path | Who | What |
 |---|---|---|
@@ -273,7 +273,7 @@ The workflow runs `deploy/beta/deploy_site.sh`. The script builds at the tag, ch
 
 The workflow takes its settings from the `Beta` environment: `MIDST_KEY_SCHEME`, `MIDST_POEM_LIST`, `MIDST_SITE_BUCKET`, `MIDST_SITE_DISTRIBUTION`, `MIDST_POEMS_URL`, `MIDST_SITE_URL`, `AWS_REGION`, the three `MIDST_APP_*` values, and `MIDST_VERIFIER` (the person the released issues are handed to); and the secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. After a successful deploy, `tools/issue_flow.py released` hands the release's issues to the verifier.
 
-Run the script by hand with `--dry-run` to build and print what would be uploaded without writing to AWS. It reads the site's CloudFormation stack (`--stack`, default `midst-press-beta-site`), so it needs AWS credentials that can read it, unless you give the four values with `--site`:
+Run the script by hand with `--dry-run` to build and print what would be uploaded without writing to AWS. It always needs AWS credentials: it checks who it is running as (`aws sts get-caller-identity`) and lists the upload with `aws s3 sync --dryrun`. It also reads the site's CloudFormation stack (`--stack`, default `midst-press-beta-site`); give the four values with `--site` to avoid needing permission to read the stack:
 
 ```
 bash deploy/beta/deploy_site.sh --web-repo <clone> --key-scheme legacy --poem-list bundled --dry-run
