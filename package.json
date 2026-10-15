@@ -106,7 +106,6 @@
   "devDependencies": {
     "@babel/core": "7.10.0",
     "@playwright/test": "^1.64.0",
-    "assert": "2.1.0",
     "depcheck": "1.4.7",
     "istanbul-lib-coverage": "3.2.2",
     "jest": "^30.5.2",
