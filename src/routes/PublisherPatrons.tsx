@@ -11,7 +11,7 @@ import {
 
 export const SAVED = 'Saved. The site shows the public names within a minute.'
 export const CONFLICT = 'Someone else saved the patrons list while you were editing. It has been reloaded; please make your change again.'
-export const NOT_RELOADED = 'The patrons list changed on the server and could not be reloaded. Your unsaved changes are still shown, but cannot be saved until the list is reloaded.'
+export const NOT_RELOADED = 'The patrons list changed on the server and could not be reloaded, so these changes cannot be saved. Reloading replaces them with the server’s list: note anything you want to keep first.'
 export const RELOADED = 'The list has been reloaded.'
 
 interface Props {
