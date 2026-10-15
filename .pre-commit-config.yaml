@@ -42,6 +42,8 @@ repos:
         entry: node tools/check-editor-helpers.mjs
         pass_filenames: false
         always_run: true
+        # Show the output when it passes too: that is where the warning about copies behind editor main is.
+        verbose: true
       - id: editor-helpers-check-self-test
         name: the provenance check passes on faithful copies and fails on anything else
         language: system
