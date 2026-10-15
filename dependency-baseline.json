@@ -6,7 +6,6 @@
     "@types/body-scroll-lock",
     "@types/js-cookie",
     "@types/mustache",
-    "@types/node",
     "@types/qs",
     "@types/react-beautiful-dnd",
     "@types/react-custom-scrollbars",
