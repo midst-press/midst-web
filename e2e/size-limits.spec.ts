@@ -167,7 +167,8 @@ test('size limits: load, play, scrub', async ({ page, baseURL }) => {
   const failures: Failure[] = []
   const m: Record<string, unknown> = {}
   const crashes: string[] = []
-  const consoleErrors: string[] = []
+  // Counted, never kept: on a real poem a console message can carry its name or text.
+  let consoleErrors = 0
   let server: Server | undefined
   let dead: string | undefined
   const note = (step: string, e: unknown) => failures.push({ step, reason: String((e as Error)?.message ?? e).slice(0, 600) })
@@ -190,7 +191,7 @@ test('size limits: load, play, scrub', async ({ page, baseURL }) => {
     page.on('crash', () => crashes.push('page crashed (crash event)'))
     page.on('pageerror', e => crashes.push(`pageerror: ${String(e).slice(0, 200)}`))
     // Aborted third-party requests (analytics, fonts) log "Failed to load resource"; any other console error is kept as information.
-    page.on('console', c => { if (c.type() === 'error' && !/Failed to load resource/.test(c.text())) consoleErrors.push(c.text().slice(0, 200)) })
+    page.on('console', c => { if (c.type() === 'error' && !/Failed to load resource/.test(c.text())) consoleErrors += 1 })
 
     const zipStart = Date.now()
     await zipFile(base.replace(/\.zip$/, ''), FILE, zipPath)
@@ -326,10 +327,10 @@ test('size limits: load, play, scrub', async ({ page, baseURL }) => {
     note('harness', e)
   } finally {
     if (crashes.length) failures.push({ step: 'crash', reason: crashes.slice(0, 5).join(' | ') })
-    m.consoleErrors = consoleErrors.slice(0, 5)
+    m.consoleErrors = consoleErrors
     writeFileSync(RESULT, JSON.stringify({
       spec: 'web',
-      file: FILE,
+      // Size only, never the path: a hand run on a real poem would put its name in the result.
       fileBytes,
       finalChars: chars,
       browser: page.context().browser()?.version(),
