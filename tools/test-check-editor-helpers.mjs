@@ -139,6 +139,21 @@ test('a change on editor main is reported as behind, and fails nothing, until th
   assert.deepEqual(check(editor, web), { pin: main, main, behind: [] })
 })
 
+test('a copied file that editor main deletes or moves is reported as behind, and fails nothing', t => {
+  const { editor, web, git } = fixture(t)
+  const pinned = git('rev-parse', 'HEAD').toString().trim()
+  git('rm', '--quiet', 'src/renderer/components/Replay/follow.ts')
+  git('mv', 'docs/user-guide.md', 'docs/guide.md')
+  git('-c', 'user.name=zq', '-c', 'user.email=zq@example.invalid', 'commit', '--quiet', '--no-verify', '-m', 'xv')
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+  const main = git('rev-parse', 'HEAD').toString().trim()
+  assert.deepEqual(check(editor, web), {
+    pin: pinned,
+    main,
+    behind: ['src/renderer/components/Replay/follow.ts (gone from editor main)', 'docs/user-guide.md (gone from editor main)'],
+  })
+})
+
 test('a pin that is not on editor main is refused, even when the copies match it', t => {
   const { editor, web, git, pinTo } = fixture(t)
   git('checkout', '--quiet', '-b', 'side')

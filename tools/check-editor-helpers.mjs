@@ -55,13 +55,27 @@ const UPSTREAMS = [...HELPERS, ...TESTS].map(([, upstream]) => upstream)
 
 // Throws on a copy that differs from the pinned editor commit, a pin that is not on editor main, or a
 // checkout that is not midst-editor. Returns the pin, editor main, and the copied editor files that have
-// changed on main since the pin (the copies a copy PR is due for).
-export function check(editorRoot, webRoot) {
-  // Git hooks export repository-local variables; -C alone does not escape the website's GIT_DIR.
+// changed on main since the pin, or that main no longer has (the copies a copy PR is due for).
+// git in the editor checkout. Git hooks export repository-local variables; -C alone does not escape the
+// website's GIT_DIR, so they are removed.
+export function editorGit(editorRoot) {
   const env = { ...process.env }
   const localVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' }).trim().split('\n')
   for (const name of localVariables) delete env[name]
-  const git = args => execFileSync('git', ['-C', editorRoot, ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+  return args => execFileSync('git', ['-C', editorRoot, ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+}
+
+const exists = (git, commit, path) => {
+  try {
+    git(['cat-file', '-e', `${commit}:${path}`])
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function check(editorRoot, webRoot) {
+  const git = editorGit(editorRoot)
   const origin = git(['remote', 'get-url', 'origin']).toString().trim()
   if (!/[/:](The_Kindled|midst-press)\/midst-editor(\.git)?$/.test(origin)) throw new Error('Provenance checkout must be midst-editor')
   const main = git(['rev-parse', 'refs/remotes/origin/main']).toString().trim()
@@ -91,7 +105,12 @@ export function check(editorRoot, webRoot) {
       throw new Error(`Copied editor test differs from ${upstream} beyond its header note and import path: ${local} at ${pin}`)
     }
   }
-  const behind = UPSTREAMS.filter(upstream => !upstreamBytes(pin, upstream).equals(upstreamBytes(main, upstream)))
+  // A copied file that editor main has deleted or moved is behind too, never a failure: an editor merge
+  // must not turn the website red (#152).
+  const behind = UPSTREAMS.flatMap(upstream => {
+    if (!exists(git, main, upstream)) return [`${upstream} (gone from editor main)`]
+    return upstreamBytes(pin, upstream).equals(upstreamBytes(main, upstream)) ? [] : [upstream]
+  })
   if (git(['rev-parse', 'refs/remotes/origin/main']).toString().trim() !== main) throw new Error('Editor main moved during comparison')
   return { pin, main, behind }
 }
@@ -102,7 +121,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const webRoot = fileURLToPath(new URL('..', import.meta.url))
   if (process.argv[2] === '--pin-to-main') {
     // For a copy PR, after copying the files: pin editor main, then check against it.
-    const main = execFileSync('git', ['-C', root, 'rev-parse', 'refs/remotes/origin/main'], { encoding: 'utf8' }).trim()
+    const main = editorGit(root)(['rev-parse', 'refs/remotes/origin/main']).toString().trim()
     writeFileSync(join(webRoot, PIN_FILE), `${main}\n`)
   } else if (process.argv[2]) {
     throw new Error(`Unknown argument ${process.argv[2]}; the only one is --pin-to-main`)
