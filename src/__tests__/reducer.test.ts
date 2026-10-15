@@ -35,6 +35,7 @@ jest.mock('../poems', () => ({
       title: 'Bb, Ti',
       date: '2017-05-05',
       publishDate: '2018-06-06',
+      id: '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
       authorSecondaryFolder: 'zq-folder',
       cursorFollowing: true,
       hasScrollbar: false,
@@ -103,6 +104,8 @@ describe('createPoem (via initialState.poems)', () => {
 
   it('passes through the optional fields when given', () => {
     expect(full.authorSecondaryFolder).toBe('zq-folder')
+    // The storage id is carried as given, and is not the route-derived poemId.
+    expect(full.id).toBe('0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d')
     expect(full.cursorFollowing).toBe(true)
     expect(full.hasScrollbar).toBe(false)
     expect(full.highlighted).toBe(true)
@@ -111,6 +114,7 @@ describe('createPoem (via initialState.poems)', () => {
 
   it('leaves the optional fields undefined when missing', () => {
     expect(sparse.authorSecondaryFolder).toBeUndefined()
+    expect(sparse.id).toBeUndefined()
     expect(sparse.cursorFollowing).toBeUndefined()
     expect(sparse.hasScrollbar).toBeUndefined()
     expect(sparse.highlighted).toBeUndefined()
@@ -233,10 +237,36 @@ describe('LOAD_POEM_FAILED', () => {
   })
 })
 
-// Deliberately NOT pinned: what a poem loaded by LOAD_POEM_DATA looks like after a sort.
-// sortPoems sorts the module-level `poems` list rather than the state's poems, so the result may
-// not carry loaded data. Whether that is a defect or intended is undecided, and a test asserting
-// either outcome would lock in a guess.
+// A sort reorders the poems in the state. It once sorted the list made at start-up instead, so every
+// sort dropped what had been loaded since (#21, #108).
+describe('sorting keeps what has been loaded', () => {
+  const poemId = initialState.poems[1].poemId
+  const loaded = reducer(initialState, {
+    type: LOAD_POEM_DATA,
+    payload: { poemId, data: { text: 'invented' }, processNote: 'zq note' },
+  })
+  const failedId = initialState.poems[2].poemId
+  const both = reducer(loaded, { type: LOAD_POEM_FAILED, payload: { poemId: failedId, reason: 'missing' } })
+
+  it.each([
+    ['SET_SORT_TERM', { type: SET_SORT_TERM, payload: 'title' }],
+    ['REVERSE_SORT_ORDER', { type: REVERSE_SORT_ORDER }],
+  ])('%s keeps a loaded timelapse, its note and a recorded failure', (_name, action) => {
+    const next = reducer(both, action)
+    const poem = next.poems.find(p => p.poemId === poemId)
+    expect(poem?.loaded).toBe(true)
+    expect(poem?.data).toEqual({ text: 'invented' })
+    expect(poem?.processNote).toBe('zq note')
+    expect(next.poems.find(p => p.poemId === failedId)?.loadFailure).toBe('missing')
+  })
+
+  it('poems that tie keep the list order, whatever the previous sort was', () => {
+    // Every poem has the same `tags`, standing in for poems by one author.
+    const byAuthor = reducer(both, { type: SET_SORT_TERM, payload: 'author' })
+    expect(titles(reducer(byAuthor, { type: SET_SORT_TERM, payload: 'tags' }))).toEqual(MOCK_ORDER)
+  })
+})
+
 describe('SET_SORT_TERM', () => {
   it('orders by author ascending', () => {
     const next = reducer(initialState, { type: SET_SORT_TERM, payload: 'author' })

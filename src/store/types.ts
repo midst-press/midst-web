@@ -67,6 +67,13 @@ export interface IPoem {
   hasScrollbar?: boolean
   hidden?: boolean
   highlighted: boolean
+  /* Where this poem's files are, relative to POEMS_URL, as the published list recorded them (#110). Absent on a
+   * bundled poem, whose names are derived. `processNote` is null when the poem has no note. */
+  keys?: { timelapse: string, processNote: string | null }
+  /* Place in the list as it was given, so a sort breaks ties the way the list did. */
+  position: number
+  /* The opaque storage id (tools/poem-ids.mjs). Absent only on a poem still on the pending list. */
+  id?: string
   loaded: boolean
   loadFailure?: PoemLoadFailure | null
   poemId: string
@@ -78,9 +85,18 @@ export interface IPoem {
   url: string
 }
 
+// Whether the list of poems is there. `ready` always under MIDST_POEM_LIST=bundled; under `published` it starts
+// `loading` and becomes `ready` or `failed`, and a failed list is never replaced by the bundled one (#110).
+export type PoemListStatus = 'ready' | 'loading' | 'failed'
+
+// Why the published list could not be used: no answer, a failed answer, an answer that is not a list.
+export type PoemListFailure = 'network' | 'server' | 'malformed'
+
 export interface IState {
   mobileNavOpen: boolean
   poems: IPoem[]
+  poemList: PoemListStatus
+  poemListFailure?: PoemListFailure | null
   processNoteOpen: boolean
   sortTerm: string
   sortOrder: string
@@ -88,6 +104,8 @@ export interface IState {
 
 export const LOAD_POEM_DATA = 'LOAD_POEM_DATA'
 export const LOAD_POEM_FAILED = 'LOAD_POEM_FAILED'
+export const LOAD_POEM_LIST = 'LOAD_POEM_LIST'
+export const POEM_LIST_FAILED = 'POEM_LIST_FAILED'
 export const REVERSE_SORT_ORDER = 'REVERSE_SORT_ORDER'
 export const SET_MOBILE_NAV_OPEN = 'SET_MOBILE_NAV_OPEN'
 export const SET_PROCESS_NOTE_OPEN = 'SET_PROCESS_NOTE_OPEN'

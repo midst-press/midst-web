@@ -22,7 +22,10 @@ const poems = SUBJECTS.map((file) => {
     file,
     meta,
     number: publishedFiles.findIndex(name => name.normalize('NFC') === `${file}.json`.normalize('NFC')) + 1,
-    keys: [names.processNoteObjectName(meta), names.timelapseObjectName(meta)],
+    // Legacy names only: they can be stored under a second Unicode spelling, which the checks below
+    // model. A canonical name is an id and has one spelling, so under that scheme there is nothing to
+    // model here; e2e/key-scheme.spec.ts checks what a canonical build asks for.
+    keys: process.env.MIDST_KEY_SCHEME === 'legacy' ? [names.processNoteObjectName(meta), names.timelapseObjectName(meta)] : [],
     route: `/poem/${names.poemUrl(meta.title)}/`,
     // The site renders EVERY poem into a sliding carousel, so `.editor` alone matches 50 elements.
     // Scope by the carousel class, which carries the poemId -- so this selector is derived from
@@ -81,7 +84,7 @@ test.afterEach(async ({ page }) => {
 })
 
 test.describe('a published poem plays', () => {
-  for (const { number, route, scope, keys } of poems) {
+  for (const { file, number, route, scope, keys } of poems) {
     test(`poem ${number}: the player mounts and replays to the end`, async ({ page }) => {
       const failures: string[] = []
       page.on('response', (r) => {
@@ -137,9 +140,57 @@ test.describe('a published poem plays', () => {
       await page.waitForTimeout(300)
       await expect(timeline).toHaveValue(pausedStep)
 
+      // Fonts (#55). The font files are served from MIDST_FONTS_URL, not bundled, so a wrong URL would
+      // leave every reader on a system font with all else green. The CSS naming a family proves
+      // nothing; the face must have LOADED. The site chrome is set in futuraregular. One fixture poem
+      // is set in Lato, which the site serves; the others are in Helvetica, which it does not.
+      const fonts = await page.evaluate(async (selector) => {
+        const set = (document as any).fonts
+        await set.ready
+        const bare = (family: string) => family.trim().replace(/^["']|["']$/g, '')
+        const first = (element: Element) => bare(getComputedStyle(element).fontFamily.split(',')[0])
+        const statuses = (family: string) => Array.from(set as Iterable<any>).filter(face => bare(face.family) === family).map(face => face.status as string)
+        const body = first(document.body)
+        const poem = first(document.querySelector(selector)!)
+        return { body, bodyStatuses: statuses(body), bodyCheck: set.check(`16px "${body}"`) as boolean, poem, poemStatuses: statuses(poem) }
+      }, `${scope} .editable p`)
+      expect(fonts.body).toBe('futuraregular')
+      expect(fonts.bodyStatuses, 'the site font is declared but did not load').toContain('loaded')
+      expect(fonts.bodyCheck).toBe(true)
+      if (file === 'Margaret_Yapp') {
+        expect(fonts.poem).toBe('Lato')
+        expect(fonts.poemStatuses, 'the poem is set in Lato and no Lato face loaded').toContain('loaded')
+      } else {
+        expect(fonts.poemStatuses, 'this fixture poem is set in a system font').toEqual([])
+      }
+
       // 4. Nothing 404ed or 403ed on the way. The production failures this suite exists to prevent
       //    were all 403s on an object whose name did not match what was uploaded.
       expect(failures, `requests failed:\n${failures.join('\n')}`).toEqual([])
+    })
+  }
+
+  // GitHub midst-web #51: on a freshly loaded poem page, with nothing clicked and so nothing focused,
+  // the spacebar must start playback, and pause it again.
+  for (const { number, route, scope } of poems) {
+    test(`poem ${number}: spacebar plays and pauses on a freshly loaded page`, async ({ page }) => {
+      await page.goto(route)
+      const editor = page.locator(`${scope} .editor`)
+      await expect(editor).toContainText('and again')
+      const play = page.locator(`${scope} .play-pause-button`)
+      await expect(play).not.toHaveClass(/playing/)
+      expect(await page.evaluate(() => document.activeElement === document.body), 'nothing has focus yet').toBe(true)
+
+      await page.keyboard.press('Space')
+      await expect(play, 'spacebar did not start playback').toHaveClass(/playing/)
+      await expect(editor).not.toContainText('and again')
+
+      await page.keyboard.press('Space')
+      await expect(play, 'spacebar did not pause playback').not.toHaveClass(/playing/)
+      const timeline = page.locator(`${scope} input[type=range]`)
+      const pausedStep = await timeline.inputValue()
+      await page.waitForTimeout(300)
+      await expect(timeline).toHaveValue(pausedStep)
     })
   }
 

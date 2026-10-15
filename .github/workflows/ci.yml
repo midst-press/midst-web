@@ -8,6 +8,12 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+# Every build and every end-to-end run names its key scheme; there is no default (#41). The jobs run
+# under legacy, which is what production holds. The e2e job then builds the site again under canonical
+# and runs the specs that touch object names, so both schemes stay tested whichever a deployment uses.
+env:
+  MIDST_KEY_SCHEME: legacy
+  MIDST_POEM_LIST: bundled
 
 # WHY THE REQUIRED JOBS RUN ON LINUX, AND WHY ONE DOES NOT
 #
@@ -50,7 +56,7 @@ jobs:
         with: { python-version: '3.14' }
       # --legacy-peer-deps: React 18 against @types/react 16.9. A real mismatch, not a flag to
       # paper over it -- see #11.
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
       # threshold, so an untested file counts as 0% and any drop fails this step.
       # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
@@ -73,7 +79,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - run: npm run build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -96,7 +102,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - run: npx playwright install --with-deps chromium
       # Fixtures are GENERATED here, not committed: they are .midst.zip files that the poem-data hook
       # refuses outright, and their deflate output is not byte-reproducible across platforms. The
@@ -104,12 +110,45 @@ jobs:
       # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
       # and it holds without storing anything poem-shaped in git.
       - run: npm run test:e2e
+      # CI is set, so the web server rebuilds the site and its fixtures under this scheme.
+      - name: the same site under canonical keys
+        env:
+          MIDST_KEY_SCHEME: canonical
+        run: npx playwright test e2e/key-scheme.spec.ts e2e/poem-plays.spec.ts e2e/load-failure.spec.ts e2e/asset-canary.spec.ts
+      - name: the site with the published poem list
+        env:
+          MIDST_POEM_LIST: published
+        run: npx playwright test --config playwright.published.config.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: playwright-report-${{ github.sha }}
           path: playwright-report/
           retention-days: 14
+
+  # What the unit and e2e tests execute, as numbers. A second build and run on purpose: coverage needs an
+  # unminified build to map back to src/, and the e2e job above must keep testing the build that
+  # ships. Prints file paths and percentages only; see scripts/coverage-merge.mjs. Reported, not gated
+  # on any figure: this job fails only if the tests fail or the measurement's own control does.
+  # Frame-budget tests require a GUI session (real frame rate). This job runs on ubuntu-latest with
+  # no GUI, so they are excluded with a visible warning — the same treatment as Gitea's coverage job.
+  coverage:
+    name: coverage (what the tests execute; numbers only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: coverage (frame-budget tests excluded — no GUI session)
+        env:
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
+        run: |
+          echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
+          npm run coverage
 
   # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this
   # required until its findings are worked through -- and do not delete it to make the page green,
@@ -127,7 +166,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps --ignore-scripts
       - name: build on a case-INsensitive filesystem
         run: npm run build
       - name: report

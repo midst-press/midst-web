@@ -7,6 +7,9 @@ import { join } from 'node:path'
 const HELPERS = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
   ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
+  ['src/buildLabel.ts', 'src/shared/buildLabel.ts'],
+  // The editor's user guide, shown on /app#help (midst-editor #105) until Annelyse writes her own help.
+  ['src/guide/editor-user-guide.md', 'docs/user-guide.md'],
 ]
 // The editor's tests for those files, copied too. A copy may differ from its original in exactly two
 // ways: the header note below, and the path it imports from. [copy, original, original's import, copy's import]
@@ -14,12 +17,13 @@ const TESTS = [
   ['src/__tests__/editor-follow.test.ts', 'src/__tests__/follow.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-followMore.test.ts', 'src/__tests__/followMore.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-trackingUtils.test.ts', 'src/__tests__/trackingUtils.test.ts', '../renderer/tracking/utils', '../components/MidstPlayer/helpers'],
+  ['src/__tests__/editor-buildLabel.test.ts', 'src/__tests__/buildLabel.test.ts', '../shared/buildLabel', '../buildLabel'],
 ]
 
 export const headerNote = upstream =>
   `// Copied from midst-editor ${upstream}, with only the import path changed.\n` +
-  '// MidstPlayer/follow.ts and helpers.ts are byte-identical copies of the editor\'s files, so the editor\'s\n' +
-  '// tests are the tests for them. The editor-helpers-identical hook holds this copy to its original.\n'
+  '// The file it tests is a byte-identical copy of the editor\'s, so the editor\'s test is the test for\n' +
+  '// it. The editor-helpers-identical hook holds this copy to its original.\n'
 
 // What the copy of an editor test must be, byte for byte.
 export function expectedTestCopy(original, upstream, originalImport, copyImport) {

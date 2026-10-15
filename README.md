@@ -2,16 +2,18 @@
 
 The journal: a poem is shown as a timelapse of its own composition, replayed keystroke by keystroke.
 
+To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md): the checks, the tests, and the rules about poem content.
+
 ## Before you start
 
-**Node 24** (the current LTS). The version is pinned in `.nvmrc`, and CI reads that same file, so the
-easiest way to match CI is a version manager that respects it:
+**Node: the version pinned in `.nvmrc`.** CI reads that same file, so the easiest way to match CI is a
+version manager that respects it:
 
 ```
 nvm use          # or: fnm use / asdf install
 ```
 
-Newer Node generally works — the site builds on 26 — but 24 is what CI verifies.
+Other versions may work, but the one in `.nvmrc` is what CI verifies.
 
 ## Use npm. Not yarn
 
@@ -45,9 +47,11 @@ issue about aligning the React types.
 ## Development
 
 ```
-npm start              # dev server
-npm run build          # production build into ./dist
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm start        # dev server
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build    # production build into ./dist
 ```
+
+Both refuse to start without `MIDST_KEY_SCHEME` and `MIDST_POEM_LIST`; see "Key scheme" and "Poem list" below for which value to give.
 
 Both pass `--no-autoinstall` deliberately. Without it, Parcel silently installs missing polyfills on
 your machine and the build then fails only in CI, where autoinstall is off. A missing dependency
@@ -89,7 +93,7 @@ order entry with no metadata file, and a hand-edited index.
 
 ## Deploying
 
-The site is static. `npm run build` produces `./dist`, which is served from **Amazon S3 behind
+The site is static. `MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build` produces `./dist` (see "Key scheme", "Poem list"), which is served from **Amazon S3 behind
 CloudFront**.
 
 > An earlier version of this README said to copy `./src/.htaccess` to the server. There is no Apache
@@ -98,6 +102,83 @@ CloudFront**.
 
 There is no automated deployment yet, and there is an open issue about who controls the AWS account —
 until that is answered, nothing can be deployed from CI.
+
+## Poem ids
+
+Every poem file in `src/poems` has an `id`: a random version-4 UUID, minted once, that says nothing
+about the poem. Poets' names and poem titles change, so storage is to be keyed on the id and not on
+any name (#41). Never edit an id, reuse one, or build one from anything.
+
+```
+node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
+node tools/poem-ids.mjs           # the check the commit hook runs
+```
+
+Under the `canonical` key scheme (below) the id is the poem's object name; under `legacy` nothing reads
+it and names are built by `src/poems/poem-names.js`. A poem file can
+be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
+
+## Key scheme
+
+`MIDST_KEY_SCHEME` says which object names the site asks a bucket for, and it has no default: a
+build, the canary and the end-to-end suite each refuse to start without it (#41).
+
+- `legacy`: the names built from the author and title, as production holds them.
+- `canonical`: `<id>/timelapse.midst.zip` and `<id>/process-note.md`, one request each, from the
+  poem's id. Every published poem must have an id.
+
+```
+MIDST_KEY_SCHEME=legacy npm run build
+MIDST_KEY_SCHEME=canonical npm run test:e2e
+MIDST_KEY_SCHEME=legacy node tools/poem-canary.mjs
+```
+
+The scheme is built into the site, so it must match what the bucket at `MIDST_POEMS_URL` holds; a
+mismatch shows every poem as not found. Routes (`/poem/...`) and author photographs are the same
+under both. The names themselves come from `src/poems/key-scheme.js`.
+
+## Poem list
+
+`MIDST_POEM_LIST` says where the site gets its list of poems, and it has no default: the build, the fixture
+maker and both end-to-end suites refuse to start without it (#110).
+
+- `bundled`: the list built into the site (`src/poems/index.ts`), asked for under `MIDST_KEY_SCHEME`.
+- `published`: `published.json` under `MIDST_POEMS_URL` (which ends in `/poems/`), fetched once when the site
+  starts. Its array order is the reading order, and each entry records the two keys its poem is fetched under
+  (`poems/<id>/timelapse.midst.zip`, and a process note or `null`). The site fetches `MIDST_POEMS_URL` + the
+  key without its leading `poems/`, and derives no name. If the list cannot be fetched or is not well formed,
+  the site says the poems could not be loaded; it never falls back to the bundled list. Under `published`,
+  `MIDST_KEY_SCHEME` is still required but no longer says anything about the poems' names, and the build does
+  not ask the bundled poem files for ids.
+
+```
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=published npm run build
+MIDST_KEY_SCHEME=legacy npm run test:e2e:published    # its own build (dist-published), fixtures and port
+```
+
+The list's checks and the key handling are in `src/poems/poem-list.js`; the first list is written by
+`tools/seed-published.mjs`.
+
+## Fonts
+
+The font files are not in this repository, and a commit hook refuses any that are added: some are
+commercial, and a public repository is not a webfont licence. The site asks for them at
+`MIDST_FONTS_URL`, which defaults to `/fonts/` at its own origin, so a deployment uploads the font
+files beside the site under `fonts/`. `src/font-faces.json` lists every file the site asks for and
+`src/fonts.ts` writes the `@font-face` rules from it when the page loads.
+
+To see the real fonts in local development, put the files in `static/fonts/` (ignored by git); the
+build copies `static/` into `dist/`, so they are served at `/fonts/`. Without them the site falls
+back to system fonts and nothing else changes. The end-to-end tests do not need them: the fixture
+maker writes a synthetic font under each name and the tests check that the faces load.
+
+If `MIDST_FONTS_URL` points at a different origin from the site, that host must answer font requests
+with an `Access-Control-Allow-Origin` header naming the site (or `*`). Browsers load fonts across
+origins only with it; without it every face fails to load and the page falls back to system fonts,
+with nothing shown to the reader. The default, `/fonts/` on the site's own origin, needs no header.
+
+If a build fails with "Failed to resolve '../midst-player-hack/lato.css'" after you pull, delete
+`.parcel-cache`: it was written by a build from before the font stylesheets were removed.
 
 ## Checking the poems are still reachable
 

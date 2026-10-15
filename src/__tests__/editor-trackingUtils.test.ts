@@ -1,7 +1,7 @@
 /** @jest-environment node */
 // Copied from midst-editor src/__tests__/trackingUtils.test.ts, with only the import path changed.
-// MidstPlayer/follow.ts and helpers.ts are byte-identical copies of the editor's files, so the editor's
-// tests are the tests for them. The editor-helpers-identical hook holds this copy to its original.
+// The file it tests is a byte-identical copy of the editor's, so the editor's test is the test for
+// it. The editor-helpers-identical hook holds this copy to its original.
 import {
   ChangeObj,
   compareStrings,
@@ -107,6 +107,19 @@ describe('step', () => {
 
   it('builds text from nothing', () => {
     expect(step('', { front: 0, inserted: 'zq', end: 0, t: T })).toBe('zq');
+  });
+});
+
+describe('compareStrings with a given time', () => {
+  it('records the time it is given, as converting an old file does', () => {
+    const when = new Date('2020-11-20T20:23:29.127Z');
+    expect(compareStrings('zq', 'zqxv', 2, when)).toEqual({
+      inserted: 'xv',
+      front: 2,
+      end: 0,
+      t: when,
+      pos: 2,
+    });
   });
 });
 

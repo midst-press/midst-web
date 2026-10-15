@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import Midst from '../src/components/midst-player-hack/Midst'
-import { parseMidstFile } from '../src/components/midst-player-hack/midst-file'
+import Midst from './legacy-player/Midst'
+import { parseMidstFile } from '../src/store/midst-file'
 import MidstPlayer from '../src/components/MidstPlayer/MidstPlayer'
 import { IMidstFile } from '../src/store/types'
 import '../src/index.css'
@@ -25,6 +25,19 @@ import './coverage-control'
   ReactDOM.render(
     <div id="player-options-control" style={{ height: 600, position: 'relative' }}>
       <MidstPlayer data={data} {...options} />
+    </div>, document.getElementById('legacy-root'),
+  )
+}
+
+// Synthetic-only paired players for testing that local controls do not leak across instances.
+;(window as any).mountTwoPlayerOptions = (data: IMidstFile) => {
+  ReactDOM.render(
+    <div style={{ display: 'flex' }}>
+      {['first', 'second'].map(id =>
+        <div key={id} id={`player-options-${id}`} style={{ width: '50%', height: 600, position: 'relative' }}>
+          <MidstPlayer data={data} activePlayer={true} cursorFollowing={false} hasScrollbar={true} />
+        </div>,
+      )}
     </div>, document.getElementById('legacy-root'),
   )
 }

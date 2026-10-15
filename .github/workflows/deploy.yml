@@ -1,0 +1,116 @@
+# Deploys the site to the beta stack when a release is published, then hands that release's issues to the
+# verifier. "Run workflow" from a release TAG (not from main) deploys that release again.
+#
+#   1. refuse unless the run is for a tag that is on main and has a published GitHub release, and the tag
+#      is a pre-release whose release has the "pre-release" box ticked. The version decides, as the About
+#      page's src/buildLabel.ts does (midst-infra #15, Stuart 14 Oct):
+#         v0.x.y, with or without a suffix          pre-release   beta
+#         v1.2.3-dev.N / -beta.N / -rc.N            pre-release   beta
+#         v1.2.3 (1.0 and later, no suffix)         release       production: none exists yet, so nothing
+#         anything else                             refused
+#   2. deploy/beta/deploy_site.sh: build at the tag with the About page's build inputs, check every poem
+#      is reachable, upload (never fonts/), invalidate, and check every poem page mounts the player
+#   3. tools/issue_flow.py released: each "awaiting release" issue whose fix is in this tag is labelled
+#      "needs verifying" and assigned to the verifier, with a link to the SITE, not the release page. This
+#      runs only after step 2 passed, so nobody is asked to check a site that did not deploy.
+#
+# deploy/beta/ holds copies of midst-infra's beta/ scripts, held to it by tools/midst-infra-copies.sha256.
+#
+# Settings, all on the "Beta" environment (Settings > Environments > Beta), none in this file:
+#   secrets    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY   the deploy user from midst-infra beta/github-deploy.yaml.
+#                                                         It may write the site bucket and invalidate its
+#                                                         distribution, and nothing else: no CloudFormation,
+#                                                         which is why the four values below are given here.
+#   variables  MIDST_KEY_SCHEME     legacy or canonical; must match what the poems bucket holds
+#              MIDST_POEM_LIST      bundled or published; where the site gets its list of poems. Required, no
+#                                   default. It is passed to deploy_site.sh as --poem-list, which refuses to run
+#                                   without it and, under published, checks poems/published.json and every poem
+#                                   on it before uploading (midst-web #110).
+#              MIDST_SITE_BUCKET, MIDST_SITE_DISTRIBUTION, MIDST_POEMS_URL, MIDST_SITE_URL, AWS_REGION
+#                                   the site stack's bucket, DistributionId, PoemsUrl, SiteUrl, and region
+#              MIDST_APP_API_URL, MIDST_APP_AUTH_DOMAIN, MIDST_APP_CLIENT_ID
+#                                   the beta app stack's API URL, sign-in domain and app client, baked into the
+#                                   build for the /app pages (src/app/config.ts). deploy_site.sh passes its
+#                                   environment to the build, so setting them here is enough.
+# The environment admits only v* tags, so these keys cannot be used from a branch. A production site would
+# be its own environment with its own keys and values.
+name: deploy
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+concurrency:
+  group: deploy-beta
+  cancel-in-progress: false
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    environment: Beta
+    env:
+      TAG: ${{ github.event.release.tag_name || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: The run is for a tag
+        if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag'
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          echo "::error::Run this workflow from a release tag (Use workflow from: Tags), not from $REF_NAME."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+      - name: The tag is a pre-release on main, and its release agrees with it
+        run: |
+          set -euo pipefail
+          re='^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?$'
+          [[ "$TAG" =~ $re ]] || { echo "::error::$TAG is not a release tag (vMAJOR.MINOR.PATCH[-suffix])"; exit 1; }
+          if [ "${BASH_REMATCH[1]}" != 0 ] && [ -z "${BASH_REMATCH[4]}" ]; then
+            echo "::error::$TAG is a full release, which goes to production; there is no production environment yet, so nothing is deployed"
+            exit 1
+          fi
+          sha="$(git rev-parse --verify "refs/tags/$TAG^{commit}")"
+          git merge-base --is-ancestor "$sha" origin/main \
+            || { echo "::error::$TAG ($sha) is not on main; nothing deployed"; exit 1; }
+          pre="$(gh release view "$TAG" --json isPrerelease,isDraft --jq 'if .isDraft then "draft" else .isPrerelease end')" \
+            || { echo "::error::$TAG has no GitHub release; publish one first"; exit 1; }
+          [ "$pre" != draft ] || { echo "::error::the release for $TAG is a draft"; exit 1; }
+          [ "$pre" = true ] || { echo "::error::$TAG is a pre-release, but its release does not have the pre-release box ticked"; exit 1; }
+          echo "deploying $TAG ($sha), pre-release $pre"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Browser for the smoke check
+        run: |
+          npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Deploy
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          KEY_SCHEME: ${{ vars.MIDST_KEY_SCHEME }}
+          MIDST_POEM_LIST: ${{ vars.MIDST_POEM_LIST }}
+          SITE_BUCKET: ${{ vars.MIDST_SITE_BUCKET }}
+          SITE_DISTRIBUTION: ${{ vars.MIDST_SITE_DISTRIBUTION }}
+          POEMS_URL: ${{ vars.MIDST_POEMS_URL }}
+          SITE_URL: ${{ vars.MIDST_SITE_URL }}
+          MIDST_APP_API_URL: ${{ vars.MIDST_APP_API_URL }}
+          MIDST_APP_AUTH_DOMAIN: ${{ vars.MIDST_APP_AUTH_DOMAIN }}
+          MIDST_APP_CLIENT_ID: ${{ vars.MIDST_APP_CLIENT_ID }}
+        run: >-
+          bash deploy/beta/deploy_site.sh --web-repo "$GITHUB_WORKSPACE" --key-scheme "$KEY_SCHEME"
+          --poem-list "$MIDST_POEM_LIST"
+          --ref "refs/tags/$TAG" --tag "$TAG"
+          --site "$SITE_BUCKET" "$SITE_DISTRIBUTION" "$POEMS_URL" "$SITE_URL"
+      - name: Hand the release's issues to the verifier
+        env:
+          RELEASE_URL: ${{ vars.MIDST_SITE_URL }}
+          VERIFIER: ${{ vars.MIDST_VERIFIER }}
+        run: python3 tools/issue_flow.py released

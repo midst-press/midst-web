@@ -47,21 +47,28 @@ function PoemNav(): ReactElement {
     }
   }, [nextPoemUrl, previousPoemUrl])
 
+  // An address no published poem has: nothing to name and nowhere to move from. Rendering on regardless
+  // read `author` of undefined and took the whole site down with it (#100).
+  if (!currentPoem) return <></>
+
   return (
     <>
       <a className="poem-credit">
-        <span onClick={() => dispatch(setProcessNoteOpen(!processNoteOpen))}>
-          <i className="author-name">
-            { currentPoem.author }
-          </i>
-          <span className="divider">
-            &nbsp;|&nbsp;
+        {/* No current poem while the published list loads, if it fails, or for a url not in it. */}
+        {currentPoem &&
+          <span onClick={() => dispatch(setProcessNoteOpen(!processNoteOpen))}>
+            <i className="author-name">
+              { currentPoem.author }
+            </i>
+            <span className="divider">
+              &nbsp;|&nbsp;
+            </span>
+            <span
+              className="poem-title"
+              dangerouslySetInnerHTML={{__html: currentPoem.title}}
+            />
           </span>
-          <span
-            className="poem-title"
-            dangerouslySetInnerHTML={{__html: currentPoem.title}}
-          />
-        </span>
+        }
       </a>
 
       <div id="poem-nav">

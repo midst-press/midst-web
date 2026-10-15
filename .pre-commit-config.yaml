@@ -16,7 +16,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^static/|^etc/|^src/components/MidstPlayer/(follow|helpers)\.ts$|^src/__tests__/editor-(follow|followMore|trackingUtils)\.test\.ts$|^src/components/midst-player-hack/(animate|lato|helvetica-neue)\.css|^src/components/midst-player-hack/m_(heavyweight|lightweight)\.svg|^src/components/midst-player-hack/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^static/|^etc/|^src/components/MidstPlayer/(follow|helpers)\.ts$|^src/__tests__/editor-(follow|followMore|trackingUtils)\.test\.ts$|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
@@ -57,6 +57,12 @@ repos:
         entry: node --test tools/test-check-import-case.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-import-case\.mjs$'
+      - id: seed-published-self-test
+        name: the published-list seed refuses an inconsistent or unstaged list, and names no poem
+        language: system
+        entry: node --test tools/test-seed-published.mjs
+        pass_filenames: false
+        files: '^(tools/(test-)?seed-published\.mjs|src/poems/key-scheme\.js)$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail
@@ -64,6 +70,15 @@ repos:
           Poem timelapses are the poets' work and must not enter git. A public push cannot be
           withdrawn. Keep them with the archive and point MIDST_CORPUS at it. See DATA.md.
         files: '(\.midst$|\.midst\.zip$|(^|/)static/static/assets/poems/)'
+      - id: forbid-font-files
+        name: font files must never be committed
+        language: fail
+        entry: >-
+          Font files do not belong in this public repository: some of the site's fonts are
+          commercial, and publishing the files here is not what a webfont licence allows. They are
+          served from MIDST_FONTS_URL (src/fonts.ts, src/font-faces.json). Tests use the synthetic
+          font that tools/make-e2e-fixtures.mjs writes. See issue #55.
+        files: '(?i)\.(ttf|otf|woff2?|eot)$'
 
       - id: one-lockfile-only
         name: npm is the only package manager; no second lockfile
@@ -100,6 +115,24 @@ repos:
         entry: node tools/test-poem-names.mjs
         pass_filenames: false
         files: '^(src/poems/[^/]+\.json|src/poems/poem-names\.js|tools/poem-names\.snapshot\.json)$'
+      - id: poem-ids
+        name: every poem has an opaque id, and no two share one
+        language: system
+        entry: node tools/poem-ids.mjs
+        pass_filenames: false
+        files: '^(src/poems/[^/]+\.json|tools/poem-ids\.mjs)$'
+      - id: poem-ids-self-test
+        name: the poem id check passes on sound ids and names each way they can be wrong
+        language: system
+        entry: node --test tools/test-poem-ids.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?poem-ids\.mjs$'
+      - id: key-scheme-self-test
+        name: the build refuses a missing or unknown key scheme or poem list, and canonical needs an id on every published poem
+        language: system
+        entry: node --test tools/test-check-key-scheme.mjs
+        pass_filenames: false
+        files: '^(src/poems/[^/]+\.json|src/poems/(key-scheme|poem-list)\.js|tools/(test-)?check-key-scheme\.mjs)$'
       - id: poem-index-generated
         name: src/poems/index.ts is generated and consistent with the metadata
         language: system
@@ -112,3 +145,17 @@ repos:
         entry: node tools/check-unused-deps.mjs
         pass_filenames: false
         files: '^(package\.json|\.depcheckrc\.yaml|dependency-baseline\.json)$'
+
+      # ---- closing keywords. GitHub applies "fixes #25" in a commit message to ITS issue 25, which is not
+      # ours: our commits use Gitea's numbers. Two GitHub items were closed that way (midst-infra #14). ----
+      - id: no-closing-keyword-in-commit-message
+        name: no closing keyword in a commit message (write Refs #N; the keyword goes in the Gitea PR body)
+        language: system
+        entry: python3 tools/closing_refs.py --message-file
+        stages: [commit-msg]
+      - id: midst-infra-copies
+        name: tools/closing_refs.py, tools/issue_flow.py and deploy/beta/ are copies from midst-infra (change them there first, then here with the checksums)
+        language: system
+        entry: shasum -a 256 -c tools/midst-infra-copies.sha256
+        pass_filenames: false
+        files: '^(tools/(closing_refs\.py|issue_flow\.py|midst-infra-copies\.sha256)|deploy/beta/.*)$'

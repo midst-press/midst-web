@@ -53,41 +53,6 @@ table {
 
 br, p { clear:both}
 
-@font-face {
-  font-family: 'futuraregular';
-  src: url('../static/static/assets/futuraregular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'futuralight';
-  src: url('../static/static/assets/futuralight.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'futuramedium';
-  src: url('../static/static/assets/futuramedium.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Futura_Bk_BT_Book';
-  src: url('../static/static/assets/Futura_Bk_BT_Book.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'aileronregular';
-  src: url('../static/static/assets/aileron_regular_macroman/Aileron-Regular-webfont.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
 html,
 body {
   margin: 0;
@@ -658,6 +623,55 @@ body {
 .app-page .heroine img {
   width: 650px;
   height: auto;
+}
+
+/* The editor's user guide on /app#help. It sits inside the hero, whose box is positioned and lets
+   clicks through, so the guide takes clicks back and reads as left-aligned text. */
+.app-page .heroine .editor-guide {
+  margin-top: 80px;
+  padding-bottom: 15vh;
+  text-align: left;
+  pointer-events: auto;
+  scroll-margin-top: 15vh;
+}
+
+.app-page .heroine .editor-guide h1 {
+  font-size: 32px;
+}
+
+.app-page .heroine .editor-guide h2 {
+  font-size: 24px;
+  margin-top: 40px;
+}
+
+.app-page .heroine .editor-guide h3 {
+  font-size: 20px;
+  margin-top: 28px;
+}
+
+.app-page .heroine .editor-guide li {
+  font-size: 18px;
+  line-height: 25px;
+}
+
+.app-page .heroine .editor-guide pre,
+.app-page .heroine .editor-guide code {
+  font-family: monospace;
+  font-size: 15px;
+}
+
+.app-page .heroine .editor-guide table {
+  font-size: 15px;
+  line-height: 20px;
+  margin: 20px 0;
+}
+
+.app-page .heroine .editor-guide th,
+.app-page .heroine .editor-guide td {
+  border: 1px solid currentColor;
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
 }
 
 .heroine.heroine--normal p {
@@ -1439,4 +1453,70 @@ background-size: contain;
   .funding-page p {
     font-size: 11px;
   }
+}
+
+/* Which build this is, at the foot of the About page (issue #77). Small, and selectable so a tester
+   can paste it into an issue. */
+.about-page .build-info {
+  margin-top: 3em;
+  font-size: 0.75em;
+  opacity: 0.7;
+  user-select: text;
+}
+
+/* The beta app's signed-in pages (#110): plain and readable; a prototype for Annelyse to react to. */
+.app-account-page .heroine.heroine--normal h3 {
+  margin-top: 36px;
+}
+
+.publisher-list {
+  padding-left: 1.5em;
+}
+
+.publisher-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  font-size: 18px;
+}
+
+.publisher-list li[draggable='true'] {
+  cursor: grab;
+}
+
+.publisher-list li.publisher-dragging {
+  opacity: 0.5;
+}
+
+.publisher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 15px;
+}
+
+.publisher-author {
+  opacity: 0.75;
+}
+
+.publisher-notice,
+.publisher-problem,
+.publisher-hint {
+  font-size: 16px;
+}
+
+.publisher-problem {
+  color: #a00;
+}
+
+.review-player-close {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 10;
 }

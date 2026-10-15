@@ -21,10 +21,17 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deflateRawSync, crc32 } from 'node:zlib'
 import names from '../src/poems/poem-names.js'
+import keyScheme from '../src/poems/key-scheme.js'
+import poemList from '../src/poems/poem-list.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const REPO = join(here, '..')
-const OUT = join(REPO, 'e2e', 'fixtures', 'poems')
+// The same values the site under test is built with; each parse throws when its variable is missing (#41, #110).
+const LIST = poemList.parsePoemList(process.env.MIDST_POEM_LIST)
+// The published variant has its own fixtures, so the two servers never share (or delete) each other's files.
+// Its poems are named by the list, which records canonical keys, whatever MIDST_KEY_SCHEME says.
+const OUT = join(REPO, 'e2e', 'fixtures', LIST === 'published' ? 'published' : 'poems')
+const SCHEME = LIST === 'published' ? 'canonical' : keyScheme.parseScheme(process.env.MIDST_KEY_SCHEME)
 
 // Which poems get a fixture. Deliberately few: the tests assert player BEHAVIOUR, and more poems
 // would make the suite slower without asking a new question. One plain poem, one whose title
@@ -130,10 +137,37 @@ function zipOne(name, body) {
 
 rmSync(OUT, { recursive: true, force: true })
 let written = 0
+
+// THE PUBLISHED LIST (#110), for the variant built with MIDST_POEM_LIST=published: published.json beside the
+// objects, in the shape tools/seed-published.mjs writes. Its order is the REVERSE of SUBJECTS, so a site that
+// reads the list shows an order the bundle does not have. One poem has no process note: its entry says null and
+// no note file is written, so a site that asks for one anyway gets a 404 the specs see. Metadata only; the
+// fixtures' content is invented as for every other fixture.
+const publishedEntries = []
+
+// FONTS. The real font files are not in this repository (#55), and the tests must not fall back to
+// system fonts without saying so. So every file named in src/font-faces.json gets a SYNTHETIC font:
+// three glyphs (a box for every printable ASCII character), family "MidstE2ESynthetic", built with
+// fontTools' FontBuilder and saved as TrueType, WOFF and WOFF2. No part of any real typeface. The
+// build points MIDST_FONTS_URL at this directory (package.json, e2e:build).
+const SYNTHETIC_FONT = {
+  ttf: 'AAEAAAAKAIAAAwAgT1MvMkUARHIAAAEoAAAAYGNtYXAAjgHtAAABkAAAAPJnbHlmf3R/cgAAAowAAAA0aGVhZC9UXTIAAACsAAAANmhoZWEFegHEAAAA5AAAACRobXR4AlgAZAAAAYgAAAAIbG9jYQANACcAAAKEAAAACG1heHAABQAGAAABCAAAACBuYW1lRcljQgAAAsAAAAB+cG9zdANqcHoAAANAAAAALAABAAAAAQAAGrqmYV8PPPUAAwPoAAAAAObzDS8AAAAA5vMNLwAyAAACJgH0AAAAAwACAAAAAAAAAAEAAAMg/zgAAAJYADIAMgImAAEAAAAAAAAAAAAAAAAAAAABAAEAAAADAAQAAQAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAwJYAZAABQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAPz8/PwAAACAAfgMg/zgAAAMgAMgAAAAAAAAAAAAAAAAAAAAgAAACWAAyAAAAMgAAAAIAAAADAAAAFAADAAEAAAAUAAQA3gAAAAQABAABAAAAfv//AAAAIP//AAAAAQAEAAAAAQACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAAAAAANAA0AGgABADIAAAImAfQAAwAAMxEhETIB9AH0/gwAAAEAMgAAAiYB9AADAAAzESERMgH0AfT+DAAAAAAEADYAAQAAAAAAAQARAAAAAQAAAAAAAgAHABEAAwABBAkAAQAiABgAAwABBAkAAgAOADpNaWRzdEUyRVN5bnRoZXRpY1JlZ3VsYXIATQBpAGQAcwB0AEUAMgBFAFMAeQBuAHQAaABlAHQAaQBjAFIAZQBnAHUAbABhAHIAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAADAQIDYm94',
+  woff: 'd09GRgABAAAAAAJ8AAoAAAAAA2wAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAABZAAAAC4AAABgRQBEcmNtYXAAAAGcAAAALwAAAPIAjgHtZ2x5ZgAAAdQAAAAlAAAANH90f3JoZWFkAAAA9AAAADYAAAA2L1RdMmhoZWEAAAEsAAAAHwAAACQFegHEaG10eAAAAZQAAAAIAAAACAJYAGRsb2NhAAABzAAAAAgAAAAIAA0AJ21heHAAAAFMAAAAGAAAACAABQAGbmFtZQAAAfwAAABoAAAAfkXJY0Jwb3N0AAACZAAAABUAAAAsA2pwegABAAAAAQAAGrqmYV8PPPUAAwPoAAAAAObzDS8AAAAA5vMNLwAyAAACJgH0AAAAAwACAAAAAAAAeJxjYGRgYFb4b8HAwBTBYMRgxKTGABRBAYwAPTECRAB4nGNgZGBgYGZgYQDRDAxMDGgAAAEtAAx4nGNgZopgnMDAysDCQBgwInPsgQBIKTDUMSv8t2BgYFZgOIGmXoGBAQDESQT4AAACWAAyAAAAMnicY2BgYGJgYGAGYhEgyQimWRjuAWkWIATx6/7/B5IKYJIRKAYimYYuBADlHAZ5AAAAAA0ADQAaeJxjYGQwYmBgUmP8wsDMwGAsqChoxPiF8cs/HgYGnDIA1vIJ3wAAAHicLYixDkAwFEVPkYhFYjP7hA4Ge0cLXyDaVJPGQA3+3iNOcm/uuUBBj+JF0Xz9klGK5aiikqej/XdGzTAGeyajzXzvaXMprJPzV1wORgKWk4RBS2ZudrENJx1YmWR5LiILxwNpqBOkeJxjYGLAD5hBmJGJOSm/AgADUAFYAAAA',
+  woff2: 'd09GMgABAAAAAAFIAAoAAAAAA3AAAAD/AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgXIKOEIBNgIkAwgLCAAEIAV+BywbvwJgHge5GeuSulCWDs17PBT7tbe7p5hHvKomIsmbNUqwHimJyNA58rd2Yhx/Nf9oYZjEx5coTpEgPJDrTv8d8PPzMcq9Q0UaALUFWC0PPMAMI0lvGM8mCY+cfjeqfLBra6EE8KKKRe+lOSQ8XwAtuonCjAV0yzdarcB702BROLR+nb0bCnSQ6GEI0AKBaLWGazSRtgc0Hq0Xefvc8I/j/feqfuHnb3Qjx7bJ9RigJAhOkfNBYbtDAABixWyfUVoCJAAAWvYFCJMIkLomlWj1hWULw2Qac3z1Wg+Y+PpPdIGWL1gvYAJVHcDIpeSboBOgikg015BtToWyIrJe1gMAAA==',
+}
+const faces = JSON.parse(readFileSync(join(REPO, 'src', 'font-faces.json'), 'utf8'))
+mkdirSync(join(OUT, 'fonts'), { recursive: true })
+for (const file of new Set(faces.flatMap(face => face.sources.map(source => source.file)))) {
+  const extension = file.split('.').pop()
+  // .eot is only ever requested by Internet Explorer; it gets the TrueType bytes so the name exists.
+  writeFileSync(join(OUT, 'fonts', file), Buffer.from(SYNTHETIC_FONT[extension] || SYNTHETIC_FONT.ttf, 'base64'))
+  written += 1
+}
 for (const subject of SUBJECTS) {
   const meta = JSON.parse(readFileSync(join(REPO, 'src', 'poems', `${subject}.json`), 'utf8'))
-  const objectName = names.timelapseObjectName(meta) // <- the app's own derivation
-  const noteName = names.processNoteObjectName(meta)
+  const objects = keyScheme.objectNames(meta, SCHEME) // <- the app's own derivation
+  const objectName = objects.timelapse
+  const noteName = objects.processNote
   const innerName = objectName.split('/').pop().replace(/\.zip$/, '')
 
   mkdirSync(join(OUT, dirname(objectName)), { recursive: true })
@@ -148,7 +182,8 @@ for (const subject of SUBJECTS) {
         editorTimelineFrames: frames(TYPED),
         meta: {
           editorDraftMarkers: [],
-          editorFontFamily: 'Helvetica',
+          // One poem is set in Lato, a face the site serves, so e2e can check a poem's own font loads.
+          editorFontFamily: subject === 'Margaret_Yapp' ? 'Lato' : 'Helvetica',
           editorFontSize: 14,
           editorHighestEverDraftNumber: 0,
           editorTitle: 'Untitled',
@@ -156,10 +191,24 @@ for (const subject of SUBJECTS) {
       }),
     ),
   )
-  writeFileSync(
-    join(OUT, noteName),
-    `# Process note (synthetic)\n\nThis text is invented for the end-to-end tests. It is not ${meta.author}'s writing.\n`,
-  )
+  const hasNote = !(LIST === 'published' && subject === 'Madeleine_Mori')
+  if (hasNote) {
+    writeFileSync(
+      join(OUT, noteName),
+      `# Process note (synthetic)\n\nThis text is invented for the end-to-end tests. It is not ${meta.author}'s writing.\n`,
+    )
+  }
+  publishedEntries.unshift({
+    poemId: meta.id,
+    title: meta.title,
+    author: meta.author,
+    timelapse: `poems/${objectName}`,
+    processNote: hasNote ? `poems/${noteName}` : null,
+    publishDate: meta.publishDate ?? null,
+    highlighted: meta.highlighted === true,
+    date: meta.date ?? null,
+    tags: [],
+  })
   // A 1x1 transparent GIF standing in for the author photograph. MEDIA_URL points at this same
   // directory, so without it the page 404s and the no-failed-requests assertion trips on noise
   // rather than on anything real.
@@ -167,8 +216,17 @@ for (const subject of SUBJECTS) {
     'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     'base64',
   )
+  // The photograph is media, not a poem object: it keeps its author-derived name under both schemes.
+  mkdirSync(join(OUT, names.poemFolder(meta)), { recursive: true })
   writeFileSync(join(OUT, `${names.poemFolder(meta)}/${names.authorId(meta.author)}.jpg`), px)
   written += 3
 }
-console.log(`${written} fixture file(s) written under e2e/fixtures/poems/`)
-console.log('Names come from src/poems/poem-names.js, so a change to the slug rules breaks these tests.')
+if (LIST === 'published') {
+  writeFileSync(
+    join(OUT, 'published.json'),
+    `${JSON.stringify({ version: 1, updated: '2026-01-01T00:00:00.000Z', poems: publishedEntries }, null, 2)}\n`,
+  )
+  written += 1
+}
+console.log(`${written} fixture file(s) written under e2e/fixtures/${LIST === 'published' ? 'published' : 'poems'}/`)
+console.log(`Poem list: ${LIST}. Key scheme: ${SCHEME}. Names come from src/poems/key-scheme.js, so a change to the naming breaks these tests.`)

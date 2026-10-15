@@ -5,6 +5,7 @@ import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { loadPoemData } from '../store/actions'
 import { IPoem, PoemLoadFailure } from '../store/types'
+import PoemListStatus from '../components/PoemListStatus'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 import { useParams } from 'react-router'
 
@@ -12,6 +13,8 @@ import { useParams } from 'react-router'
 // so only they suggest trying again. `missing` and `refused` share one sentence: the poems host answers
 // 403 for a file that is not there (see asset-fetch.js), so the browser cannot tell the two apart.
 const NOT_FOUND_OR_REFUSED = 'Unable to find the poem, but it is possible that access was refused.'
+export const NO_POEM_HERE = 'There is no poem at this address.'
+
 export const LOAD_FAILURE_MESSAGES: { [reason in PoemLoadFailure]: string } = {
   missing: NOT_FOUND_OR_REFUSED,
   refused: NOT_FOUND_OR_REFUSED,
@@ -23,8 +26,9 @@ export const LOAD_FAILURE_MESSAGES: { [reason in PoemLoadFailure]: string } = {
 
 function Poem(): ReactElement {
   const { poemUrl } = useParams()
-  const { currentPoemIndex, poems } = useSelector((state: RootState) => ({
+  const { currentPoemIndex, poems, listReady } = useSelector((state: RootState) => ({
     currentPoemIndex: state.app.poems.findIndex(poem => poem.url === poemUrl),
+    listReady: state.app.poemList === 'ready',
     poems: state.app.poems.filter(poem => poem.hidden !== null),
   }))
 
@@ -33,16 +37,17 @@ function Poem(): ReactElement {
   const el = useRef(null)
 
   useEffect(() => {
+    // No such poem, or the list has not arrived yet (it is empty, or this url is not in it): nothing to
+    // slide to or load. Runs again when the list does arrive, because the index changes.
+    if (currentPoemIndex < 0 || !poems[currentPoemIndex]) return
+
     const sliderFrame = (el as any).current.querySelector('.sliding-poems__frame')
+    sliderFrame.style.left = `calc(100vw * -${currentPoemIndex})`
 
-    if (currentPoemIndex > -1) {
-      sliderFrame.style.left = `calc(100vw * -${currentPoemIndex})`
-    }
-
-    if (!poems[currentPoemIndex].loaded) {
+    if (currentPoemIndex > -1 && !poems[currentPoemIndex].loaded) {
       dispatch(loadPoemData(currentPoemIndex))
     }
-  }, [poemUrl])
+  }, [poemUrl, currentPoemIndex])
 
   return (
     <div
@@ -56,7 +61,16 @@ function Poem(): ReactElement {
           <meta name="description" content="" />
         </Helmet>
 
-        <div className="sliding-poems">
+        <PoemListStatus />
+
+        {listReady && currentPoemIndex === -1 &&
+          // An address no published poem has: an old link to a poem since unpublished or retitled, or a
+          // typo. Say so; showing the first poem would put the wrong poem under this address (#100). Only
+          // once the list is here: while a published list is loading, or after it failed, every address
+          // matches nothing, and PoemListStatus says why.
+          <p className="sliding-poems__failure" role="alert">{NO_POEM_HERE}</p>}
+
+        {currentPoemIndex > -1 && <div className="sliding-poems">
           <div
             className="sliding-poems__frame"
             style={{ width: `${poems.length * 200}%` }}
@@ -88,7 +102,7 @@ function Poem(): ReactElement {
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </section>
     </div>
   )

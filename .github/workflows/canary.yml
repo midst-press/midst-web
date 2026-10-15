@@ -18,6 +18,10 @@ jobs:
         with: { node-version-file: .nvmrc }
       - name: HEAD every expected poem object
         id: check
+        # Production holds the legacy names (#41). Change this only together with the bucket.
+        env:
+          MIDST_KEY_SCHEME: legacy
+          MIDST_POEM_LIST: bundled
         run: node tools/poem-canary.mjs
       - name: open an issue if anything is unreachable
         if: failure()

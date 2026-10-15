@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { Helmet } from 'react-helmet'
 import ChevronButton from '../components/ChevronButton'
+import PoemListStatus from '../components/PoemListStatus'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { IPoem } from '../store/types'
@@ -149,6 +150,8 @@ function Read(): ReactElement {
           </div>
         </div>
 
+        <PoemListStatus />
+
         {poems.map((poem: IPoem) => (
           <Link key={poem.url}
             className={`
@@ -156,6 +159,7 @@ function Read(): ReactElement {
               ${ poem.highlighted ? 'poem-highlighted' : '' }
             `}
             data-trigger={poem.trigger ? 'true' : 'false'}
+            data-poem-id={poem.id}
             to={`/poem/${poem.url}/`}
             onClick={() => dispatch(setMobileNavOpen(false))}
           >
@@ -168,7 +172,7 @@ function Read(): ReactElement {
               dangerouslySetInnerHTML={{ __html: poem.title }}
             />
             <div className="poem-line__column poem-date">
-              { poem.date.format('MM/DD/YYYY') }
+              { poem.date.isValid() ? poem.date.format('MM/DD/YYYY') : '' }
             </div>
           </Link>
         ))}
