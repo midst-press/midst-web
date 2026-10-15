@@ -16,7 +16,8 @@ async function signedInAs(page: Page, groups: string[]) {
     JSON.stringify({ idToken, expiresAt: exp * 1000, email: 'qz@example.invalid', groups }))
 }
 
-interface Store { submissions: { submissionId: string, title: string, author: string, submittedAt: string, status: string, note: string | null }[], uploaded: string[], uploadFails?: boolean, listFailsAfterComplete?: boolean }
+interface Submission { submissionId: string, title: string, author: string, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
+interface Store { submissions: Submission[], uploaded: string[], uploadFails?: boolean, listFailsAfterComplete?: boolean }
 
 async function standIn(page: Page, baseURL: string, store: Store) {
   await page.route('**/*', async (route: Route) => {
@@ -37,7 +38,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     }
     if (request.method() === 'POST' && url.pathname === '/submissions') {
       const body = request.postDataJSON()
-      store.submissions.unshift({ submissionId: 'sub-9', title: body.title, author: body.author, submittedAt: '2026-10-15T09:30:00Z', status: 'uploading', note: null })
+      store.submissions.unshift({ submissionId: 'sub-9', title: body.title, author: body.author, origin: 'upload', submittedAt: '2026-10-15T09:30:00Z', status: 'uploading', note: null })
       return reply(200, { submissionId: 'sub-9', uploadUrl: `${UPLOAD}/submissions/sub-9/zq.midst`, uploadHeaders: { 'Content-Type': 'application/octet-stream' }, expiresAt: 'x' })
     }
     if (request.method() === 'POST' && url.pathname === '/submissions/sub-9/complete') {
@@ -51,7 +52,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
 const midstFile = { name: 'zq.midst', mimeType: 'application/octet-stream', buffer: Buffer.from('zq synthetic') }
 
 test('a poet sends a .midst file, is thanked, and sees it received', async ({ page, baseURL }) => {
-  const store: Store = { submissions: [{ submissionId: 'sub-1', title: 'Xv', author: 'Qz', submittedAt: '2026-10-01T09:00:00Z', status: 'declined', note: 'Zq note' }], uploaded: [] }
+  const store: Store = { submissions: [{ submissionId: 'sub-1', title: 'Xv', author: 'Qz', origin: 'upload', submittedAt: '2026-10-01T09:00:00Z', status: 'declined', note: 'Zq note' }], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
   await page.goto('/submit')
@@ -64,6 +65,16 @@ test('a poet sends a .midst file, is thanked, and sees it received', async ({ pa
   expect(store.uploaded).toEqual(['/submissions/sub-9/zq.midst application/octet-stream zq synthetic'])
   await expect(page.getByRole('list', { name: 'Your submissions' }).getByRole('listitem').first()).toContainText('Received, waiting to be read')
   await expect(page.getByLabel('Title')).toHaveValue('')
+})
+
+test('an archive record in the poet\'s list says it is from the archive, and shows no 1970', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [{ submissionId: 'sub-2', title: 'Zq xv', author: 'Qz', origin: 'archive', submittedAt: null, status: 'accepted', note: null }], uploaded: [] }
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/submit')
+  const item = page.getByRole('list', { name: 'Your submissions' }).getByRole('listitem').filter({ hasText: 'Zq xv' })
+  await expect(item).toContainText('from the archive')
+  await expect(item).not.toContainText('1970')
 })
 
 test('when the poem is received but the list cannot be refreshed, it does not say the poem failed', async ({ page, baseURL }) => {

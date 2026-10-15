@@ -1,4 +1,5 @@
 import { Call } from '../app/publisher'
+import { Submission, canPlay, reviewByline } from '../app/submit'
 import { PlayDeps, PlayError, ZipLib, decide, fetchTimelapse, reviewSubmissions, timelapseTicket } from '../app/review'
 
 // The review calls (docs/app-api.md, "Review") and the fetch, unzip and parse step behind Play.
@@ -79,5 +80,39 @@ describe('fetchTimelapse', () => {
     for (const d of [deps({ zip: zipLib('empty') }), deps({ zip: zipLib('unreadable') }), deps({ readText: async () => 'not json' })]) {
       await expect(fetchTimelapse('https://files.example.invalid/zq', d)).rejects.toThrow('damaged')
     }
+  })
+})
+
+describe('the review list for an archive record', () => {
+  const upload: Submission = { submissionId: 's-1', title: 'Zq xv', author: 'Qz Vb', poet: 'qz@example.invalid', origin: 'upload', submittedAt: '2026-10-15T09:30:00Z', status: 'received', note: null }
+  const archive: Submission = { submissionId: 's-2', title: 'Zq xv', author: 'Qz Vb', poet: null, origin: 'archive', submittedAt: null, status: 'accepted', note: null, recordedBy: 'zq-migration' }
+
+  it('says "from the archive" with no poet, no 1970 and no stray comma', () => {
+    const line = reviewByline(archive)
+    expect(line).toBe('by Qz Vb, from the archive')
+    expect(line).not.toContain('1970')
+    expect(line).not.toMatch(/,\s*,/)
+  })
+
+  it('keeps the poet of an archive record that has one', () => {
+    expect(reviewByline({ ...archive, poet: 'qz@example.invalid' })).toBe('by Qz Vb, qz@example.invalid, from the archive')
+  })
+
+  it('shows the date of an archive record whose file gave one, and still offers nothing to play', () => {
+    const dated = { ...archive, poet: 'qz@example.invalid', submittedAt: '2021-01-06T21:14:03.512Z' }
+    expect(reviewByline(dated)).toBe(`by Qz Vb, qz@example.invalid, ${new Date('2021-01-06T21:14:03.512Z').toLocaleDateString()}`)
+    expect(canPlay(dated)).toBe(false)
+  })
+
+  it('shows author, poet and date for an upload, as before', () => {
+    expect(reviewByline(upload)).toBe(`by Qz Vb, qz@example.invalid, ${new Date('2026-10-15T09:30:00Z').toLocaleDateString()}`)
+  })
+
+  it('offers Play for an upload that has a review copy, and not for an archive record or an unfinished upload', () => {
+    expect(canPlay(upload)).toBe(true)
+    expect(canPlay({ ...upload, status: 'accepted' })).toBe(true)
+    expect(canPlay(archive)).toBe(false)
+    expect(canPlay({ ...archive, status: 'published' })).toBe(false)
+    expect(canPlay({ ...upload, status: 'uploading' })).toBe(false)
   })
 })

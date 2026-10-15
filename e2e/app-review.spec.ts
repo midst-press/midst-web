@@ -34,11 +34,11 @@ function fixtureZip(): Buffer {
   return readFileSync(path)
 }
 
-interface Submission { submissionId: string, title: string, author: string, poet: string, submittedAt: string, status: string, note: string | null }
+interface Submission { submissionId: string, title: string, author: string, poet: string | null, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
 interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean }
 
 const submission = (n: number, over: Partial<Submission> = {}): Submission =>
-  ({ submissionId: `sub-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, poet: `qz${n}@example.invalid`, submittedAt: `2026-10-0${n}T09:00:00Z`, status: 'received', note: null, ...over })
+  ({ submissionId: `sub-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, poet: `qz${n}@example.invalid`, origin: 'upload', submittedAt: `2026-10-0${n}T09:00:00Z`, status: 'received', note: null, ...over })
 
 async function standIn(page: Page, baseURL: string, store: Store) {
   await page.route('**/*', async (route: Route) => {
@@ -102,6 +102,30 @@ test('a decided submission offers no decision, and an unfinished upload offers n
   await expect(row(page, 'Zq 2').getByRole('button', { name: /Accept|Decline/ })).toHaveCount(0)
   await expect(row(page, 'Zq 2').getByRole('button', { name: 'Play Zq 2' })).toBeVisible()
   await expect(row(page, 'Zq 3').getByRole('button')).toHaveCount(0)
+})
+
+test('an archive record shows its file\'s date, or "from the archive" without one, with no stray comma, and nothing to play or decide', async ({ page, baseURL }) => {
+  const archive = submission(2, { origin: 'archive', poet: null, submittedAt: null, status: 'accepted' })
+  // An archive record whose own file gave a last edit shows that date, and still nothing to play.
+  const dated = submission(3, { origin: 'archive', submittedAt: '2021-01-06T21:14:03.512Z', status: 'accepted' })
+  const store: Store = { submissions: [submission(1), archive, dated], decisions: [], listReads: 0 }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await expect(row(page, 'Zq 3')).toContainText(/2021/)
+  await expect(row(page, 'Zq 3')).not.toContainText('from the archive')
+  await expect(row(page, 'Zq 3').getByRole('button')).toHaveCount(0)
+  const archived = row(page, 'Zq 2')
+  await expect(archived).toContainText('from the archive')
+  await expect(archived).not.toContainText('1970')
+  await expect(archived).not.toContainText(', ,')
+  await expect(archived.getByRole('button', { name: /Play/ })).toHaveCount(0)
+  await expect(archived.getByRole('button', { name: /Accept|Decline/ })).toHaveCount(0)
+  const uploaded = row(page, 'Zq 1')
+  await expect(uploaded).toContainText('qz1@example.invalid')
+  await expect(uploaded).toContainText(/2026/)
+  await expect(uploaded).not.toContainText('from the archive')
+  await expect(uploaded.getByRole('button', { name: 'Play Zq 1' })).toBeVisible()
 })
 
 test('a saved decision whose list reload fails is still shown as saved, and offers no second decision', async ({ page, baseURL }) => {
