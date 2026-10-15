@@ -1,274 +1,322 @@
 # Midst Journal
 
-The journal: a poem is shown as a timelapse of its own composition, replayed keystroke by keystroke.
+This repository is the Midst Journal website. It shows each poem as a timelapse of its own composition, replayed keystroke by keystroke. It also holds the beta app: signed-in pages where poets submit poems and publishers review and publish them.
 
-To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md): the checks, the tests, and the rules about poem content.
+To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md): the checks, the tests, and the rules about poem content.
 
 ## Before you start
 
-**Node: the version pinned in `.nvmrc`.** CI reads that same file, so the easiest way to match CI is a
-version manager that respects it:
+Use the Node version pinned in `.nvmrc`. CI reads the same file.
 
 ```
-nvm use          # or: fnm use / asdf install
+nvm use          # or any version manager that reads .nvmrc
 ```
 
-Other versions may work, but the one in `.nvmrc` is what CI verifies.
-
-## Use npm. Not yarn
-
-**This project uses npm, and only npm.** There is one lockfile, `package-lock.json`.
-
-This is not a preference, it is a defect we already paid for. The repository used to carry
-`package-lock.json` **and** `yarn.lock` while the README told you to run `yarn`, and the two
-disagreed:
-
-- `yarn.lock` described **Parcel 1** for a while after the migration to Parcel 2, so following this
-  README installed the dead bundler the migration existed to escape
-- it was missing the `process` polyfill, without which the build fails — but only in CI
-- it was missing `lazy-require`, a declared dependency, **entirely**
-
-So `yarn install` produced a tree that did not match `package.json`, and nothing reported it. A
-pre-commit hook now refuses to commit a second lockfile, because this is the kind of rule that has to
-be mechanical rather than remembered.
+Install `pre-commit` before you install dependencies. It is a Python tool; CI uses version 4.6.2.
 
 ```
-npm ci                 # install exactly what the lockfile says. Use this, not `npm install`
-npm install <pkg>      # only when you intend to CHANGE dependencies -- commit the lockfile change
+pipx install pre-commit==4.6.2
 ```
 
-`npm ci` fails if `package.json` and `package-lock.json` disagree. That is the point of it: the
-install itself is the consistency check.
+### Use npm. Not yarn
 
-`.npmrc` carries `legacy-peer-deps=true`, which this project currently needs — React 18 is installed
-against `@types/react` 16.9. That is a real mismatch rather than a flag to paper over it; see the open
-issue about aligning the React types.
+Use npm only. The one lockfile is `package-lock.json`. A hook refuses a second lockfile (`yarn.lock`, `pnpm-lock.yaml`, `bun.lockb`, `npm-shrinkwrap.json`).
 
-## Development
+```
+npm ci                 # install exactly what the lockfile says
+npm install <pkg>      # only to change dependencies; commit the lockfile change
+```
+
+`npm ci` fails when `package.json` and `package-lock.json` disagree. That is the consistency check.
+
+`.npmrc` sets `legacy-peer-deps=true`. React 18 is installed while several packages declare peer support for React 15-17 only (`react-custom-scrollbars`, `react-helmet`, `@types/react` 16.9). The flag only stops npm refusing to resolve; the mismatch itself is tracked on GitHub (midst-web #11).
+
+### Git hooks
+
+`npm ci` installs the git hooks for this clone (the `prepare` script runs `tools/install-hooks.cjs`) and fails if it cannot. `npm test` refuses to run in a clone without them. Outside a git clone, or when `CI` is set, the install does nothing.
+
+The hooks are the checks CI runs. They cover formatting (prettier), `tsc --noEmit`, unused dependencies, relative-import letter case, poem ids, the generated poem index, copies kept from other repositories, and rules that refuse poem data, font files, log files and a second lockfile. A `commit-msg` hook refuses closing keywords such as `fixes #12`; write `Refs #12`.
+
+One hook needs a checkout of `midst-editor` (see "Copies of midst-editor files"):
+
+```
+git clone https://github.com/midst-press/midst-editor.git ../midst-editor   # once; fetch before each check
+export MIDST_EDITOR_ROOT=$PWD/../midst-editor
+pre-commit run --all-files --show-diff-on-failure                           # what CI runs
+```
+
+Several hooks call tools from `node_modules`, so run `npm ci` first.
+
+## Run it locally
+
+### Development
 
 ```
 MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm start        # dev server
 MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build    # production build into ./dist
 ```
 
-Both refuse to start without `MIDST_KEY_SCHEME` and `MIDST_POEM_LIST`; see "Key scheme" and "Poem list" below for which value to give.
+Both refuse to start without `MIDST_KEY_SCHEME` and `MIDST_POEM_LIST`. See "Key scheme" and "Poem list" for which values to use.
 
-Both pass `--no-autoinstall` deliberately. Without it, Parcel silently installs missing polyfills on
-your machine and the build then fails only in CI, where autoinstall is off. A missing dependency
-should fail where you can see it.
+Both pass `--no-autoinstall` to Parcel on purpose. A missing dependency fails where you can see it, not only in CI.
 
-## The gates
+Without the `MIDST_APP_*` variables the build has no signed-in pages (see "The beta app"). Without `MIDST_POEMS_URL` the site reads poems from the production bucket.
 
-The same checks run on your machine and in CI, from one definition in `.pre-commit-config.yaml`.
-Install them once per clone:
+## Tests
+
+### Unit tests
 
 ```
-pre-commit install
-pre-commit run --all-files     # what CI runs, verbatim
+npm test                       # Jest: src/**/__tests__/**/*.test.ts and tools/__tests__/**/*.test.cjs
+npm test -- --coverage         # with the per-file coverage floors, as CI runs it
+npm run test:coverage-control  # the coverage report's own control, with node's test runner
 ```
 
-They cover formatting, `tsc --noEmit`, unused dependencies, and three project-specific rules: poem
-data and log files can never be committed, and `src/poems/index.ts` must stay consistent with the poem
-metadata.
+Unit tests set `MIDST_KEY_SCHEME=legacy` and `MIDST_POEM_LIST=bundled` themselves, whatever your shell has.
 
-One more exists because the gate runs on macOS: `tools/check-import-case.mjs` fails when a relative
-import is spelled in a different letter case (or Unicode form) than git has the file. macOS resolves
-such an import and Linux does not, and this site has shipped that once. It compares against
-`git ls-files`, never the filesystem, so it gives the same answer on both.
+Each file in `jest.collectCoverageFrom` (15 files) has its own floor in `package.json`. A file with no tests counts as 0% and fails. Every floor is 100% except these:
 
-## Publishing a poem
+- `src/store/reducer.ts`: branches 94, lines 99, statements 99.
+- `src/app/auth.ts`: branches 97.
 
-`src/poems/index.ts` is **generated**. Do not edit it.
+### End-to-end tests
 
-1. add `src/poems/<Poet_Name>.json` with the poem's metadata, including `"published": true`
-2. give it a position in `src/poems/order.json` — newest first
-3. `node tools/generate-poem-index.mjs --write`
+Install the browser once:
 
-To unpublish, set `"published": false` and remove it from `order.json`, then regenerate. A poem used to
-be unpublished by commenting out a line of TypeScript, which meant publication state was only legible
-to a developer.
+```
+npx playwright install chromium
+```
 
-The gates will refuse a poem with no `published` field, a published poem with no place in the order, an
-order entry with no metadata file, and a hand-edited index.
+The bundled-list suite:
 
-## Deploying
+```
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run test:e2e
+```
 
-The site is static. `MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build` produces `./dist` (see "Key scheme", "Poem list"), which is served from **Amazon S3 behind
-CloudFront**.
+The published-list suite builds its own bundle (`dist-published`) and fixtures, and serves them on its own port:
 
-> An earlier version of this README said to copy `./src/.htaccess` to the server. There is no Apache
-> here and that step did nothing. Single-page-app routes such as `/poem/december` do need a fallback to
-> `index.html`, but on this stack that is a CloudFront error-response rule, not a file.
+```
+MIDST_KEY_SCHEME=legacy npm run test:e2e:published
+```
 
-There is no automated deployment yet, and there is an open issue about who controls the AWS account —
-until that is answered, nothing can be deployed from CI.
+Both suites use synthetic poems. The tests build the site against a local server, so they need no network, no credentials and no poem data. Each run starts its own server and builds first.
 
-## Poem ids
+| Variable | Default | What it sets |
+|---|---|---|
+| `MIDST_E2E_PORT` | 8099 | port of the bundled-list suite |
+| `MIDST_E2E_PUBLISHED_PORT` | 8098 | port of the published-list suite |
 
-Every poem file in `src/poems` has an `id`: a random version-4 UUID, minted once, that says nothing
-about the poem. Poets' names and poem titles change, so storage is to be keyed on the id and not on
-any name (#41). Never edit an id, reuse one, or build one from anything.
+The server takes its port before it builds and exits with code 3 if the port is taken.
+
+To generate fixtures alone: `MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run e2e:fixtures`.
+
+CI also runs four specs under `MIDST_KEY_SCHEME=canonical` and the whole published suite.
+
+The replay-and-scroll tests measure real frame timing. Run them on a machine with a display if you change `src/components/MidstPlayer/`:
+
+```
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run e2e:frame-budget -- --headed
+```
+
+`npm run e2e:frame-budget:attest` prints an attestation block of numbers for a pull request comment. The `frame-budget` workflow runs the same tests on every pull request.
+
+### Coverage report
+
+```
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run coverage
+```
+
+This runs the unit tests, then the end-to-end suite with `MIDST_COVERAGE=1`, and prints lines, branches and functions for every code file under `src/` and in total. It is opt-in. An ordinary `npm test` or `npm run test:e2e` records nothing extra. `MIDST_COVERAGE_TEST_ARGS` adds arguments to the Playwright run.
+
+- `e2e/coverage.ts` records Chromium's V8 coverage for each test's page, and `scripts/coverage-jest-reporter.cjs` keeps Jest's V8 coverage for each unit test file. `scripts/coverage-merge.mjs` maps both back to `src/` through source maps with `monocart-coverage-reports`. It writes `coverage/unit-istanbul.json` and `coverage/e2e-istanbul.json` and prints the table. The output is git-ignored.
+- The coverage run builds the end-to-end bundle without minifying (`--no-optimize`), because a minified bundle cannot be mapped back. So it does not test the build that ships.
+- It reports three layers over every file: unit only, end-to-end only, and combined. A file no test loads is listed at 0%.
+- Jest also writes `coverage/unit/coverage-final.json`. The report does not read it, because Jest's converter counts every line as a statement and its maps cannot be merged with these. The floors in `package.json` are Jest's own figures.
+- `e2e/coverage-control.ts` holds one function that runs when the module loads and one that nothing calls. The script withholds every figure unless each layer shows exactly that.
+- It prints file paths and percentages, never source text. The raw recordings in `coverage/raw/` hold built JavaScript and stay on disk.
+
+The `asset-canary`, `asset-fetch` and `midst-file` specs run `src/` code in Node, not in a page, so this report does not count what they execute. Coverage shows what ran, not what was asserted. The combined figure is not a gate.
+
+## Build inputs
+
+The site reads these variables at build time. Parcel writes the values into the bundle, so they are chosen when you build, not in the browser.
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `MIDST_KEY_SCHEME` | none, required | `legacy` or `canonical`: which object names the site asks the poems bucket for. See "Key scheme". |
+| `MIDST_POEM_LIST` | none, required | `bundled` or `published`: where the site gets its list of poems. See "Poem list". |
+| `MIDST_POEMS_URL` | production authors URL | where timelapses, process notes and `published.json` are read from |
+| `MIDST_MEDIA_URL` | production authors URL | author photographs |
+| `MIDST_SHAPES_URL` | production shapes URL | decorative shapes |
+| `MIDST_FONTS_URL` | `/fonts/` | the font files named in `src/font-faces.json` |
+| `MIDST_APP_API_URL` | none | the beta app's API |
+| `MIDST_APP_AUTH_DOMAIN` | none | the Cognito managed login domain, with or without `https://` |
+| `MIDST_APP_CLIENT_ID` | none | the user pool's app client for this site |
+| `MIDST_BUILD_TAG` | none | the release tag the commit carries, for the About page |
+| `MIDST_BUILD_COMMIT` | none | the short commit id, with `-dirty` if the tree was modified |
+| `MIDST_BUILD_DATE` | none | the commit's date (ISO 8601), not the build time |
+
+When any of `MIDST_POEMS_URL`, `MIDST_MEDIA_URL` or `MIDST_SHAPES_URL` differs from production, the site shows that it is a non-production build. The beta app is available only when all three `MIDST_APP_*` values are set. Without them the signed-in pages say the app is not available here.
+
+### Fonts
+
+The font files are not in this repository, and a hook refuses any that are added. Some are commercial, and a public repository is not a webfont licence. The site asks for them at `MIDST_FONTS_URL`, which defaults to `/fonts/` at the site's own origin. A deployment uploads the font files beside the site under `fonts/`. `src/font-faces.json` lists every file the site asks for. `src/fonts.ts` writes the `@font-face` rules from it when the page loads.
+
+To see the real fonts in local development, put the files in `static/fonts/`. Git ignores that directory. Without them the site falls back to system fonts.
+
+If `MIDST_FONTS_URL` points at a different origin, that host must answer font requests with an `Access-Control-Allow-Origin` header naming the site (or `*`). Browsers load cross-origin fonts only with it.
+
+The end-to-end tests do not need real fonts. The fixture maker writes a synthetic font under each name in `src/font-faces.json`.
+
+## Poems
+
+Poem data never enters this repository. [DATA.md](DATA.md) says where it lives, why, and what the data formats are. Do not put poem text, titles, poets' names or donor names in code, issues, pull requests or logs.
+
+### Publishing a poem
+
+`src/poems/index.ts` is generated. Do not edit it.
+
+1. Add `src/poems/<Poet_Name>.json` with the poem's metadata, including `"published": true`.
+2. Give it an id: `node tools/poem-ids.mjs --mint`.
+3. Add its file name, without `.json`, to the `order` array in `src/poems/order.json`. The order is editorial data. It is not sorted by date.
+4. Regenerate the index: `node tools/generate-poem-index.mjs --write`.
+
+To unpublish, set `"published": false`, remove the poem from `order.json`, and regenerate.
+
+The hooks refuse a poem with no `published` field, a published poem with no place in the order, an order entry with no metadata file, a hand-edited index, a poem without an id, and two poems with one id.
+
+### Poem ids
+
+Every poem file has an `id`: a random version-4 UUID, minted once, that says nothing about the poem. Poets' names and poem titles change, so storage is keyed on the id. Never edit an id, reuse one, or build one from anything.
 
 ```
 node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
 node tools/poem-ids.mjs           # the check the commit hook runs
 ```
 
-Under the `canonical` key scheme (below) the id is the poem's object name; under `legacy` nothing reads
-it and names are built by `src/poems/poem-names.js`. A poem file can
-be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`.
+A poem file can be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`. Under the `canonical` key scheme the id is the poem's object name. Under `legacy` nothing reads it.
 
-## Key scheme
+### Key scheme
 
-`MIDST_KEY_SCHEME` says which object names the site asks a bucket for, and it has no default: a
-build, the canary and the end-to-end suite each refuse to start without it (#41).
+`MIDST_KEY_SCHEME` says which object names the site asks a bucket for. It has no default. A build, the canary, the fixture maker and the end-to-end suite each refuse to start without it.
 
-- `legacy`: the names built from the author and title, as production holds them.
-- `canonical`: `<id>/timelapse.midst.zip` and `<id>/process-note.md`, one request each, from the
-  poem's id. Every published poem must have an id.
+- `legacy`: names built from the author and title, as production holds them. Built by `src/poems/poem-names.js`.
+- `canonical`: `<id>/timelapse.midst.zip` and `<id>/process-note.md`, from the poem's id. Every published poem must have an id.
 
 ```
-MIDST_KEY_SCHEME=legacy npm run build
-MIDST_KEY_SCHEME=canonical npm run test:e2e
+MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run build
+MIDST_KEY_SCHEME=canonical MIDST_POEM_LIST=bundled npm run test:e2e
 MIDST_KEY_SCHEME=legacy node tools/poem-canary.mjs
 ```
 
-The scheme is built into the site, so it must match what the bucket at `MIDST_POEMS_URL` holds; a
-mismatch shows every poem as not found. Routes (`/poem/...`) and author photographs are the same
-under both. The names themselves come from `src/poems/key-scheme.js`.
+The scheme is built into the site. It must match what the bucket at `MIDST_POEMS_URL` holds, or every poem shows as not found. The names come from `src/poems/key-scheme.js`.
 
-## Poem list
+### Poem list
 
-`MIDST_POEM_LIST` says where the site gets its list of poems, and it has no default: the build, the fixture
-maker and both end-to-end suites refuse to start without it (#110).
+`MIDST_POEM_LIST` says where the site gets its list of poems. It has no default. The build, the fixture maker and both end-to-end suites refuse to start without it.
 
 - `bundled`: the list built into the site (`src/poems/index.ts`), asked for under `MIDST_KEY_SCHEME`.
-- `published`: `published.json` under `MIDST_POEMS_URL` (which ends in `/poems/`), fetched once when the site
-  starts. Its array order is the reading order, and each entry records the two keys its poem is fetched under
-  (`poems/<id>/timelapse.midst.zip`, and a process note or `null`). The site fetches `MIDST_POEMS_URL` + the
-  key without its leading `poems/`, and derives no name. If the list cannot be fetched or is not well formed,
-  the site says the poems could not be loaded; it never falls back to the bundled list. Under `published`,
-  `MIDST_KEY_SCHEME` is still required but no longer says anything about the poems' names, and the build does
-  not ask the bundled poem files for ids.
+- `published`: `published.json` under `MIDST_POEMS_URL`, fetched once when the site starts. `MIDST_POEMS_URL` must end in `/poems/`. The array order is the reading order. Each entry records the two keys its poem is fetched under: `poems/<id>/timelapse.midst.zip`, and a process note or `null`. The site fetches `MIDST_POEMS_URL` plus the key without its leading `poems/`, and derives no name. If the list cannot be fetched or is malformed, the site says the poems could not be loaded. It never falls back to the bundled list. `MIDST_KEY_SCHEME` is still required under `published`, but the build does not ask the bundled poem files for ids.
 
 ```
 MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=published npm run build
-MIDST_KEY_SCHEME=legacy npm run test:e2e:published    # its own build (dist-published), fixtures and port
+MIDST_KEY_SCHEME=legacy npm run test:e2e:published
 ```
 
-The list's checks and the key handling are in `src/poems/poem-list.js`; the first list is written by
-`tools/seed-published.mjs`.
-
-## Fonts
-
-The font files are not in this repository, and a commit hook refuses any that are added: some are
-commercial, and a public repository is not a webfont licence. The site asks for them at
-`MIDST_FONTS_URL`, which defaults to `/fonts/` at its own origin, so a deployment uploads the font
-files beside the site under `fonts/`. `src/font-faces.json` lists every file the site asks for and
-`src/fonts.ts` writes the `@font-face` rules from it when the page loads.
-
-To see the real fonts in local development, put the files in `static/fonts/` (ignored by git); the
-build copies `static/` into `dist/`, so they are served at `/fonts/`. Without them the site falls
-back to system fonts and nothing else changes. The end-to-end tests do not need them: the fixture
-maker writes a synthetic font under each name and the tests check that the faces load.
-
-If `MIDST_FONTS_URL` points at a different origin from the site, that host must answer font requests
-with an `Access-Control-Allow-Origin` header naming the site (or `*`). Browsers load fonts across
-origins only with it; without it every face fails to load and the page falls back to system fonts,
-with nothing shown to the reader. The default, `/fonts/` on the site's own origin, needs no header.
-
-If a build fails with "Failed to resolve '../midst-player-hack/lato.css'" after you pull, delete
-`.parcel-cache`: it was written by a build from before the font stylesheets were removed.
-
-## Checking the poems are still reachable
+The checks on the list are in `src/poems/poem-list.js`. The first list is written by `tools/seed-published.mjs`:
 
 ```
-node tools/poem-canary.mjs
+node tools/seed-published.mjs --staged <dir> --out <file> [--poems <dir>]
 ```
 
-Asks the bucket for every published poem and reports anything unreachable. It needs no credentials. It
-exists because a poem was unreachable for an unknown length of time and nobody found out from the
-software.
-## TipTap website replay
+`--staged` is the staged canonical objects; every key in the list must be a file there. `--out` is refused inside a git work tree and never overwrites an existing file. Upload the result with `If-None-Match: *`, so it cannot replace a list the publisher has changed.
 
-The poem route uses `src/components/MidstPlayer/MidstPlayer.tsx`, adapted from
-`reimplement-2026` at `05c727544f47dcee1d40ddaaa06ab994299dd875`. The existing loader
-still validates B/C archives and preserves the Unicode asset fallback. Each validated
-snapshot becomes a full replacement for the editor's reconstruction helper, including
-unchanged frames. Seeking reconstructs only the selected replacement.
-
-`follow.ts` and `helpers.ts` are copied byte-for-byte from midst-editor main. All writing
-hooks exclude these copies from formatting, and the provenance hook compares them with
-a freshly fetched editor main. The same hook holds the editor's tests for them, copied to
-`src/__tests__/editor-*.test.ts`: each must equal its original apart from a header note and
-the import path. To bring a copy up to date, copy the original and reapply those two. Locally, set `MIDST_EDITOR_ROOT` to your editor checkout
-after fetching its `origin/main`. CI checks out editor main through scoped read-only
-access: `MIDST_EDITOR_DEPLOY_KEY` on Gitea. On GitHub midst-editor is public, so the checkout needs no credential.
-
-TipTap and its transitive extensions are pinned to 2.5.4, matching the editor lockfile.
-`@tiptap/pm` is explicit because this website installs with `--legacy-peer-deps`.
-Playback waits during a follow glide; pause, seek, navigation and unmount manage the
-timer lifecycle. Cursor-following and scrollbar metadata overrides remain supported.
-
-The synthetic follow tests cover end/middle writing jumps at 600px and 720px page
-heights. The recorder also checks quiet final edits and distinguishes a forced browser
-clamp from a voluntary jump. Real poem content is never needed for these CI tests.
-
-Presentation follows midst-format `docs/META.md` at
-`d0ed7fa6e3393836a53dd0d89ae5481a73b27a4e`: C's optional font family, CSS-pixel font
-size and draft markers reach the player. Unknown metadata and out-of-range markers
-remain in the loaded data; only in-range integer marker indices are displayed. The
-synthetic frame used for a static document does not create a source history index.
-Marker names stay in the reader UI, never diagnostics. Missing/unusable rendering
-values fall back to Helvetica/14; other positive finite sizes remain supported.
-Existing vendored font faces are included. A CSS family declaration with a generic
-fallback does not certify availability of Bell/Garamond or grant new font licenses.
-
-## Coverage: what the tests execute
+### Checking the poems are still reachable
 
 ```
-npm run coverage
+MIDST_KEY_SCHEME=legacy node tools/poem-canary.mjs
 ```
 
-Runs the unit tests, then the end-to-end suite with `MIDST_COVERAGE=1`, and prints lines, branches
-and functions for every code file under `src/`, and in total. It is opt-in: an ordinary `npm test`
-or `npm run test:e2e` records nothing extra and is no slower.
+This asks the bucket for every published poem in `src/poems` and reports anything unreachable. It needs no credentials and prints status codes, never poem content. It checks the bundled files only; for a published list, `deploy/beta/check_published_list.py` runs during a deploy. Optional variables:
 
-- **How.** `e2e/coverage.ts` records Chromium's own V8 coverage for each test's page, and
-  `scripts/coverage-jest-reporter.cjs` keeps the V8 coverage Jest collects for each unit test file.
-  `scripts/coverage-merge.mjs` maps both back to `src/` through each build's source maps with
-  `monocart-coverage-reports`, writes istanbul JSON to `coverage/unit-istanbul.json` and
-  `coverage/e2e-istanbul.json`, and prints the table. Output is git-ignored.
-- **A different build.** Under `MIDST_COVERAGE` the e2e build is not minified (`--no-optimize`),
-  because a minified bundle cannot be mapped back function by function. So the coverage run does
-  not test the build that ships; the ordinary e2e run does.
-- **Three layers.** Unit-only, e2e-only and combined, all three over every file.
-- **One converter for both layers.** Jest also writes `coverage/unit/coverage-final.json`, and this
-  report does not read it. Jest's converter counts every source line as a statement, so its figures are not comparable with these and its maps cannot be
-  merged with them. The thresholds in `package.json` are Jest's own figures and are unaffected.
-- **Combined is a merge only where both layers ran a file.** The two layers run two builds of the
-  same source, and the builds do not always agree on what the items are (an import is a statement in
-  one and gone in the other). Items are paired by where each begins; the report prints how many
-  could not be paired. Those count once per build, so for such a file the combined branch and
-  function figures can read slightly low. A line counts once however many items begin on it.
-- **Every file counts.** A file no test loads is listed at 0%, not left out.
-- **The control.** `e2e/coverage-control.ts` holds one function that runs when the module loads and
-  one nothing calls. The harness page loads it for the e2e layer and
-  `src/__tests__/coverage-control.test.ts` for the unit layer. The script withholds every figure
-  unless each layer shows exactly that.
-- **Numbers only.** It prints file paths and percentages, never source text. The raw recordings in
-  `coverage/raw/` hold the built JavaScript and stay on disk.
+| Variable | Default | What it sets |
+|---|---|---|
+| `MIDST_ASSETS_URL` | production authors URL | the bucket to ask |
+| `MIDST_POEMS_DIR` | `src/poems` | the poem metadata directory |
+| `MIDST_CANARY_TIMEOUT` | 45000 | per-request timeout in milliseconds |
 
-What it does not measure: the `asset-canary`, `asset-fetch` and `midst-file` Playwright specs run
-`src/` code in Node, not in a page, so what they execute is not counted here. Coverage is what ran,
-not what was asserted, and no figure from this report is used as a gate.
+The `canary` workflow runs it daily at 06:17 UTC under `legacy` and opens an issue labelled `canary` if anything is unreachable.
+
+## The beta app
+
+The beta app is a set of signed-in pages in the same bundle: a poet submits a poem, a publisher reviews and publishes, an admin manages publishers. Sign-in is Cognito's managed login. It is built only when `MIDST_APP_API_URL`, `MIDST_APP_AUTH_DOMAIN` and `MIDST_APP_CLIENT_ID` are set.
+
+| Path | Who | What |
+|---|---|---|
+| `/app` | anyone | about the app |
+| `/signed-in` | anyone | where managed login returns; finishes sign-in |
+| `/me` | signed in | who you are and your groups; sign out |
+| `/submit` | poet | submit a poem; see where each submission stands |
+| `/review` | publisher | play, accept or decline submissions |
+| `/publisher` | publisher | publish, unpublish, reorder; register poets |
+| `/admin` | admin | invite and manage publishers and admins |
+
+The pages live in `src/routes/`, and the code behind them in `src/app/`. [docs/app-api.md](docs/app-api.md) is the contract with the back end. Change that file first when either side needs something different.
+
+## Deploying
+
+The site is static. `npm run build` produces `./dist`.
+
+The beta site is deployed by the `deploy` workflow when a pre-release is published, or when you run the workflow from a release tag. The tag must be on `main`, must match `vMAJOR.MINOR.PATCH[-suffix]`, and its GitHub release must be published with the pre-release box ticked. A tag of `v1.0.0` or later with no suffix is a full release; no production environment exists yet, so it is refused.
+
+The workflow runs `deploy/beta/deploy_site.sh`. The script builds at the tag, checks that every poem is reachable (the canary for `bundled`, `check_published_list.py` for `published`), uploads to the site bucket with `index.html` last, writes `deployed.json`, invalidates the CloudFront distribution, and checks that every poem page mounts the player. It never uploads `fonts/`.
+
+The workflow takes its settings from the `Beta` environment: `MIDST_KEY_SCHEME`, `MIDST_POEM_LIST`, `MIDST_SITE_BUCKET`, `MIDST_SITE_DISTRIBUTION`, `MIDST_POEMS_URL`, `MIDST_SITE_URL`, `AWS_REGION`, the three `MIDST_APP_*` values, and `MIDST_VERIFIER` (the person the released issues are handed to); and the secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. After a successful deploy, `tools/issue_flow.py released` hands the release's issues to the verifier.
+
+Run the script by hand with `--dry-run` to build and print what would be uploaded without writing to AWS. It reads the site's CloudFormation stack (`--stack`, default `midst-press-beta-site`), so it needs AWS credentials that can read it, unless you give the four values with `--site`:
+
+```
+bash deploy/beta/deploy_site.sh --web-repo <clone> --key-scheme legacy --poem-list bundled --dry-run
+```
+
+`deploy/beta/`, `tools/closing_refs.py` and `tools/issue_flow.py` are copies from midst-infra. Change them there first, then copy them here and update `tools/midst-infra-copies.sha256`. The `midst-infra-copies` hook checks them:
+
+```
+shasum -a 256 -c tools/midst-infra-copies.sha256
+```
+
+## Copies of midst-editor files
+
+Four files are copied byte for byte from midst-editor `main`, and four editor test files are copied with them:
+
+- `src/components/MidstPlayer/follow.ts` and `helpers.ts`
+- `src/buildLabel.ts`
+- `src/guide/editor-user-guide.md`
+- tests: `src/__tests__/editor-follow.test.ts`, `editor-followMore.test.ts`, `editor-trackingUtils.test.ts`, `editor-buildLabel.test.ts`
+
+A test copy must equal its original except for a header note and the import path. To bring a copy up to date, copy the original and reapply those two.
+
+The `editor-helpers-identical` hook compares the copies with your editor checkout's `origin/main`:
+
+```
+git -C "$MIDST_EDITOR_ROOT" fetch origin
+node tools/check-editor-helpers.mjs
+```
+
+It throws when `MIDST_EDITOR_ROOT` is not set, when the checkout's origin is not `midst-editor`, or when `origin/main` moves during the comparison. Hooks that write files skip `follow.ts`, `helpers.ts` and three of the test copies, so formatting does not change them.
+
+CI on Gitea clones editor `main` with a read-only deploy key (`MIDST_EDITOR_DEPLOY_KEY`). CI on GitHub checks out the public repository with no credential.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for where contributions go, the rule about poem content, the checks before a pull request, how an issue gets closed, and what CI runs.
+
+The import-case hook (`tools/check-import-case.mjs`) fails when a relative import is spelled in a different letter case than git has the file. It compares against `git ls-files`, never the filesystem, so macOS and Linux give the same answer.
 
 ## License
 
-The website's source code is licensed under the GNU Affero General Public License, version 3 or (at your
-option) any later version: see `LICENSE`. That license does not cover the following, which keep their own
-terms:
+The website's source code is licensed under the GNU Affero General Public License, version 3 or (at your option) any later version: see `LICENSE`. That license does not cover the following, which keep their own terms:
 
-- font files (for example Bell MT, a Monotype font, and the other commercial fonts under `static/` and `src/`),
+- the font files the site serves (for example Bell MT, a Monotype font, and other commercial fonts), which are not in this repository,
 - poets' names, poem titles and other poem metadata, and the journal's own written text,
-- third-party components that declare their own license (for example the player component's `package.json`).
+- third-party components that declare their own license.
