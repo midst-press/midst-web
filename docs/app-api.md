@@ -39,6 +39,7 @@ Every error has the same body:
 | 403 | `forbidden` | signed in, but not in the group the route needs |
 | 404 | `not_found` | no such poem, submission or person, or one that is not yours: a poet asking for another poet's submission gets 404, never 403, so the answer does not say whether it exists |
 | 409 | `conflict` | the published list changed since it was read; the body also carries the current `listEtag` |
+| 409 | `archive` | an upload-only action on an archive record: `complete`, the review copy's timelapse, or a decision |
 | 409 | `already_registered` | registering an email that already has an account |
 | 409 | `already_signed_in` | resending an invitation to someone who has already set their password |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
@@ -88,6 +89,7 @@ recorded, not derived. `publishDate` and `highlighted` are `null` / `false` unti
   "title": "Zq xv",
   "author": "Qz Vb",
   "poet": "qz@example.invalid",
+  "origin": "upload",
   "submittedAt": "2026-10-15T09:30:00Z",
   "status": "received",
   "note": null
@@ -96,7 +98,15 @@ recorded, not derived. `publishDate` and `highlighted` are `null` / `false` unti
 
 `status` is one of `uploading` (the id exists, and `complete` has not yet accepted a file), `received`, `accepted`, `declined`,
 `published`. An accepted submission is an unpublished poem with the same id. `note` is the publisher's note to
-the poet on a decision, or `null`. `poet` (the poet's email) is included only on the publisher's routes.
+the poet on a decision, or `null`. `poet` (the poet's email) is included only on the publisher's routes, and is
+`null` for an archive record with no poet.
+
+`origin` is always there: `upload` for a poem sent through the app, `archive` for a poem that came from an
+archive and was never uploaded. An **archive record**'s `submittedAt` is the time of the last edit in the poem's
+own file (Stuart, 16 Oct), or `null` when the file has no times. It is stored `accepted` (shown as `published`
+while its poem is on the published list), and has no review copy. It may also carry `recordedBy`, a string saying
+who recorded it; the field is left out when there is none, and only a migration writes it. A page never makes a date
+of a `null` `submittedAt`: it shows "from the archive" for an archive record and "date not recorded" for any other.
 
 **Person:**
 
@@ -145,6 +155,34 @@ Resend and disable act only on someone whose one group is `poet`: anyone else is
 publisher cannot reset a publisher's or an admin's invitation, or disable them. Admin manages those. An
 unknown `username` is 404.
 
+**Patrons** (#58). Every patron has a `visibility`: `public`, `private` or `undetermined` (not yet asked). Only
+public patrons are named on the site.
+
+- The full list is private: `patrons/patrons.json` in the draft bucket,
+  `{ "version": 1, "updated", "patrons": [{ "id", "name", "visibility" }, ...], "closing": "<line>" | null }`.
+- Every save also writes the site's copy, `site/patrons.json` in the publishing bucket, served at
+  `/site/patrons.json` with a one-minute `Cache-Control`. It holds the public names only, in order:
+  `{ "version": 1, "updated", "patrons": ["<name>", ...], "closing" }`. The site reads that file, never the routes.
+
+The routes:
+
+- `GET /publisher/patrons` → `{ "patronsEtag", "patrons": [{ "id", "name", "visibility" }, ...], "closing" }`. Before
+  the first save: `"patronsEtag": "none"`, no patrons, `"closing": null`.
+- `PUT /publisher/patrons` `{ "patronsEtag", "patrons": [{ "id"?, "name", "visibility" }, ...], "closing" }` → the
+  same shape as GET, as saved. Replaces the whole list in the order given: add (no `id`; the server makes one),
+  remove, reorder, rename, change visibility. Each name, and `closing` unless it is null, is one line of 1 to 200
+  characters after trimming; at most 1000 patrons; otherwise 400 `invalid`.
+- Visibility, per patron, against what is stored:
+  - public to private, and private to public: allowed;
+  - undetermined to public or private: allowed (someone who says no becomes private);
+  - anything to undetermined, or a new patron as undetermined: 400 `refused`, with a message naming the patron and
+    why. Only the Patreon sync (a later PR) makes someone undetermined.
+- 409 `conflict`, with the current `patronsEtag`, when someone else saved first.
+- 500 `public_copy_failed`, with the new `patronsEtag`, when the list was saved but the site's copy was not
+  written; until the next save, the copy may still name someone just made private. Saving again writes it.
+- The site's copy may briefly be one save behind when two saves overlap; a save that answers 200 leaves it derived
+  from a list at least as new as its own.
+
 ### Poet (`poet`)
 
 Submitting is three steps, so the file goes straight to the bucket and never through the Lambda:
@@ -164,22 +202,33 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
    `uploading`; sending again starts a new submission. Completing one already `received` answers it again,
    unchanged.
 
-- `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`, newest first. A submission still `uploading`
+- `GET /submissions/mine` → `{ "submissions": [Submission, ...] }`. A submission still `uploading`
   is left out: `complete` never accepted a file for it, and sending again starts a new submission (#123, #125).
+  An archive record is listed only when its poet's username equals the caller's; one with no poet matches nobody.
+  Newest `submittedAt` first; records whose `submittedAt` is `null` come after all the others, newest `decidedAt`
+  first.
+
+`complete` on an archive record is 409 `archive`: it was never uploaded.
 
 ### Review (`publisher`)
 
-- `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, newest first.
+- `GET /review/submissions` → `{ "submissions": [Submission, ...] }`, every status, archive records included.
+  Newest `submittedAt` first; records whose `submittedAt` is `null` come after all the others, newest `decidedAt`
+  first.
 - `GET /review/submissions/{submissionId}/timelapse` → `{ "url", "expiresAt" }`
   A pre-signed GET of the review copy written by `complete`, valid for five minutes, so the review page plays it
-  with the player as it is. 404 for a submission still `uploading`, which has no review copy.
+  with the player as it is. 404 for a submission still `uploading`, which has no review copy. 409 `archive` for
+  an archive record, which never had one; the review page does not offer Play for it.
 - `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
   `Submission`. Accepting makes it an unpublished poem. `note` is optional, at most 2,000 characters; blank is
   `null`. A decision is made only on a submission that is `received`, with one exception: accepting one that
-  is already `accepted` is 200. The decision is recorded before the poem is made, so if making the poem fails
-  the submission is left `accepted` without one; accepting again finishes it. That repeat leaves the recorded
-  decision and note as they were (a `note` sent with it is still checked, but not recorded) and returns the current `Submission`. Any other
-  decision on a submission that is not `received` is 400 `invalid`.
+  is already `accepted` is allowed, and idempotent. The decision is recorded before the poem is made, so if making
+  the poem fails the submission is left `accepted` without one; accepting again makes the poem if it is missing,
+  leaves the recorded decision and note as they were (a `note` sent with it is still checked, but not recorded)
+  and returns the current `Submission` with 200. The review page offers this as "Finish accepting" when an
+  `accepted` submission's poem is not on the publisher's list (`GET /publisher/poems`), and, if that list could
+  not be loaded, shows the button disabled with the reason. Any other decision on a submission that is not
+  `received` is 400 `invalid`. On an archive record it is 409 `archive`.
 
 A submission's status becomes `published` when its poem is published, and `accepted` again if it is unpublished.
 
@@ -200,7 +249,7 @@ change a group without going to the AWS console, which is how the first admin is
 |---|---|---|
 | `/signed-in` | anyone | where the managed login returns to; finishes sign-in and goes on |
 | `/me` | signed in | who you are and your groups; sign out |
-| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable |
+| `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable; patrons: edit the list |
 | `/submit` | poet | submit a poem, and your submissions and where each stands |
 | `/review` | publisher | submissions: play, accept or decline with a note |
 | `/admin` | admin | publishers and admins: invite, change groups, disable |

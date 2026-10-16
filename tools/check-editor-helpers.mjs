@@ -1,9 +1,15 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 
-// Files copied from midst-editor and held byte-identical to editor main.
+// The editor commit the copies are held to. A copy PR copies the files and moves this pin in the same
+// commit (--pin-to-main). The gate compares with the pin, not with editor main, so an editor merge cannot
+// turn every website branch red (midst-web #152). Copies that have fallen behind editor main are reported
+// on every run, without failing it.
+export const PIN_FILE = 'tools/editor-copies-pin'
+
+// Files copied from midst-editor and held byte-identical to the pinned editor commit.
 const HELPERS = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
   ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
@@ -36,37 +42,94 @@ export function expectedTestCopy(original, upstream, originalImport, copyImport)
   return text.slice(0, at) + headerNote(upstream) + text.slice(at)
 }
 
-export function check(editorRoot, webRoot) {
-  // Git hooks export repository-local variables; -C alone does not escape the website's GIT_DIR.
+const SHA = /^[a-f0-9]{40}$/
+
+export function readPin(webRoot) {
+  const pin = readFileSync(join(webRoot, PIN_FILE), 'utf8').trim()
+  if (!SHA.test(pin)) throw new Error(`${PIN_FILE} must hold one full editor commit SHA`)
+  return pin
+}
+
+// Every editor file the website copies.
+const UPSTREAMS = [...HELPERS, ...TESTS].map(([, upstream]) => upstream)
+
+// Throws on a copy that differs from the pinned editor commit, a pin that is not on editor main, or a
+// checkout that is not midst-editor. Returns the pin, editor main, and the copied editor files that have
+// changed on main since the pin, or that main no longer has (the copies a copy PR is due for).
+// git in the editor checkout. Git hooks export repository-local variables; -C alone does not escape the
+// website's GIT_DIR, so they are removed.
+export function editorGit(editorRoot) {
   const env = { ...process.env }
   const localVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' }).trim().split('\n')
   for (const name of localVariables) delete env[name]
-  const git = args => execFileSync('git', ['-C', editorRoot, ...args], { env })
+  return args => execFileSync('git', ['-C', editorRoot, ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+}
+
+const exists = (git, commit, path) => {
+  try {
+    git(['cat-file', '-e', `${commit}:${path}`])
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function check(editorRoot, webRoot) {
+  const git = editorGit(editorRoot)
   const origin = git(['remote', 'get-url', 'origin']).toString().trim()
   if (!/[/:](The_Kindled|midst-press)\/midst-editor(\.git)?$/.test(origin)) throw new Error('Provenance checkout must be midst-editor')
-  const head = git(['rev-parse', 'refs/remotes/origin/main']).toString().trim()
-  if (!/^[a-f0-9]{40}$/.test(head)) throw new Error('Invalid editor main SHA')
-  const upstreamBytes = upstream => {
-    const bytes = git(['show', `${head}:${upstream}`])
-    if (!bytes.length) throw new Error('Missing upstream source')
+  const main = git(['rev-parse', 'refs/remotes/origin/main']).toString().trim()
+  if (!SHA.test(main)) throw new Error('Invalid editor main SHA')
+  const pin = readPin(webRoot)
+  try {
+    git(['cat-file', '-e', `${pin}^{commit}`])
+  } catch {
+    throw new Error(`The pinned editor commit ${pin} is not in ${editorRoot}: fetch midst-editor (with its history, not a shallow clone)`)
+  }
+  try {
+    git(['merge-base', '--is-ancestor', pin, main])
+  } catch {
+    throw new Error(`The pinned editor commit ${pin} is not on editor main (${main}): pin a merged commit`)
+  }
+  const upstreamBytes = (commit, upstream) => {
+    const bytes = git(['show', `${commit}:${upstream}`])
+    if (!bytes.length) throw new Error(`Missing upstream source ${upstream} at ${commit}`)
     return bytes
   }
   for (const [local, upstream] of HELPERS) {
-    if (!upstreamBytes(upstream).equals(readFileSync(join(webRoot, local)))) throw new Error(`Copied editor helper differs: ${local} at ${head}`)
+    if (!upstreamBytes(pin, upstream).equals(readFileSync(join(webRoot, local)))) throw new Error(`Copied editor helper differs: ${local} at ${pin}`)
   }
   for (const [local, upstream, originalImport, copyImport] of TESTS) {
-    const expected = expectedTestCopy(upstreamBytes(upstream).toString('utf8'), upstream, originalImport, copyImport)
+    const expected = expectedTestCopy(upstreamBytes(pin, upstream).toString('utf8'), upstream, originalImport, copyImport)
     if (!Buffer.from(expected, 'utf8').equals(readFileSync(join(webRoot, local)))) {
-      throw new Error(`Copied editor test differs from ${upstream} beyond its header note and import path: ${local} at ${head}`)
+      throw new Error(`Copied editor test differs from ${upstream} beyond its header note and import path: ${local} at ${pin}`)
     }
   }
-  if (git(['rev-parse', 'refs/remotes/origin/main']).toString().trim() !== head) throw new Error('Editor main moved during comparison')
-  return head
+  // A copied file that editor main has deleted or moved is behind too, never a failure: an editor merge
+  // must not turn the website red (#152).
+  const behind = UPSTREAMS.flatMap(upstream => {
+    if (!exists(git, main, upstream)) return [`${upstream} (gone from editor main)`]
+    return upstreamBytes(pin, upstream).equals(upstreamBytes(main, upstream)) ? [] : [upstream]
+  })
+  if (git(['rev-parse', 'refs/remotes/origin/main']).toString().trim() !== main) throw new Error('Editor main moved during comparison')
+  return { pin, main, behind }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = process.env.MIDST_EDITOR_ROOT
   if (!root) throw new Error('Set MIDST_EDITOR_ROOT to a freshly fetched midst-editor checkout')
-  const head = check(root, fileURLToPath(new URL('..', import.meta.url)))
-  console.log(`Editor helpers and their copied tests match editor main at ${head}`)
+  const webRoot = fileURLToPath(new URL('..', import.meta.url))
+  if (process.argv[2] === '--pin-to-main') {
+    // For a copy PR, after copying the files: pin editor main, then check against it.
+    const main = editorGit(root)(['rev-parse', 'refs/remotes/origin/main']).toString().trim()
+    writeFileSync(join(webRoot, PIN_FILE), `${main}\n`)
+  } else if (process.argv[2]) {
+    throw new Error(`Unknown argument ${process.argv[2]}; the only one is --pin-to-main`)
+  }
+  const { pin, main, behind } = check(root, webRoot)
+  console.log(`Editor helpers and their copied tests match the pinned editor commit ${pin}`)
+  if (behind.length) {
+    console.log(`WARNING: editor main (${main}) has changed ${behind.length} copied file(s) since the pin; a copy PR is due:`)
+    for (const upstream of behind) console.log(`  ${upstream}`)
+  }
 }

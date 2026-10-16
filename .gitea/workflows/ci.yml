@@ -48,8 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      # --legacy-peer-deps: React 18 against @types/react 16.9; see #11.
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       # Unit tests for the non-GUI code (#14). Each file in package.json's jest.collectCoverageFrom has its own
       # threshold, so an untested file counts as 0% and any drop fails this step.
       # Every threshold is 100% except src/store/reducer.ts (99% lines, 94% branches): its one uncovered line and
@@ -75,7 +74,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" > "$EDITOR_KEY"
           printf '%s\n' '[gitea-server]:2222 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC/VGpxJRKcHAJCSqYHQ+NZNS7v2pibbUelMYqemnO8DOoAU6fngzVz49QPLvYQXy3Rc1W57+cf1MOrzYVJC3unsyIiMGycgQdKBqHAc8+rmBPvGvS+0U28T2F8idZlzfLIa8kt6K7dUkw2l65h5mHxAQ8YHyLv9kgNRVYMzjZmmX4Y1mYdJegyP8IAZUVgKewzw6FVNnJrN0/iomQSfhwYBIoPN4w9cUrKLuIteZX0Rs1FEZbSMy9GxyiH0fRn0X9P/0QO973UwaxlkSEKZY31+Geex1ynCEuulwQGkhhGhmnnaTCTlS9hwHpJ+pcrb0OnVdJj8cxeq1WLyVnZMEtHbu5+LX8ViicW8exEf9VAcJUExgn+itJXU5NceNcZLotDScJXGV1UI/de5TgjuB3WyFQphYdeiuKxwRywtV8fEFzzZRl+t1gSDvDjSU3/DJM4gZm5lARUnClUOW6uRGx6wuryhBeYoJroBzlnHZp+yOlWYdTwrcZG5+wk60R6ETjqOq/zysAg2fZTA2obvTmYlOojYf+nfvIPT0I0FZNPDaY1qqtR8pgJwZX61yHtDEiqHyje+NQUeIvAt+vm7wQ6coYSlle+5zzWuDZzgo15KkXqAZCdgv8al+WRSZKTdGnNer5cB0uZSBSDr9dg95WLX0o+rUYTX9g0ocmcrOpP0Q==' > "$RUNNER_TEMP/editor_known_hosts"
           export GIT_SSH_COMMAND="ssh -F /dev/null -p 2222 -i $EDITOR_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/editor_known_hosts"
-          git clone --quiet --depth 1 --branch main stuartswerdloff@gitea-server:The_Kindled/midst-editor.git "$MIDST_EDITOR_ROOT"
+          git clone --quiet --branch main stuartswerdloff@gitea-server:The_Kindled/midst-editor.git "$MIDST_EDITOR_ROOT"
       - name: pre-commit, in a throwaway virtual environment
         run: |
           python3 -m venv "$RUNNER_TEMP/precommit"
@@ -92,7 +91,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npm run build
       - name: record what was built
         run: echo "files=$(find dist -type f | wc -l | tr -d ' ') kilobytes=$(du -sk dist | cut -f1)"
@@ -108,7 +107,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npx playwright install chromium
       # Jobs on this runner share one host, and CI runs in parallel, so a fixed port could collide.
       # playwright.config.ts and the e2e npm scripts all read MIDST_E2E_PORT.
@@ -161,7 +160,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npx playwright install chromium
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"

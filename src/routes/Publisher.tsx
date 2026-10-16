@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
+import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
@@ -176,6 +177,7 @@ function Publisher(): ReactElement {
         {reordered && <p className="publisher-hint">Save or undo the new order before publishing or changing anything else.</p>}
 
         {call && <PublisherPoets call={call} onExpired={expired} />}
+        {call && <PublisherPatrons call={call} onExpired={expired} />}
       </>
     )
   }
