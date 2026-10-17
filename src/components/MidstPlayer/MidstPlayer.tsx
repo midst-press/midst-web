@@ -225,6 +225,9 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   useEffect(() => {
     const el = timestampRef.current
     if (!el || !el.parentElement) return
+    // As the marker row's effect: without ResizeObserver the label is still measured on text change, and only
+    // stops re-measuring on resize, rather than the effect throwing and the player not rendering (#146).
+    if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measureLabel)
     observer.observe(el.parentElement)
     return () => observer.disconnect()
