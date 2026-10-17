@@ -17,6 +17,7 @@ import { createRequire } from 'node:module'
 import { closeSync, existsSync, openSync, readFileSync, statSync, writeSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { argv, exit } from 'node:process'
+import { isoPublishDate } from './publish-date.mjs'
 
 const require = createRequire(import.meta.url)
 const { objectNames } = require('../src/poems/key-scheme.js')
@@ -81,7 +82,7 @@ for (const name of new Set(order)) {
     author: meta.author,
     timelapse,
     processNote: hasNote ? processNote : null,
-    publishDate: meta.publishDate ?? null,
+    publishDate: isoPublishDate(meta.publishDate, meta.id),
     highlighted: meta.highlighted === true,
     // Legacy fields the site shows today, carried as they are; the Lambda passes unknown fields through.
     date: meta.date ?? null,
