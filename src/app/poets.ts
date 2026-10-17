@@ -19,6 +19,10 @@ export const STATUS_WORDS: Record<Person['status'], string> = {
   disabled: 'Disabled',
 }
 
+// Resend and disable act only on poet-only accounts; the API refuses them, 403, for anyone also in another
+// group (docs/app-api.md, "Poets"), so the page offers them only here (#122).
+export const poetOnly = (person: Pick<Person, 'groups'>): boolean => person.groups.length === 1 && person.groups[0] === 'poet'
+
 const at = (username: string) => `/publisher/poets/${encodeURIComponent(username)}`
 
 export const listPoets = (call: Call) => call<{ poets: Person[] }>('/publisher/poets')
