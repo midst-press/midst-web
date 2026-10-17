@@ -2,7 +2,7 @@
 // Every poem has an opaque id, minted once and never derived from a name. Issue #41.
 //
 //   node tools/poem-ids.mjs           check: every poem file has a well-formed id, no two share one, and every
-//                                     id on the merge base with origin/main is still on one poem file (#65)
+//                                     id on the merge base with origin/main is still on one poem file or retired (#65)
 //   node tools/poem-ids.mjs --mint    give an id to each poem file that has none, then check
 //
 // Poets' names and poem titles change (the requirement behind #41). The id is the poem's storage
@@ -65,27 +65,49 @@ export function currentIds(dir) {
   return ids
 }
 
-// An id is the poem's storage identity, so once minted it never changes and never goes (#65). `before` is
-// id -> file name on the base. Compared by id, not by file name, so a renamed file keeps its id.
-export function idChanges(before, now) {
+// Ids of poems that were withdrawn, as id -> reason, in tools/retired-poem-ids.json (#65). A poem file can be
+// removed only by retiring its id here. A retired id stays reserved: it is never on a live file again and never
+// leaves this list, so it can never come to mean another poem.
+export const RETIRED_FILE = 'tools/retired-poem-ids.json'
+
+export function readRetired(root) {
+  return JSON.parse(readFileSync(join(root, RETIRED_FILE), 'utf8'))
+}
+
+// An id is the poem's storage identity, so once minted it never changes meaning (#65). `before` is id -> file name
+// on the base, and `retiredBefore` the retired list there. Compared by id, not by file name, so a renamed file
+// keeps its id.
+export function idChanges(before, now, retired = {}, retiredBefore = {}) {
   const found = []
+  for (const [id, reason] of Object.entries(retired)) {
+    if (!ID_SHAPE.test(id)) found.push(`${RETIRED_FILE}: ${JSON.stringify(id)} is not a lower-case version-4 UUID`)
+    if (typeof reason !== 'string' || !reason.trim()) found.push(`${RETIRED_FILE}: id ${id} needs a reason`)
+    if (now.has(id)) found.push(`id ${id} is retired but is on ${now.get(id)}; a retired id is never used again`)
+  }
+  for (const id of Object.keys(retiredBefore)) {
+    if (!(id in retired)) found.push(`id ${id} was retired at the base and is not now; a retired id stays on ${RETIRED_FILE}`)
+  }
   for (const [id, name] of before) {
-    if (!now.has(id)) found.push(`id ${id} (on ${name} at the base) is on no poem file now; an id never changes and is never removed`)
+    if (!now.has(id) && !(id in retired)) {
+      found.push(`id ${id} (on ${name} at the base) is on no poem file now; an id never changes, and a withdrawn poem's id goes on ${RETIRED_FILE}`)
+    }
   }
   return found
 }
 
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 
-// id -> file name for the poem files at the merge base of HEAD and `base`. Throws, never returns empty, when
-// there is no base to compare with: an empty base would pass every change.
-export function baseIds(root, base = 'origin/main') {
-  let commit
+// The merge base of HEAD and `base`. Throws when there is none: no base would pass every change.
+export function mergeBase(root, base = 'origin/main') {
   try {
-    commit = git(root, ['merge-base', 'HEAD', base]).trim()
+    return git(root, ['merge-base', 'HEAD', base]).trim()
   } catch {
     throw new Error(`no merge base with ${base}: fetch it with its history (CI: fetch-depth 0), or set POEM_IDS_BASE`)
   }
+}
+
+// id -> file name for the poem files at `commit`.
+export function baseIds(root, commit) {
   const ids = new Map()
   const names = git(root, ['ls-tree', '--name-only', `${commit}:src/poems`]).split('\n').filter(Boolean)
   for (const name of names.filter(n => n.endsWith('.json') && !NOT_POEMS.has(n))) {
@@ -93,6 +115,12 @@ export function baseIds(root, base = 'origin/main') {
     if (typeof id === 'string') ids.set(id, name)
   }
   return ids
+}
+
+// The retired list at `commit`; empty only where the base predates the list.
+export function baseRetired(root, commit) {
+  const listed = git(root, ['ls-tree', '--name-only', commit, '--', RETIRED_FILE]).trim()
+  return listed ? JSON.parse(git(root, ['show', `${commit}:${RETIRED_FILE}`])) : {}
 }
 
 // Adds an id as the first field of each poem file that lacks one, leaving every other byte alone.
@@ -117,7 +145,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(`minted ${minted.length} id(s)${minted.length ? ': ' + minted.join(', ') : ''}`)
   }
   const root = fileURLToPath(new URL('..', import.meta.url))
-  const found = [...problems(dir), ...idChanges(baseIds(root, process.env.POEM_IDS_BASE || 'origin/main'), currentIds(dir))]
+  const commit = mergeBase(root, process.env.POEM_IDS_BASE || 'origin/main')
+  const found = [...problems(dir), ...idChanges(baseIds(root, commit), currentIds(dir), readRetired(root), baseRetired(root, commit))]
   for (const message of found) console.error(`poem ids: ${message}`)
   if (found.length) process.exit(1)
   console.log(`poem ids: ${poemFiles(dir).length - Object.keys(PENDING).length} poems have an id, ${Object.keys(PENDING).length} pending`)
