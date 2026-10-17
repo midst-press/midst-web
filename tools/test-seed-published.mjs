@@ -13,7 +13,7 @@ const B = '22222222-2222-4222-8222-222222222222'
 const C = '33333333-3333-4333-8333-333333333333'
 
 const meta = (id, extra = {}) => ({
-  id, author: `Au ${id[0]}`, title: `Zq ${id[0]}`, date: 'Spring', tags: ['x'], publishDate: '2026-10-01',
+  id, author: `Au ${id[0]}`, title: `Zq ${id[0]}`, date: 'Spring', tags: ['x'], publishDate: '10/1/2026',  // the bundled files' M/D/YYYY; the list gets ISO (#158)
   highlighted: false, published: true, ...extra,
 })
 

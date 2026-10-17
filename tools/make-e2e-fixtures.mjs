@@ -23,6 +23,7 @@ import { deflateRawSync, crc32 } from 'node:zlib'
 import names from '../src/poems/poem-names.js'
 import keyScheme from '../src/poems/key-scheme.js'
 import poemList from '../src/poems/poem-list.js'
+import { isoPublishDate } from './publish-date.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const REPO = join(here, '..')
@@ -204,7 +205,7 @@ for (const subject of SUBJECTS) {
     author: meta.author,
     timelapse: `poems/${objectName}`,
     processNote: hasNote ? `poems/${noteName}` : null,
-    publishDate: meta.publishDate ?? null,
+    publishDate: isoPublishDate(meta.publishDate, meta.id),
     highlighted: meta.highlighted === true,
     date: meta.date ?? null,
     tags: [],
