@@ -54,7 +54,7 @@ const loadPoemList = (): any =>
 
 // The part of zip.js used here. It is loaded by a script tag in index.html, not imported.
 interface ZipEntry {
-  getData(writer: unknown, onData: (blob: Blob) => void): void
+  getData(writer: unknown, onData: (blob: Blob) => void, onProgress?: unknown, checkCrc32?: boolean): void
 }
 interface ZipJs {
   workerScriptsPath: string
@@ -76,20 +76,38 @@ interface LoadError {
 
 const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']
 
-// The text of the first file in a timelapse archive.
-const readFirstEntry = (zip: ZipJs, archive: Blob): Promise<string> =>
+// How long the archive read may take before the load is given up. zip.js inflates in a worker, and a worker that
+// never answers would otherwise leave the loading mark turning for ever (#43).
+export const ARCHIVE_READ_TIMEOUT_MS = 30000
+
+// The text of the first file in a timelapse archive. Every way it can fail ends in a rejection (#43):
+// - zip.js reports a bad archive, a bad entry header, a read or inflate error, and (with checkCrc32) a CRC mismatch
+//   through createReader's error callback;
+// - the callbacks run outside the caller's try, so each catches its own synchronous throw;
+// - a FileReader error, and a read that never finishes, reject too.
+const readFirstEntry = (zip: ZipJs, archive: Blob, timeoutMs = ARCHIVE_READ_TIMEOUT_MS): Promise<string> =>
   new Promise((resolve, reject) => {
     const damaged: LoadError = { reason: 'damaged', log: 'Unable to read Midst archive' }
-    zip.createReader(new zip.BlobReader(archive), zipReader => {
-      zipReader.getEntries(entries => {
-        if (!entries.length) return reject(damaged)
-        entries[0].getData(new zip.BlobWriter(), blob => {
-          const reader = new FileReader()
-          reader.addEventListener('loadend', () => resolve(reader.result as string))
-          reader.readAsText(blob)
-        })
-      })
-    }, () => reject(damaged))
+    const timer = setTimeout(() => reject({ reason: 'unknown', log: 'Reading the Midst archive timed out' }), timeoutMs)
+    const ok = (text: string) => { clearTimeout(timer); resolve(text) }
+    const bad = () => { clearTimeout(timer); reject(damaged) }
+    const guard = <A extends unknown[]>(fn: (...args: A) => void) => (...args: A) => {
+      try { fn(...args) } catch { bad() }
+    }
+    try {
+      zip.createReader(new zip.BlobReader(archive), guard(zipReader => {
+        zipReader.getEntries(guard(entries => {
+          if (!entries.length) return bad()
+          entries[0].getData(new zip.BlobWriter(), guard((blob: Blob) => {
+            const reader = new FileReader()
+            reader.addEventListener('loadend', () => (reader.error ? bad() : ok(reader.result as string)))
+            reader.readAsText(blob)
+          }), undefined, true)
+        }))
+      }), bad)
+    } catch {
+      bad()
+    }
   })
 
 // TODO: Should be: ThunkResult<void>. Why doesn't it work?
@@ -120,6 +138,15 @@ const loadPoemData = (poemIndex: number): any =>
       return response
     }
 
+    // The body of a response that arrived: a connection dropped while reading it is a network failure (#43).
+    const body = async <T>(response: Response, read: (r: Response) => Promise<T>): Promise<T> => {
+      try {
+        return await read(response)
+      } catch {
+        throw { reason: 'network', log: 'Unable to read the poem from the network' }
+      }
+    }
+
     let text: string
     let processNote: string
     try {
@@ -130,10 +157,10 @@ const loadPoemData = (poemIndex: number): any =>
       // A recorded null means the poem has no note: no request, and an empty note.
       processNote = ''
       if (names.processNote !== null) {
-        const note = await (await get(names.processNote)).text()
+        const note = await body(await get(names.processNote), r => r.text())
         processNote = insane(marked(note), { allowedTags: NOTE_TAGS })
       }
-      const archive = await (await get(names.timelapse)).blob()
+      const archive = await body(await get(names.timelapse), r => r.blob())
       text = await readFirstEntry(zip, archive)
     } catch (e: unknown) {
       const error = e as Partial<LoadError> | null
