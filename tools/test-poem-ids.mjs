@@ -177,5 +177,16 @@ test('the base is the merge base, so a poem added to main after the branch is no
 
 test('no base to compare with is an error, never an empty base that passes everything', t => {
   const { root } = repo(t, {})
-  assert.throws(() => mergeBase(root, 'origin/main'), /no merge base with origin\/main/)
+  assert.throws(() => mergeBase(root, 'origin/main'), err => {
+    // git's own message is carried, and so is its error.
+    assert.match(err.message, /^no merge base with origin\/main \(git: .*origin\/main.*\): fetch it/)
+    assert.ok(err.cause instanceof Error)
+    return true
+  })
+})
+
+test('a directory that is not a git checkout says so, in git\'s words', t => {
+  const plain = mkdtempSync(join(tmpdir(), 'poem-ids-nogit-'))
+  t.after(() => rmSync(plain, { recursive: true, force: true }))
+  assert.throws(() => mergeBase(plain, 'origin/main'), /\(git: .*not a git repository/i)
 })

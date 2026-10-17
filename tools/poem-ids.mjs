@@ -101,8 +101,10 @@ const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encodin
 export function mergeBase(root, base = 'origin/main') {
   try {
     return git(root, ['merge-base', 'HEAD', base]).trim()
-  } catch {
-    throw new Error(`no merge base with ${base}: fetch it with its history (CI: fetch-depth 0), or set POEM_IDS_BASE`)
+  } catch (err) {
+    // git's own words say which failure this is: not fetched, no common history, not a checkout, no git.
+    const said = err.stderr?.toString().trim() || err.message
+    throw new Error(`no merge base with ${base} (git: ${said}): fetch it with its history (CI: fetch-depth 0), or set POEM_IDS_BASE`, { cause: err })
   }
 }
 
