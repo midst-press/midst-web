@@ -6,7 +6,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
@@ -181,4 +181,19 @@ test('a pin that is not one full SHA is refused', t => {
 test('a checkout that is not midst-editor is refused', t => {
   const { editor, web } = fixture(t, 'stuartswerdloff@gitea-server:The_Kindled/midst-web.git')
   assert.throws(() => check(editor, web), /must be midst-editor/)
+})
+
+test('running through a symlink does not skip the check', t => {
+  const tmp = mkdtempSync(join(tmpdir(), 'symlink-'))
+  t.after(() => rmSync(tmp, { recursive: true, force: true }))
+  const link = join(tmp, 'check-editor-helpers.mjs')
+  const target = join(process.cwd(), 'tools', 'check-editor-helpers.mjs')
+  symlinkSync(target, link)
+  try {
+    execFileSync(process.execPath, [link], { env: { ...process.env, MIDST_EDITOR_ROOT: '' }, stdio: 'pipe' })
+    assert.fail('expected non-zero exit')
+  } catch (e) {
+    assert.notEqual(e.status, 0, 'the check must run (and fail without MIDST_EDITOR_ROOT), not skip')
+    assert.match(String(e.stderr || e.message), /Set MIDST_EDITOR_ROOT/)
+  }
 })

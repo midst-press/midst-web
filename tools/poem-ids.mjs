@@ -14,6 +14,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
+import { isMain } from './is-main.mjs'
 import keyScheme from '../src/poems/key-scheme.js'
 
 // Defined once, beside the code that builds object names from it.
@@ -67,7 +68,7 @@ export function mint(dir, pending = PENDING, newId = randomUUID) {
   return minted
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMain(import.meta.url)) {
   const dir = fileURLToPath(new URL('../src/poems', import.meta.url))
   if (process.argv.includes('--mint')) {
     const minted = mint(dir)
