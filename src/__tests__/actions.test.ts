@@ -11,6 +11,7 @@ import {
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_RETRY,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
@@ -394,5 +395,22 @@ describe('window.zip missing', () => {
     expect(mockFetchAsset).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('unknown'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+  })
+})
+
+describe('loadPoemData: returning to a poem whose last load failed (#43)', () => {
+  it('takes the failure message down before the new attempt, then loads', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([{ ...poemB, loadFailure: 'network' }]))
+    expect(dispatch.mock.calls.map(call => call[0].type)).toEqual([LOAD_POEM_RETRY, LOAD_POEM_DATA])
+    expect(dispatch.mock.calls[0][0].payload).toEqual({ poemId: 'zq-xv--kj-wm' })
+  })
+
+  it('a first load dispatches no retry', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls.map(call => call[0].type)).toEqual([LOAD_POEM_DATA])
   })
 })

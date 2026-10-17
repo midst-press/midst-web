@@ -12,6 +12,7 @@ import insane from 'insane'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_RETRY,
   LOAD_POEM_LIST,
   POEM_LIST_FAILED,
   REVERSE_SORT_ORDER,
@@ -104,6 +105,10 @@ const loadPoemData = (poemIndex: number): any =>
       console.error(message)
       if (poem) dispatch({ type: LOAD_POEM_FAILED, payload: { poemId: poem.poemId, reason }})
     }
+
+    // Returning to a poem whose last load failed: take its failure message down while this attempt runs, or the
+    // page says "could not be loaded" until the poem appears (#43). A first load dispatches nothing here.
+    if (poem && poem.loadFailure) dispatch({ type: LOAD_POEM_RETRY, payload: { poemId: poem.poemId }})
 
     // One of the poem's two files, or a thrown LoadError saying why not.
     const get = async (name: string) => {

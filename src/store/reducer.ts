@@ -6,6 +6,7 @@ import produce from 'immer'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_RETRY,
   LOAD_POEM_LIST,
   POEM_LIST_FAILED,
   REVERSE_SORT_ORDER,
@@ -112,6 +113,13 @@ const reducer = (
       return produce(state, draftState => {
         const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
         if (poem) poem.loadFailure = payload.reason
+      })
+
+    // A retry of a failed poem: the failure message comes down, so the page shows the loading mark again (#43).
+    case LOAD_POEM_RETRY:
+      return produce(state, draftState => {
+        const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
+        if (poem) poem.loadFailure = null
       })
 
     // The list replaces whatever the state held, in the order given: reading order, as the bundle's is until
