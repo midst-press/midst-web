@@ -12,7 +12,7 @@
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { isMain } from './is-main.mjs'
 import keyScheme from '../src/poems/key-scheme.js'
