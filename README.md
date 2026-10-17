@@ -192,6 +192,8 @@ node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
 node tools/poem-ids.mjs           # the check the commit hook runs
 ```
 
+The check also compares with the merge base of `HEAD` and `origin/main`: every id there must still be on a poem file, so an id cannot be edited, and a poem file cannot be removed, without the check failing. A renamed file keeps its id and passes. It needs `origin/main` with history, and refuses to run without it; `POEM_IDS_BASE` names another base.
+
 A poem file can be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`. Under the `canonical` key scheme the id is the poem's object name. Under `legacy` nothing reads it.
 
 ### Key scheme

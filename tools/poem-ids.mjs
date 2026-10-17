@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Every poem has an opaque id, minted once and never derived from a name. Issue #41.
 //
-//   node tools/poem-ids.mjs           check: every poem file has a well-formed id, no two share one
+//   node tools/poem-ids.mjs           check: every poem file has a well-formed id, no two share one, and every
+//                                     id on the merge base with origin/main is still on one poem file (#65)
 //   node tools/poem-ids.mjs --mint    give an id to each poem file that has none, then check
 //
 // Poets' names and poem titles change (the requirement behind #41). The id is the poem's storage
@@ -11,6 +12,7 @@
 // Prints file names and counts only.
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
@@ -52,6 +54,47 @@ export function problems(dir, pending = PENDING) {
   return found
 }
 
+// The ids every poem file has now, as id -> file name. Files with no id, a malformed one or a shared one are
+// problems() findings, not this function's.
+export function currentIds(dir) {
+  const ids = new Map()
+  for (const name of poemFiles(dir)) {
+    const { id } = JSON.parse(readFileSync(join(dir, name), 'utf8'))
+    if (typeof id === 'string') ids.set(id, name)
+  }
+  return ids
+}
+
+// An id is the poem's storage identity, so once minted it never changes and never goes (#65). `before` is
+// id -> file name on the base. Compared by id, not by file name, so a renamed file keeps its id.
+export function idChanges(before, now) {
+  const found = []
+  for (const [id, name] of before) {
+    if (!now.has(id)) found.push(`id ${id} (on ${name} at the base) is on no poem file now; an id never changes and is never removed`)
+  }
+  return found
+}
+
+const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+
+// id -> file name for the poem files at the merge base of HEAD and `base`. Throws, never returns empty, when
+// there is no base to compare with: an empty base would pass every change.
+export function baseIds(root, base = 'origin/main') {
+  let commit
+  try {
+    commit = git(root, ['merge-base', 'HEAD', base]).trim()
+  } catch {
+    throw new Error(`no merge base with ${base}: fetch it with its history (CI: fetch-depth 0), or set POEM_IDS_BASE`)
+  }
+  const ids = new Map()
+  const names = git(root, ['ls-tree', '--name-only', `${commit}:src/poems`]).split('\n').filter(Boolean)
+  for (const name of names.filter(n => n.endsWith('.json') && !NOT_POEMS.has(n))) {
+    const { id } = JSON.parse(git(root, ['show', `${commit}:src/poems/${name}`]))
+    if (typeof id === 'string') ids.set(id, name)
+  }
+  return ids
+}
+
 // Adds an id as the first field of each poem file that lacks one, leaving every other byte alone.
 export function mint(dir, pending = PENDING, newId = randomUUID) {
   const minted = []
@@ -73,7 +116,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const minted = mint(dir)
     console.log(`minted ${minted.length} id(s)${minted.length ? ': ' + minted.join(', ') : ''}`)
   }
-  const found = problems(dir)
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const found = [...problems(dir), ...idChanges(baseIds(root, process.env.POEM_IDS_BASE || 'origin/main'), currentIds(dir))]
   for (const message of found) console.error(`poem ids: ${message}`)
   if (found.length) process.exit(1)
   console.log(`poem ids: ${poemFiles(dir).length - Object.keys(PENDING).length} poems have an id, ${Object.keys(PENDING).length} pending`)

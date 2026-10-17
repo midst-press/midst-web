@@ -46,6 +46,8 @@ jobs:
           echo /opt/homebrew/sbin >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the poem-ids hook compares ids with the merge base on origin/main (#65)
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
       - run: npm ci --ignore-scripts
