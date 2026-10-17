@@ -125,7 +125,8 @@ for (const suite of report.suites ?? []) {
       if (!res) continue
       const m = spec.title.match(/height (\d+)/)
       const p = spec.title.match(/:\s*(end|middle)/)
-      const height = m?.[1] ?? 'recorder'
+      const isRecorder = spec.title.includes('recorder')
+      const height = m?.[1] ?? (isRecorder ? 'recorder' : 'unknown')
       const position = p?.[1] ?? 'n/a'
       // Find the follow-motion attachment
       const att = (res.attachments ?? []).find(a => a.name === 'follow-motion')
