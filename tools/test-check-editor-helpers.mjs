@@ -10,6 +10,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSyn
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { check, expectedTestCopy, headerNote, PIN_FILE } from './check-editor-helpers.mjs'
 
 const EDITOR_FILES = {
@@ -187,7 +188,7 @@ test('running through a symlink does not skip the check', t => {
   const tmp = mkdtempSync(join(tmpdir(), 'symlink-'))
   t.after(() => rmSync(tmp, { recursive: true, force: true }))
   const link = join(tmp, 'check-editor-helpers.mjs')
-  const target = join(process.cwd(), 'tools', 'check-editor-helpers.mjs')
+  const target = join(dirname(fileURLToPath(import.meta.url)), 'check-editor-helpers.mjs')
   symlinkSync(target, link)
   try {
     execFileSync(process.execPath, [link], { env: { ...process.env, MIDST_EDITOR_ROOT: '' }, stdio: 'pipe' })
