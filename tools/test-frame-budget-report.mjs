@@ -1,7 +1,7 @@
 // node --test tools/test-frame-budget-report.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { COUNTERS, browserVersion, failureLines, refusal, render, rows, sampler } from './frame-budget-report.mjs'
+import { COUNTERS, RECORDER_TITLE, browserVersion, failureLines, refusal, render, rows, sampler } from './frame-budget-report.mjs'
 
 const b64 = obj => Buffer.from(JSON.stringify(obj)).toString('base64')
 const ZERO = Object.fromEntries(COUNTERS.map(k => [k, 0]))
@@ -15,7 +15,7 @@ const writingJump = (h, p, { status = 'passed', result = ZERO, attachments } = {
     { name: 'follow-verdict', body: b64({ result, browser: '141.0.7390.37' }) },
   ] }] }],
 })
-const recorder = { title: '@frame-budget the recorder sees a scripted jump', tests: [{ results: [{ status: 'passed', attachments: [] }] }] }
+const recorder = { title: RECORDER_TITLE, tests: [{ results: [{ status: 'passed', attachments: [] }] }] }
 const report = (...specs) => ({ suites: [{ suites: [{ specs }] }] })
 const all = (opts = {}) => report(recorder, ...[['600', 'end'], ['600', 'middle'], ['720', 'end'], ['720', 'middle']].map(([h, p]) => writingJump(h, p, opts)))
 
@@ -30,6 +30,7 @@ test('a passing run gives five rows and no refusal', () => {
   assert.equal(refusal(rs), null)
   const jump = rs.find(r => r.height === '600' && r.position === 'end')
   assert.deepEqual(jump, {
+    title: '@frame-budget writing jumps are followed gently and playback waits: end, height 600', unreadable: [],
     height: '600', position: 'end', status: 'PASS', samplerMedian: '10.0', samplerMax: '20.0',
     rafMedian: '17.0', rafMax: '18.0', counters: [0, 0, 0, 0, 0, 0], browser: '141.0.7390.37', cacheMatch: 'yes',
   })
@@ -50,7 +51,28 @@ test('refusals: count, a missing or duplicated writing jump, no timing data, no 
   assert.equal(refusal(rows(dup)), 'expected one test for height 600, position end, got 2.')
   assert.equal(refusal(rows(all({ attachments: [{ name: 'follow-verdict', body: b64({ result: ZERO }) }] }))), 'test 600/end has no timing data.')
   assert.equal(refusal(rows(all({ attachments: [{ name: 'follow-motion', body: b64(rec) }] }))), 'test 600/end attached no verdict.')
-  assert.equal(refusal(rows(all({ attachments: [{ name: 'follow-motion', body: b64(rec) }, { name: 'follow-verdict', body: 'not json' }] }))), 'test 600/end attached no verdict.')
+})
+
+test('an unreadable attachment is refused as unreadable, by name, not as missing', () => {
+  const corrupt = name => all({ attachments: [
+    { name: 'follow-motion', body: name === 'follow-motion' ? 'not json' : b64(rec) },
+    { name: 'follow-verdict', body: name === 'follow-verdict' ? 'not json' : b64({ result: ZERO }) },
+  ] })
+  assert.equal(refusal(rows(corrupt('follow-verdict'))), 'test 600/end: attachment follow-verdict is unreadable.')
+  assert.equal(refusal(rows(corrupt('follow-motion'))), 'test 600/end: attachment follow-motion is unreadable.')
+})
+
+test('the fifth test must be the recorder, by its title', () => {
+  const stranger = { ...recorder, title: '@frame-budget some new test without a height' }
+  const withStranger = report(stranger, ...all().suites[0].suites[0].specs.slice(1))
+  assert.equal(refusal(rows(withStranger)), 'expected the recorder test and four writing jumps; also found: @frame-budget some new test without a height.')
+  const twoRecorders = report(recorder, stranger, ...all().suites[0].suites[0].specs.slice(1, 4))
+  assert.match(refusal(rows(twoRecorders)), /also found: @frame-budget some new test without a height/)
+})
+
+test('a verdict counter that is not an integer is refused', () => {
+  assert.equal(refusal(rows(all({ result: { ...ZERO, abrupt: '0' } }))), 'test 600/end: verdict counter abrupt is not an integer.')
+  assert.equal(refusal(rows(all({ result: { ...ZERO, instant: 1.5 } }))), 'test 600/end: verdict counter instant is not an integer.')
 })
 
 test('failure lines name each failed test, and the top-level errors of a run that never started a test', () => {
