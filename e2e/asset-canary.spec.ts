@@ -161,6 +161,7 @@ test('the actual canary reports a timelapse stored with its folder and file name
     expect(result.output).toContain('timelapses reachable: 1/2')
     expect(result.output).toContain('poem 2:')
     expect(result.output).not.toContain('Synth\u00e9tique')
+    expect(result.output).not.toContain('synth\u00e9tique')
     expect(result.output).not.toContain('synthe\u0301tique')
     // It asked for the two spellings the site asks for, and neither is the stored one.
     const asked = requests.map(request => request.path).filter(path => path.endsWith('--x.midst.zip') && !path.startsWith('/ordinary/'))
