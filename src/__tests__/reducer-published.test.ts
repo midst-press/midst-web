@@ -72,6 +72,15 @@ describe('LOAD_POEM_LIST', () => {
     expect(c.publishDate.isValid()).toBe(false)
   })
 
+  it('reads a stored date strictly as YYYY-MM-DD: another form is no date, never a guessed one (#81)', () => {
+    const next = reducer(initialState, { type: LOAD_POEM_LIST, payload: { entries: [
+      { ...entries[0], publishDate: '4/4/2019', date: '2019-01-01T00:00:00Z' },
+    ] } })
+    const [p] = next.poems
+    expect(p.publishDate.isValid()).toBe(false)
+    expect(p.date.isValid()).toBe(false)
+  })
+
   it('numbers the poems by their place in the list', () => {
     expect(loaded().poems.map(poem => poem.position)).toEqual([0, 1, 2])
   })
