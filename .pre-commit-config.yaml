@@ -145,7 +145,7 @@ repos:
         language: system
         entry: node tools/poem-ids.mjs
         pass_filenames: false
-        files: '^(src/poems/[^/]+\.json|tools/poem-ids\.mjs)$'
+        files: '^(src/poems/[^/]+\.json|tools/poem-ids\.mjs|tools/retired-poem-ids\.json)$'
       - id: poem-ids-self-test
         name: the poem id check passes on sound ids and names each way they can be wrong
         language: system
