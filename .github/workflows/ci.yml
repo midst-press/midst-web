@@ -147,7 +147,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: coverage (frame-budget tests excluded — no GUI session)
         env:
-          MIDST_COVERAGE_TEST_ARGS: --grep-invert '@frame-budget|@gui'
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget|@gui
         run: |
           echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
           npm run coverage
