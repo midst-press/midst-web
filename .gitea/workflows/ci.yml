@@ -132,8 +132,8 @@ jobs:
       # The @frame-budget follow tests never run here, so a green run of this job says nothing about
       # following. They need a real frame cadence, which this runner's account has never had (#15). They
       # run in .github/workflows/frame-budget.yml on GitHub, on the push-up after the Gitea merge (PROGRAMME).
-      # The @gui legacy-runtime tests also need a GUI (their sampler precondition, #28).
-      - name: run e2e (not the frame-budget or @gui tests; those run on GitHub)
+      # The @gui legacy-runtime tests also need a GUI (their sampler precondition, #28); they run in frame-budget.yml.
+      - name: run e2e (not the frame-budget or @gui tests; those run in frame-budget.yml)
         run: npx playwright test --grep-invert "@frame-budget|@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
