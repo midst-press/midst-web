@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
+import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
 import { clampLabelCentre } from './timestamp-position'
 import { draftMarkers, playerFont } from './timeline'
@@ -10,11 +10,6 @@ import { installFonts } from '../../fonts'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
-
-const extensions = [StarterKit.configure({
-  bulletList: false, orderedList: false, blockquote: false, code: false,
-  codeBlock: false, heading: false, horizontalRule: false, listItem: false, strike: false,
-})]
 
 const MIN_FPS = 1
 const MAX_FPS = 60
@@ -214,19 +209,26 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
   // resize does not leave a stale width. Measurement runs on text change and resize, not per frame.
   const timestampRef = useRef<HTMLDivElement>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
   const [labelWidthPct, setLabelWidthPct] = useState(0)
   const measureLabel = useCallback(() => {
     const el = timestampRef.current
-    if (!el || !el.parentElement) return
-    const containerWidth = el.parentElement.offsetWidth
+    const timeline = timelineRef.current
+    if (!el || !timeline) return
+    const containerWidth = timeline.offsetWidth
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
   }, [])
   useLayoutEffect(measureLabel, [labelText, measureLabel])
+  // Observe the timeline, which is always rendered, not the label, which is not: a player mounted with no data
+  // has no label, and an effect that ran once then would never observe a resize after the data arrived (#94).
   useEffect(() => {
-    const el = timestampRef.current
-    if (!el || !el.parentElement) return
+    const timeline = timelineRef.current
+    if (!timeline) return
+    // As the marker row's effect: without ResizeObserver the label is still measured on text change, and only
+    // stops re-measuring on resize, rather than the effect throwing and the player not rendering (#146).
+    if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measureLabel)
-    observer.observe(el.parentElement)
+    observer.observe(timeline)
     return () => observer.disconnect()
   }, [measureLabel])
   const clampedCentre = clampLabelCentre(playheadPercent, labelWidthPct)
@@ -263,7 +265,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       </div>
       <div className="control-container">
         <div className="controls" onKeyDown={event => event.stopPropagation()}>
-          <div className="timeline-control">
+          <div className="timeline-control" ref={timelineRef}>
           <input type="range" aria-label="Timeline" aria-valuetext={labelText ?? undefined} className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
