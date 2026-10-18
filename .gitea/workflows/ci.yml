@@ -133,7 +133,7 @@ jobs:
         if: steps.gui.outputs.has_gui != 'true'
         run: |
           echo "::warning::frame-budget e2e SKIPPED: runner has no GUI session; run npm run e2e:frame-budget locally"
-          npx playwright test --grep-invert "@frame-budget"
+          npx playwright test --grep-invert "@frame-budget" --grep-invert "@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
       - name: the same site under canonical keys
@@ -178,7 +178,7 @@ jobs:
       - name: coverage (frame-budget tests excluded — no GUI session)
         if: steps.gui.outputs.has_gui != 'true'
         env:
-          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget --grep-invert @gui
         run: |
           echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
           npm run coverage

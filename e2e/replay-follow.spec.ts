@@ -312,7 +312,7 @@ function jumpingFile(position: string) {
   return 'midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: positions[i] })) })
 }
 
-for (const position of ['end', 'middle']) test(`@frame-budget actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
+for (const position of ['end', 'middle']) test(`@gui actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
   const raw = jumpingFile(position)
   await serveArchive(page, baseURL!, zip(raw))
   await page.goto('/legacy-harness.html')
