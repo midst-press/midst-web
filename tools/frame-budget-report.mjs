@@ -70,7 +70,7 @@ export function rows(report) {
     out.push({
       title: spec.title,
       unreadable,
-      height: spec.title.match(/height (\d+)/)?.[1] ?? (spec.title.includes('recorder') ? 'recorder' : 'unknown'),
+      height: spec.title.match(/height (\d+)/)?.[1] ?? 'recorder',
       position: spec.title.match(/:\s*(end|middle)/)?.[1] ?? 'n/a',
       status: res.status === 'passed' ? 'PASS' : 'FAIL',
       samplerMedian: fixed(s.median),
