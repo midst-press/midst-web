@@ -32,8 +32,8 @@ export function playbackFile(data: IMidstFile | IMidstCurrentFile): IMidstFile {
       || (typeof change.t !== 'string' && typeof change.t !== 'number')) return invalidFile()
     const timestamp = new Date(change.t).getTime()
     if (!Number.isFinite(timestamp)) return invalidFile()
-    // Same step as `step` in midst-editor's src/renderer/tracking/utils.ts (The_Kindled/midst-editor at
-    // 463ed6c); offsets count UTF-16 code units.
+    // Same step as `step` in midst-format's src/history.ts (@midst-press/midst-format/history, moved there
+    // from midst-editor's src/renderer/tracking/utils.ts, #50); offsets count UTF-16 code units.
     content = content.slice(0, change.front) + change.inserted + content.slice(content.length - change.end)
     return { content, timestamp, lineNumber: 0, cursorPosition: change.pos ?? 0 }
   })

@@ -192,6 +192,8 @@ node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
 node tools/poem-ids.mjs           # the check the commit hook runs
 ```
 
+The check also compares with the merge base of `HEAD` and `origin/main`: every id there must still be on a poem file, so an id cannot be edited without the check failing. A renamed file keeps its id and passes. To withdraw a poem, remove its file and put its id, with the reason, in `tools/retired-poem-ids.json`. A retired id is reserved for good: it may not be on a live file, and it never leaves the list. It needs `origin/main` with history, and refuses to run without it; `POEM_IDS_BASE` names another base.
+
 A poem file can be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`. Under the `canonical` key scheme the id is the poem's object name. Under `legacy` nothing reads it.
 
 ### Key scheme
@@ -285,12 +287,12 @@ shasum -a 256 -c tools/midst-infra-copies.sha256
 
 ## Copies of midst-editor files
 
-Four files are copied byte for byte from midst-editor, and four editor test files are copied with them:
+Three files are copied byte for byte from midst-editor, and three editor test files are copied with them:
 
-- `src/components/MidstPlayer/follow.ts` and `helpers.ts`
+- `src/components/MidstPlayer/follow.ts`
 - `src/buildLabel.ts`
 - `src/guide/editor-user-guide.md`
-- tests: `src/__tests__/editor-follow.test.ts`, `editor-followMore.test.ts`, `editor-trackingUtils.test.ts`, `editor-buildLabel.test.ts`
+- tests: `src/__tests__/editor-follow.test.ts`, `editor-followMore.test.ts`, `editor-buildLabel.test.ts`
 
 A test copy must equal its original except for a header note and the import path.
 
@@ -314,7 +316,7 @@ A copy PR copies the originals (reapplying each test copy's header note and impo
 node tools/check-editor-helpers.mjs --pin-to-main
 ```
 
-Hooks that write files skip `follow.ts`, `helpers.ts` and three of the test copies, so formatting does not change them.
+Hooks that write files skip `follow.ts` and two of the test copies, so formatting does not change them.
 
 CI on Gitea clones editor `main`, with its history, using a read-only deploy key (`MIDST_EDITOR_DEPLOY_KEY`). CI on GitHub checks out the public repository, also with history, and with no credential. So on GitHub the pin must be an editor commit that has been published there.
 
