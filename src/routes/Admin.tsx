@@ -6,9 +6,10 @@ import { ApiError } from '../app/api'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor } from '../app/publisher'
-import { GROUPS, Person, disable, enable, invite, loadPeople, setGroups } from '../app/admin'
+import { GROUPS, Person, disable, enable, invite, loadPeople, resendInvitation, setGroups } from '../app/admin'
 
-// The admin's page (docs/app-api.md, "Admin"): see everyone, invite, change groups, disable and enable.
+// The admin's page (docs/app-api.md, "Admin"): see everyone, invite, resend an invitation, change groups, disable and
+// enable.
 // A prototype for Annelyse to react to.
 
 const sameGroups = (a: string[], b: string[]) => a.length === b.length && a.every(group => b.includes(group))
@@ -143,6 +144,12 @@ function Admin(): ReactElement {
                       onClick={() => change(c => setGroups(c, person.username, chosen), `Saved the groups of ${person.name}.`)}>
                       Save groups
                     </button>
+                    {person.status === 'invited' && (
+                      <button type="button" disabled={busy}
+                        onClick={() => change(c => resendInvitation(c, person.username), `Sent the invitation to ${person.name} again.`)}>
+                        Resend invitation
+                      </button>
+                    )}
                     {person.status === 'disabled' ? (
                       <button type="button" disabled={busy} onClick={() => change(c => enable(c, person.username), `Enabled ${person.name}.`)}>
                         Enable

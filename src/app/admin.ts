@@ -1,5 +1,6 @@
 /*
- * The admin's routes (docs/app-api.md, "Admin"): see everyone, invite, change groups, disable and enable.
+ * The admin's routes (docs/app-api.md, "Admin"): see everyone, invite, resend an invitation, change groups, disable
+ * and enable.
  * A change that would leave the pool with no admin is answered 409 `last_admin`.
  */
 import { Call } from './publisher'
@@ -20,6 +21,10 @@ export const loadPeople = (call: Call) => call<{ users: Person[] }>('/admin/user
 
 export const invite = (call: Call, name: string, email: string, groups: string[]) =>
   call<Person>('/admin/users', { method: 'POST', body: { name, email, groups } })
+
+// Sends the invitation again, with a new temporary password, to someone still invited, whatever their groups.
+export const resendInvitation = (call: Call, username: string) =>
+  call<Person>(`/admin/users/${encodeURIComponent(username)}/resend`, { method: 'POST' })
 
 export const setGroups = (call: Call, username: string, groups: string[]) =>
   call<Person>(`/admin/users/${encodeURIComponent(username)}/groups`, { method: 'PUT', body: { groups } })
