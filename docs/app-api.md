@@ -90,7 +90,7 @@ recorded, not derived. `publishDate` and `highlighted` are `null` / `false` unti
   "author": "Qz Vb",
   "poet": "qz@example.invalid",
   "origin": "upload",
-  "submittedAt": "2026-10-15T09:30:00Z",
+  "submittedAt": "2026-10-15T09:30:00.000Z",
   "status": "received",
   "note": null
 }

@@ -25,10 +25,11 @@
     "prepare": "node tools/install-hooks.cjs",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:coverage-control": "node --test scripts/coverage-control-check.test.mjs"
+    "test:coverage-control": "node --test scripts/coverage-control-check.test.mjs scripts/coverage-has-code.test.mjs"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
+    "@midst-press/midst-format": "file:vendor/midst-format",
     "@rooks/use-window-size": "4.6.1",
     "@tiptap/pm": "2.5.4",
     "@tiptap/react": "2.5.4",
@@ -157,7 +158,6 @@
       "src/store/actions.ts",
       "src/store/midst-file.ts",
       "src/components/MidstPlayer/follow.ts",
-      "src/components/MidstPlayer/helpers.ts",
       "src/components/MidstPlayer/timestamp-position.ts",
       "src/components/MidstPlayer/timeline.ts",
       "src/components/MidstPlayer/MidstPlayer.tsx",
@@ -225,12 +225,6 @@
         "lines": 100,
         "statements": 100
       },
-      "./src/components/MidstPlayer/helpers.ts": {
-        "branches": 100,
-        "functions": 100,
-        "lines": 100,
-        "statements": 100
-      },
       "./src/poems/poem-list.js": {
         "branches": 100,
         "functions": 100,
@@ -268,6 +262,10 @@
         "statements": 100
       }
     },
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/vendor/"
+    ],
     "coverageDirectory": "coverage/unit"
   }
 }

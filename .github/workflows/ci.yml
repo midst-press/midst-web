@@ -41,6 +41,8 @@ jobs:
       MIDST_EDITOR_ROOT: ${{ github.workspace }}/.editor-provenance
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the poem-ids hook compares ids with the merge base on origin/main (#65)
       - name: read-only checkout of editor main for helper provenance
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,12 +65,23 @@ jobs:
       # branch are line 118, the function's closing brace, which Jest's V8 converter counts and nothing can run.
       - name: unit tests with coverage thresholds
         run: npm test -- --coverage
+      - name: the coverage control's messages each fire
+        run: npm run test:coverage-control
       # The e2e server must hold its port from the start and fail early when it is taken (#35).
       # No dependencies: node's own test runner.
       - name: e2e server holds its port
         run: node --test tools/test-serve-local.mjs
       - run: pip install 'pre-commit==4.6.2'
       - run: pre-commit run --all-files --show-diff-on-failure
+      - name: vendored midst-format matches its VENDOR.md hashes
+        run: node tools/check-vendored-format.mjs
+      # Rebuilds the tag VENDOR.md names and byte-compares it with vendor/midst-format/. It runs in Gitea CI. Here
+      # it waits until the tag is on GitHub's midst-press/midst-format, which comes with the next push-up (Stuart's):
+      # without the tag the clone has nothing to rebuild and the step would fail.
+      # - name: vendored midst-format equals a rebuild of its tag
+      #   run: |
+      #     git clone --quiet https://github.com/midst-press/midst-format.git "$RUNNER_TEMP/midst-format"
+      #     MIDST_FORMAT_ROOT="$RUNNER_TEMP/midst-format" node tools/check-vendored-format.mjs --rebuild
 
   build:
     name: build
