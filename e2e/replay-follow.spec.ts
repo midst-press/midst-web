@@ -334,7 +334,7 @@ for (const position of ['end', 'middle']) test(`@frame-budget actual legacy runt
   expect(result.unfollowed, 'the actual legacy player must discriminate the follow guard').toBeGreaterThan(0)
 })
 
-for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`@frame-budget writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }, testInfo) => {
+for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`@frame-budget writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL, browser }, testInfo) => {
   await page.setViewportSize({ width: 1280, height })
   const archive = zip(jumpingFile(position))
   await serveArchive(page, baseURL!, archive)
@@ -351,6 +351,8 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
   const intervals = (rec.rafIntervals || []).slice().sort((a, b) => a - b)
   const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
   await testInfo.attach('follow-motion', { body: Buffer.from(JSON.stringify(rec)), contentType: 'application/json' })
+  // The verdict this test asserts, and the browser it ran, for the attestation to print as they are (#20).
+  await testInfo.attach('follow-verdict', { body: Buffer.from(JSON.stringify({ result, browser: browser.version() })), contentType: 'application/json' })
   console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, sampler: { medianMs: sampler.length ? sampler[Math.floor(sampler.length / 2)] : null, maxMs: sampler.length ? sampler[sampler.length - 1] : null }, layout: rec.layout, longTasks: rec.longTasks, cacheValid: rec.cacheValid }))
   if (process.env.FOLLOW_DEBUG) console.log(JSON.stringify({ result, jumps: rec.samples.map((s, i) => ({ s, previous: rec.samples[i - 1] })).filter(({ s, previous }) => previous && Math.abs(s[3] - previous[3]) > rec.viewport / 3) }))
   expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
