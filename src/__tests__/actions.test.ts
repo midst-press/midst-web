@@ -8,6 +8,8 @@ import {
   reverseSortOrder,
   setSortTerm,
   ARCHIVE_READ_TIMEOUT_MS,
+  causeName,
+  describeCause,
 } from '../store/actions'
 import {
   LOAD_POEM_DATA,
@@ -284,7 +286,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('network'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to fetch the poem: Error: network down']])
   })
 
   it.each([
@@ -344,7 +346,7 @@ describe('loadPoemData failures during unzip and parse', () => {
 
     expect(zip.createReader).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive']])
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: no cause given']])
   })
 
   it.each([
@@ -358,7 +360,7 @@ describe('loadPoemData failures during unzip and parse', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst file']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst file: Error']])
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain('QZXSENTINEL')
     expect(JSON.stringify(dispatch.mock.calls)).not.toContain('QZXSENTINEL')
   })
@@ -372,7 +374,7 @@ describe('loadPoemData failures during unzip and parse', () => {
 
     expect(zip.BlobWriter).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive']])
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: the archive has no entries']])
   })
 
   it('a failure names the poem at the index, not the first', async () => {
@@ -411,6 +413,24 @@ describe('loadPoemData: failures inside the archive read and the body read (#43)
     entryWith(getData)
     await loadPoemData(0)(jest.fn(), stateWith([poemB]))
     expect(getData.mock.calls[0][3]).toBe(true)
+  })
+
+  it('a CRC mismatch is logged with zip.js\'s own message', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    zip.createReader = jest.fn((_r: any, _ok: any, onError: any) => onError('CRC failed.'))
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: CRC failed.']])
+  })
+
+  it('a TypeError in our own callback is logged as one, not as a damaged file alone', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    entryWith(() => { throw new TypeError('zq is not a function') })
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: TypeError: zq is not a function']])
   })
 
   it('a throw inside a zip.js callback is damaged, not silent', async () => {
@@ -474,5 +494,23 @@ describe('loadPoemData: failures inside the archive read and the body read (#43)
     const dispatch = jest.fn()
     await loadPoemData(0)(dispatch, stateWith([poemB]))
     expect(dispatch.mock.calls).toEqual(failedB('network'))
+  })
+})
+
+describe('the cause in a failure log', () => {
+  it('describeCause: name and message of an error, a string as it is, and what anything else was', () => {
+    expect(describeCause(new TypeError('zq'))).toBe('TypeError: zq')
+    expect(describeCause({ name: 'NotReadableError', message: 'zq xv' })).toBe('NotReadableError: zq xv')
+    expect(describeCause('CRC failed.')).toBe('CRC failed.')
+    expect(describeCause(undefined)).toBe('no cause given')
+    expect(describeCause(7)).toBe('a thrown number')
+    expect(describeCause(null)).toBe('a thrown object')
+    expect(describeCause('x'.repeat(300))).toHaveLength(200)
+  })
+
+  it('causeName: the name only, never the message', () => {
+    expect(causeName(new SyntaxError('Unexpected token, "zq xv" is not valid JSON'))).toBe('SyntaxError')
+    expect(causeName('zq')).toBe('a thrown string')
+    expect(causeName(null)).toBe('a thrown object')
   })
 })

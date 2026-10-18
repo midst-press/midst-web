@@ -63,12 +63,14 @@ interface ZipJs {
   createReader(
     reader: unknown,
     onReader: (zipReader: { getEntries(onEntries: (entries: ZipEntry[]) => void): void }) => void,
-    onError: () => void,
+    // zip.js passes its error: a fixed message such as 'CRC failed.', never an entry's name or contents.
+    onError: (error?: unknown) => void,
   ): void
 }
 
-// A failure with the fixed message to log and the reason to show. Messages are fixed because parser
-// and network diagnostics can quote a poet's work.
+// A failure with the message to log and the reason to show. A message carries its cause's name and message
+// (describeCause) only where that text cannot quote a poet's work: zip.js's fixed messages, the browser's network
+// and FileReader errors, and our own exceptions. The parser's can quote the poem, so it logs the name alone.
 interface LoadError {
   reason: PoemLoadFailure
   log?: string
@@ -80,6 +82,21 @@ const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'u
 // never answers would otherwise leave the loading mark turning for ever (#43).
 export const ARCHIVE_READ_TIMEOUT_MS = 30000
 
+// What went wrong, for the log: the error's name and message, never its data. zip.js's messages are fixed strings and
+// a DOMException has a name, so a bug in our own callbacks (a TypeError) reads as ours and not as a damaged file.
+export const describeCause = (err: unknown): string => {
+  if (typeof err === 'string') return err.slice(0, 200)
+  if (err && typeof err === 'object' && 'name' in err && 'message' in err) {
+    const { name, message } = err as { name: unknown, message: unknown }
+    return `${String(name)}: ${String(message)}`.slice(0, 200)
+  }
+  return err === undefined ? 'no cause given' : `a thrown ${typeof err}`
+}
+
+// The error's name alone, for a cause whose message may quote the poem.
+export const causeName = (err: unknown): string =>
+  err && typeof err === 'object' && 'name' in err ? String((err as { name: unknown }).name) : `a thrown ${typeof err}`
+
 // The text of the first file in a timelapse archive. Every way it can fail ends in a rejection (#43):
 // - zip.js reports a bad archive, a bad entry header, a read or inflate error, and (with checkCrc32) a CRC mismatch
 //   through createReader's error callback;
@@ -87,26 +104,28 @@ export const ARCHIVE_READ_TIMEOUT_MS = 30000
 // - a FileReader error, and a read that never finishes, reject too.
 const readFirstEntry = (zip: ZipJs, archive: Blob, timeoutMs = ARCHIVE_READ_TIMEOUT_MS): Promise<string> =>
   new Promise((resolve, reject) => {
-    const damaged: LoadError = { reason: 'damaged', log: 'Unable to read Midst archive' }
     const timer = setTimeout(() => reject({ reason: 'unknown', log: 'Reading the Midst archive timed out' }), timeoutMs)
     const ok = (text: string) => { clearTimeout(timer); resolve(text) }
-    const bad = () => { clearTimeout(timer); reject(damaged) }
+    const bad = (cause: unknown) => {
+      clearTimeout(timer)
+      reject({ reason: 'damaged', log: `Unable to read Midst archive: ${describeCause(cause)}` })
+    }
     const guard = <A extends unknown[]>(fn: (...args: A) => void) => (...args: A) => {
-      try { fn(...args) } catch { bad() }
+      try { fn(...args) } catch (err) { bad(err) }
     }
     try {
       zip.createReader(new zip.BlobReader(archive), guard(zipReader => {
         zipReader.getEntries(guard(entries => {
-          if (!entries.length) return bad()
+          if (!entries.length) return bad('the archive has no entries')
           entries[0].getData(new zip.BlobWriter(), guard((blob: Blob) => {
             const reader = new FileReader()
-            reader.addEventListener('loadend', () => (reader.error ? bad() : ok(reader.result as string)))
+            reader.addEventListener('loadend', () => (reader.error ? bad(reader.error) : ok(reader.result as string)))
             reader.readAsText(blob)
           }), undefined, true)
         }))
       }), bad)
-    } catch {
-      bad()
+    } catch (err) {
+      bad(err)
     }
   })
 
@@ -131,8 +150,8 @@ const loadPoemData = (poemIndex: number): any =>
         response = poem.keys
           ? await fetchRecordedKey(POEMS_URL, name)
           : await fetchPoemAsset(POEMS_URL, name, KEY_SCHEME)
-      } catch {
-        throw { reason: 'network' }
+      } catch (err) {
+        throw { reason: 'network', log: `Unable to fetch the poem: ${describeCause(err)}` }
       }
       if (!response.ok) throw { reason: response.status === 404 ? 'missing' : response.status === 403 ? 'refused' : 'server' }
       return response
@@ -142,8 +161,8 @@ const loadPoemData = (poemIndex: number): any =>
     const body = async <T>(response: Response, read: (r: Response) => Promise<T>): Promise<T> => {
       try {
         return await read(response)
-      } catch {
-        throw { reason: 'network', log: 'Unable to read the poem from the network' }
+      } catch (err) {
+        throw { reason: 'network', log: `Unable to read the poem from the network: ${describeCause(err)}` }
       }
     }
 
@@ -170,8 +189,9 @@ const loadPoemData = (poemIndex: number): any =>
     let data
     try {
       data = parseMidstFile(text)
-    } catch {
-      return fail('Unable to load Midst file', 'damaged')
+    } catch (err) {
+      // The name only: a JSON SyntaxError's message quotes the text it failed on, and that text is the poem.
+      return fail(`Unable to load Midst file: ${causeName(err)}`, 'damaged')
     }
     dispatch({ type: LOAD_POEM_DATA, payload: { poemId: poem.poemId, data, processNote }})
   }
