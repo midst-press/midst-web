@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { isMain } from './is-main.mjs'
 
 // The editor commit the copies are held to. A copy PR copies the files and moves this pin in the same
 // commit (--pin-to-main). The gate compares with the pin, not with editor main, so an editor merge cannot
@@ -113,7 +114,7 @@ export function check(editorRoot, webRoot) {
   return { pin, main, behind }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMain(import.meta.url)) {
   const root = process.env.MIDST_EDITOR_ROOT
   if (!root) throw new Error('Set MIDST_EDITOR_ROOT to a freshly fetched midst-editor checkout')
   const webRoot = fileURLToPath(new URL('..', import.meta.url))
