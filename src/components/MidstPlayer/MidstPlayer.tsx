@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
+import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
 import { clampLabelCentre } from './timestamp-position'
 import { draftMarkers, playerFont } from './timeline'
@@ -10,11 +10,6 @@ import { installFonts } from '../../fonts'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
-
-const extensions = [StarterKit.configure({
-  bulletList: false, orderedList: false, blockquote: false, code: false,
-  codeBlock: false, heading: false, horizontalRule: false, listItem: false, strike: false,
-})]
 
 const MIN_FPS = 1
 const MAX_FPS = 60

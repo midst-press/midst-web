@@ -12,7 +12,6 @@ export const PIN_FILE = 'tools/editor-copies-pin'
 // Files copied from midst-editor and held byte-identical to the pinned editor commit.
 const HELPERS = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
-  ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
   ['src/buildLabel.ts', 'src/shared/buildLabel.ts'],
   // The editor's user guide, shown on /app#help (midst-editor #105) until Annelyse writes her own help.
   ['src/guide/editor-user-guide.md', 'docs/user-guide.md'],
@@ -22,7 +21,6 @@ const HELPERS = [
 const TESTS = [
   ['src/__tests__/editor-follow.test.ts', 'src/__tests__/follow.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-followMore.test.ts', 'src/__tests__/followMore.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
-  ['src/__tests__/editor-trackingUtils.test.ts', 'src/__tests__/trackingUtils.test.ts', '../renderer/tracking/utils', '../components/MidstPlayer/helpers'],
   ['src/__tests__/editor-buildLabel.test.ts', 'src/__tests__/buildLabel.test.ts', '../shared/buildLabel', '../buildLabel'],
 ]
 
