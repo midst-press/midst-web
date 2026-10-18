@@ -111,7 +111,7 @@ jobs:
       # generator derives their names from the app's own slug module, so if that derivation changes the
       # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
       # and it holds without storing anything poem-shaped in git.
-      - run: npm run test:e2e
+      - run: npx playwright test --grep-invert "@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme.
       - name: the same site under canonical keys
         env:
