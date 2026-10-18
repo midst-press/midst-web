@@ -214,22 +214,26 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
   // resize does not leave a stale width. Measurement runs on text change and resize, not per frame.
   const timestampRef = useRef<HTMLDivElement>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
   const [labelWidthPct, setLabelWidthPct] = useState(0)
   const measureLabel = useCallback(() => {
     const el = timestampRef.current
-    if (!el || !el.parentElement) return
-    const containerWidth = el.parentElement.offsetWidth
+    const timeline = timelineRef.current
+    if (!el || !timeline) return
+    const containerWidth = timeline.offsetWidth
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
   }, [])
   useLayoutEffect(measureLabel, [labelText, measureLabel])
+  // Observe the timeline, which is always rendered, not the label, which is not: a player mounted with no data
+  // has no label, and an effect that ran once then would never observe a resize after the data arrived (#94).
   useEffect(() => {
-    const el = timestampRef.current
-    if (!el || !el.parentElement) return
+    const timeline = timelineRef.current
+    if (!timeline) return
     // As the marker row's effect: without ResizeObserver the label is still measured on text change, and only
     // stops re-measuring on resize, rather than the effect throwing and the player not rendering (#146).
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measureLabel)
-    observer.observe(el.parentElement)
+    observer.observe(timeline)
     return () => observer.disconnect()
   }, [measureLabel])
   const clampedCentre = clampLabelCentre(playheadPercent, labelWidthPct)
@@ -266,7 +270,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       </div>
       <div className="control-container">
         <div className="controls" onKeyDown={event => event.stopPropagation()}>
-          <div className="timeline-control">
+          <div className="timeline-control" ref={timelineRef}>
           <input type="range" aria-label="Timeline" aria-valuetext={labelText ?? undefined} className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
