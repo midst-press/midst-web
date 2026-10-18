@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { isMain } from './is-main.mjs'
 
 // The editor commit the copies are held to. A copy PR copies the files and moves this pin in the same
 // commit (--pin-to-main). The gate compares with the pin, not with editor main, so an editor merge cannot
@@ -12,7 +13,6 @@ export const PIN_FILE = 'tools/editor-copies-pin'
 // Files copied from midst-editor and held byte-identical to the pinned editor commit.
 const HELPERS = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
-  ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
   ['src/buildLabel.ts', 'src/shared/buildLabel.ts'],
   // The editor's user guide, shown on /app#help (midst-editor #105) until Annelyse writes her own help.
   ['src/guide/editor-user-guide.md', 'docs/user-guide.md'],
@@ -22,7 +22,6 @@ const HELPERS = [
 const TESTS = [
   ['src/__tests__/editor-follow.test.ts', 'src/__tests__/follow.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-followMore.test.ts', 'src/__tests__/followMore.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
-  ['src/__tests__/editor-trackingUtils.test.ts', 'src/__tests__/trackingUtils.test.ts', '../renderer/tracking/utils', '../components/MidstPlayer/helpers'],
   ['src/__tests__/editor-buildLabel.test.ts', 'src/__tests__/buildLabel.test.ts', '../shared/buildLabel', '../buildLabel'],
 ]
 
@@ -115,7 +114,7 @@ export function check(editorRoot, webRoot) {
   return { pin, main, behind }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMain(import.meta.url)) {
   const root = process.env.MIDST_EDITOR_ROOT
   if (!root) throw new Error('Set MIDST_EDITOR_ROOT to a freshly fetched midst-editor checkout')
   const webRoot = fileURLToPath(new URL('..', import.meta.url))
