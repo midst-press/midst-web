@@ -153,6 +153,21 @@ test('label stays inside after a paused narrow-to-wide resize', async ({ page })
     .toPass({ timeout: 5000 })
 })
 
+test('label stays inside after a resize when the player was mounted before its data (#94)', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.evaluate(() =>
+    (window as any).mountPlayerOptions(null, { activePlayer: true, cursorFollowing: false, hasScrollbar: true }))
+  await expect(page.locator('.timeline-control')).toBeVisible()
+  await expect(page.locator('.frame-timestamp')).toHaveCount(0)
+  await mount(page)
+  await setStep(page, 79)
+  await assertLabelInsideTimeline(page)
+
+  await page.setViewportSize({ width: 320, height: 720 })
+  await expect(async () => { await assertLabelInsideTimeline(page) })
+    .toPass({ timeout: 5000 })
+})
+
 // ---- accessibility (Cyril's review on #107) ------------------------------------------------
 
 test('aria-valuetext on the timeline equals the visible label text', async ({ page }) => {
