@@ -25,8 +25,10 @@ on:
   push:
     branches: [main]
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A PR's runs share its ref; each push to main gets its own group, so a newer one cannot cancel it even while pending.
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  # Cancel a superseded run on a PR only: every push to main keeps its own verdict (midst-infra #102).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 # Every build and every end-to-end run names its key scheme; there is no default (#41). The jobs run
@@ -46,6 +48,8 @@ jobs:
           echo /opt/homebrew/sbin >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the poem-ids hook compares ids with the merge base on origin/main (#65)
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
       - run: npm ci --ignore-scripts
@@ -80,6 +84,15 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/precommit"
           "$RUNNER_TEMP/precommit/bin/pip" install --quiet 'pre-commit==4.6.2'
           "$RUNNER_TEMP/precommit/bin/pre-commit" run --all-files --show-diff-on-failure
+      - name: vendored midst-format matches its VENDOR.md hashes
+        run: node tools/check-vendored-format.mjs
+      # Rebuilds the tag VENDOR.md names and byte-compares it with vendor/midst-format/, so the hashes are not
+      # the only check: they can be edited in the same commit as the files. midst-format is public on Gitea, so
+      # the clone needs no key (the "private" premise was wrong; checked anonymously 19 Oct).
+      - name: vendored midst-format equals a rebuild of its tag
+        run: |
+          git clone --quiet http://gitea-server:3000/The_Kindled/midst-format.git "$RUNNER_TEMP/midst-format"
+          MIDST_FORMAT_ROOT="$RUNNER_TEMP/midst-format" node tools/check-vendored-format.mjs --rebuild
 
   build:
     runs-on: stuart-m3ultra-canary
@@ -116,24 +129,12 @@ jobs:
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
-      # Frame-budget tests need a GUI session to get a real frame rate. Run them when available;
-      # otherwise skip visibly (never silently) and require a local run.
-      - name: check for GUI session
-        id: gui
-        run: |
-          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
-            echo "has_gui=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_gui=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: run e2e (with frame-budget tests)
-        if: steps.gui.outputs.has_gui == 'true'
-        run: npm run test:e2e
-      - name: run e2e (frame-budget tests skipped — no GUI session)
-        if: steps.gui.outputs.has_gui != 'true'
-        run: |
-          echo "::warning::frame-budget e2e SKIPPED: runner has no GUI session; run npm run e2e:frame-budget locally"
-          npx playwright test --grep-invert "@frame-budget|@gui"
+      # The @frame-budget follow tests never run here, so a green run of this job says nothing about
+      # following. They need a real frame cadence, which this runner's account has never had (#15). They
+      # run in .github/workflows/frame-budget.yml on GitHub, on the push-up after the Gitea merge (PROGRAMME).
+      # The @gui legacy-runtime tests also need a GUI (their sampler precondition, #28).
+      - name: run e2e (not the frame-budget or @gui tests; those run on GitHub)
+        run: npx playwright test --grep-invert "@frame-budget|@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
       - name: the same site under canonical keys
@@ -164,21 +165,8 @@ jobs:
       - run: npx playwright install chromium
       - name: pick a free port
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
-      - name: check for GUI session
-        id: gui
-        run: |
-          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
-            echo "has_gui=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_gui=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: coverage (all tests)
-        if: steps.gui.outputs.has_gui == 'true'
-        run: npm run coverage
-      - name: coverage (frame-budget tests excluded — no GUI session)
-        if: steps.gui.outputs.has_gui != 'true'
+      # Excludes the @frame-budget and @gui tests, which never run on this runner (see the e2e job above).
+      - name: coverage (not the frame-budget or @gui tests)
         env:
           MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget|@gui
-        run: |
-          echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
-          npm run coverage
+        run: npm run coverage
