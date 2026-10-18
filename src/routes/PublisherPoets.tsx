@@ -1,7 +1,7 @@
 import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
 import { ApiError } from '../app/api'
 import { Call } from '../app/publisher'
-import { Person, STATUS_WORDS, disablePoet, listPoets, registerPoet, resendInvitation } from '../app/poets'
+import { Person, STATUS_WORDS, disablePoet, listPoets, poetOnly, registerPoet, resendInvitation } from '../app/poets'
 
 // The "Poets" part of the publisher's page: register a poet by name and email, resend the invitation, disable.
 // The publisher never sees or sets a password (docs/app-api.md, "Poets").
@@ -70,12 +70,12 @@ function PublisherPoets({ call, onExpired }: Props): ReactElement {
               <span className="publisher-poem"><strong>{poet.name}</strong> <span className="publisher-author">{poet.email}</span></span>
               <span className="publisher-actions">
                 {STATUS_WORDS[poet.status]}
-                {poet.status === 'invited' && (
+                {poetOnly(poet) && poet.status === 'invited' && (
                   <button type="button" disabled={busy} onClick={() => run(() => resendInvitation(call, poet.username), `Sent the invitation to ${poet.name} again.`)}>
                     Resend invitation
                   </button>
                 )}
-                {poet.status !== 'disabled' && (
+                {poetOnly(poet) && poet.status !== 'disabled' && (
                   <button type="button" disabled={busy} onClick={() => run(() => disablePoet(call, poet.username), `Disabled ${poet.name}.`)}>
                     Disable
                   </button>
