@@ -164,25 +164,12 @@ jobs:
         if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
-      # Frame-budget tests need a GUI session to get a real frame rate. Run them when available;
-      # otherwise skip visibly (never silently) and require a local run.
-      - name: check for GUI session
-        id: gui
+      # The @frame-budget follow tests never run here, so a green run of this job says nothing about
+      # following. They need a real frame cadence, which this runner's account has never had (#15). They
+      # run in .github/workflows/frame-budget.yml on GitHub, on the push-up after the Gitea merge (PROGRAMME).
+      - name: run e2e (not the frame-budget tests; those run on GitHub, frame-budget.yml)
         if: steps.head.outputs.current == 'true'
-        run: |
-          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
-            echo "has_gui=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_gui=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: run e2e (with frame-budget tests)
-        if: steps.head.outputs.current == 'true' && steps.gui.outputs.has_gui == 'true'
-        run: npm run test:e2e
-      - name: run e2e (frame-budget tests skipped — no GUI session)
-        if: steps.head.outputs.current == 'true' && steps.gui.outputs.has_gui != 'true'
-        run: |
-          echo "::warning::frame-budget e2e SKIPPED: runner has no GUI session; run npm run e2e:frame-budget locally"
-          npx playwright test --grep-invert "@frame-budget"
+        run: npx playwright test --grep-invert "@frame-budget"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
       - name: the same site under canonical keys
@@ -228,22 +215,9 @@ jobs:
       - name: pick a free port
         if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
-      - name: check for GUI session
-        id: gui
+      # Excludes the @frame-budget tests, which never run on this runner (see the e2e job above).
+      - name: coverage (not the frame-budget tests)
         if: steps.head.outputs.current == 'true'
-        run: |
-          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
-            echo "has_gui=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_gui=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: coverage (all tests)
-        if: steps.head.outputs.current == 'true' && steps.gui.outputs.has_gui == 'true'
-        run: npm run coverage
-      - name: coverage (frame-budget tests excluded — no GUI session)
-        if: steps.head.outputs.current == 'true' && steps.gui.outputs.has_gui != 'true'
         env:
           MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
-        run: |
-          echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
-          npm run coverage
+        run: npm run coverage
