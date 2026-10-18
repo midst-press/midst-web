@@ -3,15 +3,14 @@ name: frame-budget
 # Issue #16; sjswerdloff, 13 October 2026.
 #
 # These five tests sample the scroll position and refuse their own measurement when the sampler interval
-# reaches 50 ms. The self-hosted runner has no GUI session and delivers frames about every 150 ms, so the
-# Gitea ci.yml skips them and a person runs `npm run e2e:frame-budget:attest` on a Mac and pastes the
-# result. This job runs that SAME tool, three times, and puts the three attestation blocks in the job
-# summary and an artefact.
+# reaches 50 ms. The self-hosted Gitea runner delivers frames about every 150 ms, so Gitea's ci.yml never
+# runs them (#15). This job is where they run: `npm run e2e:frame-budget:attest`, three times, with the
+# three attestation blocks in the job summary and an artefact. It runs on the push-up after the Gitea
+# merge; a red run goes to the orchestrator (PROGRAMME.md). The hand-run Mac attestation is retired.
 #
-# It runs the frame-budget attestation on GitHub and is not a required check; whether it replaces the
-# hand-run step is set in PROGRAMME.md. The 50 ms guard is not relaxed here: if this machine cannot
-# deliver frames, the tests fail by their own precondition ("invalid measurement"), the tool refuses,
-# and that is the result.
+# It is not a required check. The 50 ms guard is not relaxed here: if this machine cannot deliver frames,
+# the tests fail by their own precondition ("invalid measurement"), the tool refuses, and that is the
+# result.
 on:
   pull_request:
   push:
