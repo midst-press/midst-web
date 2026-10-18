@@ -11,6 +11,8 @@
 //
 // A message here can end up in a public log, so none of them says which poem or quotes the list.
 
+const { isCanonicalDate } = require('./canonical-date.js')
+
 const LISTS = ['bundled', 'published']
 
 // Keys in the list are written from the bucket root; the site's POEMS_URL already ends in /poems/.
@@ -27,6 +29,7 @@ function parsePoemList(value) {
 }
 
 const isText = value => typeof value === 'string' && value.length > 0
+const isAbsentOrDate = value => value === null || value === undefined || isCanonicalDate(value)
 
 // "poems/<something>", with nothing that climbs out of it.
 function isKey(value) {
@@ -53,6 +56,8 @@ function parsePublishedList(json) {
     const { poemId, title, author, timelapse, processNote, publishDate, highlighted, date } = entry
     if (!isText(poemId) || !isText(title) || !isText(author) || !isKey(timelapse) || seen.has(poemId)) throw malformed()
     if (processNote !== null && processNote !== undefined && !isKey(processNote)) throw malformed()
+    // A stored date is YYYY-MM-DD or absent (midst-infra #81). Any other form is refused, not guessed at.
+    if (!isAbsentOrDate(publishDate) || !isAbsentOrDate(date)) throw malformed()
     seen.add(poemId)
     return {
       poemId,
@@ -62,9 +67,9 @@ function parsePublishedList(json) {
         timelapse: timelapse.slice(KEY_ROOT.length),
         processNote: isKey(processNote) ? processNote.slice(KEY_ROOT.length) : null,
       },
-      publishDate: isText(publishDate) ? publishDate : null,
+      publishDate: publishDate ?? null,
       highlighted: highlighted === true,
-      date: isText(date) ? date : null,
+      date: date ?? null,
     }
   })
 }

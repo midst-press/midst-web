@@ -22,6 +22,10 @@ import poemData from '../poems'
 import * as poemNames from '../poems/poem-names'
 import { POEM_LIST } from '../config'
 
+// A stored date is YYYY-MM-DD (midst-infra #81), parsed strictly: anything else, or null, is an invalid moment,
+// which the page shows as no date, never as a date moment guessed from another form.
+const storedDate = (value: unknown) => moment(typeof value === 'string' ? value : null, 'YYYY-MM-DD', true)
+
 function createPoem(data: any, position: number = 0) {
   // Derived by src/poems/poem-names.js, which is the one definition shared with the tooling. It
   // used to be inlined here and transcribed again in tools/poem-canary.mjs; two copies of the rule
@@ -35,8 +39,8 @@ function createPoem(data: any, position: number = 0) {
     authorSecondaryFolder: data.authorSecondaryFolder,
     cursorFollowing: data.cursorFollowing,
     data: null,
-    date: moment(data.date),
-    publishDate: moment(data.publishDate),
+    date: storedDate(data.date),
+    publishDate: storedDate(data.publishDate),
     poemId: `${authorId}--${url}`,
     position,
     hasScrollbar: data.hasScrollbar,
@@ -63,8 +67,8 @@ function createPublishedPoem(entry: any, position: number): IPoem {
     highlighted: entry.highlighted,
     id: entry.poemId,
   }, position)
-  poem.date = moment(entry.date)
-  poem.publishDate = moment(entry.publishDate)
+  poem.date = storedDate(entry.date)
+  poem.publishDate = storedDate(entry.publishDate)
   poem.keys = entry.keys
   return poem
 }
