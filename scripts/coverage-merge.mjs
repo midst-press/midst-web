@@ -21,7 +21,8 @@
 //
 // Coverage is what RAN, not what was asserted. The combined figure is reported, never gated on.
 //
-// Every code file under src/ is listed, so a file no test loads counts as 0% and not as absent.
+// Every code file under src/ is listed, so a file no test loads counts as 0% and not as absent. A file with
+// only comments has no code and is not listed (#24).
 
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
@@ -31,6 +32,7 @@ import { CoverageReport } from 'monocart-coverage-reports'
 import libCoverage from 'istanbul-lib-coverage'
 import ts from 'typescript'
 import { controlFailures } from './coverage-control-check.mjs'
+import { hasCode } from './coverage-has-code.mjs'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RAW = join(REPO, 'coverage', 'raw')
@@ -44,7 +46,14 @@ const CONTROL = 'e2e/coverage-control.ts'
 const isCode = path => /\.(ts|tsx|js|jsx)$/.test(path) && !path.endsWith('.d.ts')
 // Tests are not the code under test.
 const isTest = path => path.includes('/__tests__/') || /\.test\.[jt]sx?$/.test(path)
-const counted = path => path.startsWith('src/') && isCode(path) && !isTest(path)
+// A file with nothing but comments has no code to cover, but the converter still gives it one statement and marks
+// it covered, so it would read 100% and add a covered line to every total (#24).
+const codeless = new Map()
+const hasCodeAt = path => {
+  if (!codeless.has(path)) codeless.set(path, !hasCode(readFileSync(join(REPO, path), 'utf8')))
+  return !codeless.get(path)
+}
+const counted = path => path.startsWith('src/') && isCode(path) && !isTest(path) && hasCodeAt(path)
 
 function fail(message) {
   console.error(`coverage: ${message}`)

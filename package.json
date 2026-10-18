@@ -25,7 +25,7 @@
     "prepare": "node tools/install-hooks.cjs",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:coverage-control": "node --test scripts/coverage-control-check.test.mjs"
+    "test:coverage-control": "node --test scripts/coverage-control-check.test.mjs scripts/coverage-has-code.test.mjs"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
