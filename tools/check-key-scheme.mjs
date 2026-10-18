@@ -11,8 +11,9 @@
 // Prints the scheme and counts only.
 
 import { readdirSync, readFileSync } from 'node:fs'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { isMain } from './is-main.mjs'
 import keyScheme from '../src/poems/key-scheme.js'
 import poemList from '../src/poems/poem-list.js'
 
@@ -48,7 +49,7 @@ export function problems(value, dir, list) {
     : []
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMain(import.meta.url)) {
   const dir = join(fileURLToPath(new URL('..', import.meta.url)), 'src', 'poems')
   const found = problems(process.env.MIDST_KEY_SCHEME, dir, process.env.MIDST_POEM_LIST)
   for (const line of found) console.error(`key scheme: ${line}`)
