@@ -76,6 +76,12 @@ repos:
         entry: node --test tools/test-frame-budget-report.mjs
         pass_filenames: false
         files: '^(tools/(test-)?frame-budget-(report|attest)\.mjs|e2e/replay-follow\.spec\.ts)$'
+      - id: frame-budget-host-summary-self-test
+        name: the host-profile frame-budget summary refuses a pass that measured nothing (midst-infra #102)
+        language: system
+        entry: node --test tools/test-frame-budget-host-summary.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?frame-budget-host-summary\.mjs$'
       - id: seed-published-self-test
         name: the published-list seed refuses an inconsistent or unstaged list, and names no poem
         language: system
