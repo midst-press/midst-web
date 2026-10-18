@@ -183,7 +183,10 @@ const loadPoemData = (poemIndex: number): any =>
       text = await readFirstEntry(zip, archive)
     } catch (e: unknown) {
       const error = e as Partial<LoadError> | null
-      return fail((error && error.log) || 'Unable to load Midst data', (error && error.reason) || 'unknown')
+      // Not one of ours (marked or insane on the note, objectNames, no window.zip): its name only, since the note is
+      // the poet's text.
+      const why = error && error.reason ? error.reason : causeName(e)
+      return fail((error && error.log) || `Unable to load Midst data: ${why}`, (error && error.reason) || 'unknown')
     }
 
     let data

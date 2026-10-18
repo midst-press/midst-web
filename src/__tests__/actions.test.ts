@@ -21,6 +21,16 @@ import {
 } from '../store/types'
 
 // The names are the real ones; only the request is faked.
+// marked as it is, unless a test asks it to throw.
+const mockMarked = { throws: false }
+jest.mock('marked', () => {
+  const actual = jest.requireActual('marked')
+  const wrapped = (...args: unknown[]) => {
+    if (mockMarked.throws) throw new TypeError('zq marked')
+    return actual(...args)
+  }
+  return Object.assign(wrapped, actual)
+})
 jest.mock('../poems/key-scheme', () => ({ ...jest.requireActual('../poems/key-scheme'), fetchPoemAsset: jest.fn() }))
 let mockScheme: string | undefined = 'legacy'
 jest.mock('../config', () => ({
@@ -263,7 +273,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('refused'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: refused']])
   })
 
   it('timelapse response not ok: no reader, failure dispatched', async () => {
@@ -275,7 +285,7 @@ describe('loadPoemData failures before unzip', () => {
     expect(mockFetchAsset).toHaveBeenCalledTimes(2)
     expect(zip.createReader).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('refused'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: refused']])
   })
 
   it('network error on the note: no second fetch, failure dispatched', async () => {
@@ -332,7 +342,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
   })
 })
 
@@ -396,7 +406,7 @@ describe('window.zip missing', () => {
 
     expect(mockFetchAsset).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('unknown'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
   })
 })
 
@@ -512,5 +522,18 @@ describe('the cause in a failure log', () => {
     expect(causeName(new SyntaxError('Unexpected token, "zq xv" is not valid JSON'))).toBe('SyntaxError')
     expect(causeName('zq')).toBe('a thrown string')
     expect(causeName(null)).toBe('a thrown object')
+  })
+})
+
+describe('a failure outside the archive and the network', () => {
+  afterEach(() => { mockMarked.throws = false })
+
+  it('a throw from marked on the note is logged by name, never by its message', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    mockMarked.throws = true
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('unknown'))
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
   })
 })
