@@ -92,6 +92,45 @@ test('label follows the playhead', async ({ page }) => {
   expect(late, 'label did not move right with the playhead').toBeGreaterThan(early + 0.3)
 })
 
+// Inside is not enough: a label that sat still in the middle passes every inside test (#95). At either end the
+// label meets the timeline's end; between, its centre is at the playhead.
+async function boxes(page: Page) {
+  const label = await page.locator('.frame-timestamp').boundingBox()
+  const timeline = await page.locator('.timeline-control').boundingBox()
+  expect(label).not.toBeNull()
+  expect(timeline).not.toBeNull()
+  return { label: label!, timeline: timeline! }
+}
+
+for (const width of [1024, 320]) {
+  test(`at ${width}px the label meets the timeline's left end at the first frame (#95)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 })
+    await mount(page)
+    await setStep(page, 0)
+    const { label, timeline } = await boxes(page)
+    expect(Math.abs(label.x - timeline.x), 'left edges').toBeLessThanOrEqual(2)
+  })
+
+  test(`at ${width}px the label meets the timeline's right end at the last frame (#95)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 })
+    await mount(page)
+    await setStep(page, 79)
+    const { label, timeline } = await boxes(page)
+    expect(Math.abs(label.x + label.width - (timeline.x + timeline.width)), 'right edges').toBeLessThanOrEqual(2)
+  })
+}
+
+test('between the ends the label is centred on the playhead (#95)', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await mount(page)
+  for (const frame of [30, 40, 50]) {
+    await setStep(page, frame)
+    const { label, timeline } = await boxes(page)
+    const playhead = timeline.x + timeline.width * frame / 79
+    expect(Math.abs(label.x + label.width / 2 - playhead), `centre at frame ${frame}`).toBeLessThanOrEqual(2)
+  }
+})
+
 test('label stays inside after a paused wide-to-narrow resize', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 720 })
   await mount(page)
@@ -110,6 +149,21 @@ test('label stays inside after a paused narrow-to-wide resize', async ({ page })
   await assertLabelInsideTimeline(page)
 
   await page.setViewportSize({ width: 1024, height: 720 })
+  await expect(async () => { await assertLabelInsideTimeline(page) })
+    .toPass({ timeout: 5000 })
+})
+
+test('label stays inside after a resize when the player was mounted before its data (#94)', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.evaluate(() =>
+    (window as any).mountPlayerOptions(null, { activePlayer: true, cursorFollowing: false, hasScrollbar: true }))
+  await expect(page.locator('.timeline-control')).toBeVisible()
+  await expect(page.locator('.frame-timestamp')).toHaveCount(0)
+  await mount(page)
+  await setStep(page, 79)
+  await assertLabelInsideTimeline(page)
+
+  await page.setViewportSize({ width: 320, height: 720 })
   await expect(async () => { await assertLabelInsideTimeline(page) })
     .toPass({ timeout: 5000 })
 })

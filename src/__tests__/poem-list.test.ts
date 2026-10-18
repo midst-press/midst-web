@@ -56,6 +56,11 @@ describe('parsePublishedList', () => {
     expect(bare.keys.processNote).toBeNull()
   })
 
+  it('accepts a real YYYY-MM-DD date, including a leap day, and null (#81)', () => {
+    const [p] = parsePublishedList(list(entry({ publishDate: '2024-02-29', date: null })))
+    expect(p).toMatchObject({ publishDate: '2024-02-29', date: null })
+  })
+
   it('records a null note as null', () => {
     expect(parsePublishedList(list(entry({ processNote: null })))[0].keys.processNote).toBeNull()
   })
@@ -84,6 +89,12 @@ describe('parsePublishedList', () => {
     ['an entry without a title', list(entry({ title: undefined }))],
     ['an entry without an author', list(entry({ author: undefined }))],
     ['two entries with one poemId', list(entry(), entry())],
+    ['a publishDate in M/D/YYYY (#81)', list(entry({ publishDate: '3/3/2020' }))],
+    ['a date in M/D/YYYY (#81)', list(entry({ date: '2/2/2020' }))],
+    ['a date that is not a real date', list(entry({ date: '2021-02-29' }))],
+    ['a publishDate with a time on it', list(entry({ publishDate: '2020-03-03T00:00:00.000Z' }))],
+    ['an empty date', list(entry({ date: '' }))],
+    ['a date that is not text', list(entry({ publishDate: 20200303 }))],
   ])('refuses the whole list for %s', (_name, json) => {
     expect(() => parsePublishedList(json)).toThrow('The published poem list is not well formed.')
   })

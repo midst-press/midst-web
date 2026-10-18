@@ -25,8 +25,10 @@ on:
   push:
     branches: [main]
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A PR's runs share its ref; each push to main gets its own group, so a newer one cannot cancel it even while pending.
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  # Cancel a superseded run on a PR only: every push to main keeps its own verdict (midst-infra #102).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 # Every build and every end-to-end run names its key scheme; there is no default (#41). The jobs run
@@ -46,6 +48,8 @@ jobs:
           echo /opt/homebrew/sbin >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the poem-ids hook compares ids with the merge base on origin/main (#65)
       - name: toolchain guard (Homebrew first, current versions)
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
       - run: npm ci --ignore-scripts
@@ -80,6 +84,15 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/precommit"
           "$RUNNER_TEMP/precommit/bin/pip" install --quiet 'pre-commit==4.6.2'
           "$RUNNER_TEMP/precommit/bin/pre-commit" run --all-files --show-diff-on-failure
+      - name: vendored midst-format matches its VENDOR.md hashes
+        run: node tools/check-vendored-format.mjs
+      # Rebuilds the tag VENDOR.md names and byte-compares it with vendor/midst-format/, so the hashes are not
+      # the only check: they can be edited in the same commit as the files. midst-format is public on Gitea, so
+      # the clone needs no key (the "private" premise was wrong; checked anonymously 19 Oct).
+      - name: vendored midst-format equals a rebuild of its tag
+        run: |
+          git clone --quiet http://gitea-server:3000/The_Kindled/midst-format.git "$RUNNER_TEMP/midst-format"
+          MIDST_FORMAT_ROOT="$RUNNER_TEMP/midst-format" node tools/check-vendored-format.mjs --rebuild
 
   build:
     runs-on: stuart-m3ultra-canary

@@ -23,7 +23,7 @@ import { deflateRawSync, crc32 } from 'node:zlib'
 import names from '../src/poems/poem-names.js'
 import keyScheme from '../src/poems/key-scheme.js'
 import poemList from '../src/poems/poem-list.js'
-import { isoPublishDate } from './publish-date.mjs'
+import { canonicalDate, isoPublishDate } from './publish-date.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const REPO = join(here, '..')
@@ -207,7 +207,7 @@ for (const subject of SUBJECTS) {
     processNote: hasNote ? `poems/${noteName}` : null,
     publishDate: isoPublishDate(meta.publishDate, meta.id),
     highlighted: meta.highlighted === true,
-    date: meta.date ?? null,
+    date: canonicalDate(meta.date, 'date', meta.id),
     tags: [],
   })
   // A 1x1 transparent GIF standing in for the author photograph. MEDIA_URL points at this same
