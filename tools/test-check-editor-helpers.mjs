@@ -14,22 +14,18 @@ import { check, expectedTestCopy, headerNote, PIN_FILE } from './check-editor-he
 
 const EDITOR_FILES = {
   'src/renderer/components/Replay/follow.ts': 'export const ease = (zq: number) => zq\n',
-  'src/renderer/tracking/utils.ts': 'export const step = (xv: string) => xv\n',
   'src/__tests__/follow.test.ts': "import { ease } from '../renderer/components/Replay/follow';\n\nit('zq', () => expect(ease(1)).toBe(1));\n",
   'src/__tests__/followMore.test.ts': "/** @jest-environment jsdom */\nimport { ease } from '../renderer/components/Replay/follow';\n\nit('xv', () => expect(ease(2)).toBe(2));\n",
-  'src/__tests__/trackingUtils.test.ts': "/** @jest-environment node */\nimport { step } from '../renderer/tracking/utils';\n\nit('qz', () => expect(step('qz')).toBe('qz'));\n",
   'src/shared/buildLabel.ts': "export const label = (vq: string) => vq\n",
   'src/__tests__/buildLabel.test.ts': "import { label } from '../shared/buildLabel';\n\nit('vq', () => expect(label('vq')).toBe('vq'));\n",
   'docs/user-guide.md': '# Zq\n\nPress **Xv**.\n',
 }
 const WEB_COPIES = [
   ['src/components/MidstPlayer/follow.ts', 'src/renderer/components/Replay/follow.ts'],
-  ['src/components/MidstPlayer/helpers.ts', 'src/renderer/tracking/utils.ts'],
   ['src/buildLabel.ts', 'src/shared/buildLabel.ts'],
   ['src/guide/editor-user-guide.md', 'docs/user-guide.md'],
   ['src/__tests__/editor-follow.test.ts', 'src/__tests__/follow.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
   ['src/__tests__/editor-followMore.test.ts', 'src/__tests__/followMore.test.ts', '../renderer/components/Replay/follow', '../components/MidstPlayer/follow'],
-  ['src/__tests__/editor-trackingUtils.test.ts', 'src/__tests__/trackingUtils.test.ts', '../renderer/tracking/utils', '../components/MidstPlayer/helpers'],
   ['src/__tests__/editor-buildLabel.test.ts', 'src/__tests__/buildLabel.test.ts', '../shared/buildLabel', '../buildLabel'],
 ]
 
@@ -86,7 +82,7 @@ test('an original that does not import from the expected path exactly once is re
   assert.throws(() => expectedTestCopy("import { a } from '../x';\nimport { b } from '../x';\n", 'p', '../x', '../y'), /exactly one/)
 })
 
-for (const [local] of WEB_COPIES.slice(0, 4)) {
+for (const [local] of WEB_COPIES.slice(0, 3)) {
   test(`a changed helper fails: ${local}`, t => {
     const { editor, web } = fixture(t)
     // A one-character change at the start: it changes a helper and the guide alike.
@@ -95,7 +91,7 @@ for (const [local] of WEB_COPIES.slice(0, 4)) {
   })
 }
 
-for (const [local] of WEB_COPIES.slice(4)) {
+for (const [local] of WEB_COPIES.slice(3)) {
   test(`one changed line in a copied test fails: ${local}`, t => {
     const { editor, web } = fixture(t)
     edit(web, local, text => text.replace('toBe(', 'not.toBe('))
@@ -109,7 +105,7 @@ test('a copied test fails without its note, with an altered note, with an added 
     text => text.replace(headerNote('src/__tests__/followMore.test.ts'), ''),
     text => text.replace('with only the import path changed', 'with small changes'),
     text => text + "it('extra', () => {});\n",
-    text => text.replace('../components/MidstPlayer/follow', '../components/MidstPlayer/helpers'),
+    text => text.replace('../components/MidstPlayer/follow', '../components/MidstPlayer/timeline'),
     text => text.replace('/** @jest-environment jsdom */\n', ''),
   ]
   for (const change of changes) {
@@ -125,16 +121,16 @@ test('a copied test fails without its note, with an altered note, with an added 
 test('a change on editor main is reported as behind, and fails nothing, until the copy PR moves the pin', t => {
   const { editor, web, git, pinTo } = fixture(t)
   const pinned = git('rev-parse', 'HEAD').toString().trim()
-  edit(editor, 'src/__tests__/trackingUtils.test.ts', text => text + "it('later', () => {});\n")
+  edit(editor, 'src/__tests__/buildLabel.test.ts', text => text + "it('later', () => {});\n")
   commitAll(git, 'xv')
   git('update-ref', 'refs/remotes/origin/main', 'HEAD')
   const main = git('rev-parse', 'HEAD').toString().trim()
-  assert.deepEqual(check(editor, web), { pin: pinned, main, behind: ['src/__tests__/trackingUtils.test.ts'] })
+  assert.deepEqual(check(editor, web), { pin: pinned, main, behind: ['src/__tests__/buildLabel.test.ts'] })
   // Moving the pin without copying is caught: the copy no longer matches the pinned commit.
   pinTo(main)
-  assert.throws(() => check(editor, web), /Copied editor test differs.*editor-trackingUtils/)
+  assert.throws(() => check(editor, web), /Copied editor test differs.*editor-buildLabel/)
   // Copying as well clears it.
-  const [local, upstream, originalImport, copyImport] = WEB_COPIES.find(([l]) => l.endsWith('editor-trackingUtils.test.ts'))
+  const [local, upstream, originalImport, copyImport] = WEB_COPIES.find(([l]) => l.endsWith('editor-buildLabel.test.ts'))
   write(web, local, expectedTestCopy(readFileSync(join(editor, upstream), 'utf8'), upstream, originalImport, copyImport))
   assert.deepEqual(check(editor, web), { pin: main, main, behind: [] })
 })
