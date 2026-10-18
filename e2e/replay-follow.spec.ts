@@ -265,6 +265,9 @@ test('@frame-budget recorder observes quiet offscreen writing and distinguishes 
     await page.locator('.editable p').nth(140).evaluate(p => { p.textContent += 'x' })
     await page.waitForTimeout(700)
   })
+  const quietSampler = quiet.samples.slice(1).map((s, i) => s[4] - quiet.samples[i][4]).sort((a, b) => a - b)
+  expect(quietSampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(quietSampler[quietSampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(verdict(quiet).unfollowed).toBe(1)
   const scenario = async (top: number, to: number | null) => {
     await controlled(90)
