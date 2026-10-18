@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, poets?: Person[] }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, poets?: Person[] }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -30,7 +30,14 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (url.origin !== API) return route.abort()
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
-    if (request.method() === 'GET' && url.pathname === '/publisher/poems') return reply(200, list())
+    if (request.method() === 'GET' && url.pathname === '/publisher/poems') {
+      // The reload after a saved change fails once (#127).
+      if (store.failReload && store.writes.length > 0) {
+        store.failReload = false
+        return reply(503, { error: 'unavailable', message: 'Zq is unavailable.' })
+      }
+      return reply(200, list())
+    }
     // The patrons section loads too (docs/app-api.md, "Patrons"); this spec does not edit it.
     if (request.method() === 'GET' && url.pathname === '/publisher/patrons') return reply(200, { patronsEtag: 'none', patrons: [], closing: null })
     // The poet routes (docs/app-api.md, "Poets").
@@ -106,6 +113,19 @@ test('publish, reorder, highlight and unpublish, each saved to the list', async 
   await page.getByRole('listitem').filter({ hasText: 'Zq 1' }).getByRole('button', { name: 'Unpublish' }).click()
   await expect(page.getByRole('status')).toHaveText('Unpublished Zq 1.')
   await expect(page.getByRole('list', { name: 'Poems not published' })).toContainText('Zq 1')
+})
+
+test('a saved change whose list reload fails is shown as saved, not as a failure (#127)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2)], writes: [], failReload: true }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(published(page)).toHaveText(['Zq 1'])
+  await page.getByRole('list', { name: 'Poems not published' }).getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByRole('alert')).toHaveText('The change was saved, but the list could not be refreshed. Reload the page to see it.')
+  await expect(page.getByText('Zq is unavailable.')).toHaveCount(0)
+  expect(store.writes).toEqual(['POST /publisher/publish'])
+  expect(store.published.map(p => p.title)).toEqual(['Zq 1', 'Zq 2'])
 })
 
 test('a change made with a stale list is refused, the list reloaded and the publisher told', async ({ page, baseURL }) => {
