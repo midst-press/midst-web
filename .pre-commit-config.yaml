@@ -73,13 +73,19 @@ repos:
         language: system
         entry: node --test tools/test-seed-published.mjs
         pass_filenames: false
-        files: '^(tools/(test-)?seed-published\.mjs|src/poems/key-scheme\.js)$'
+        files: '^(tools/(test-)?(seed-published|publish-date)\.mjs|src/poems/key-scheme\.js)$'
+      - id: publish-date-self-test
+        name: publishDate is written as YYYY-MM-DD, strictly, naming a refused poem by id only (#158)
+        language: system
+        entry: node --test tools/test-publish-date.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?publish-date\.mjs$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail
         entry: >-
           Poem timelapses are the poets' work and must not enter git. A public push cannot be
-          withdrawn. Keep them with the archive and point MIDST_CORPUS at it. See DATA.md.
+          withdrawn. Keep them outside this repository, beside the archive. See DATA.md.
         files: '(\.midst$|\.midst\.zip$|(^|/)static/static/assets/poems/)'
       - id: forbid-font-files
         name: font files must never be committed
