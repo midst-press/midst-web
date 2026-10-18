@@ -41,7 +41,15 @@ export function problems(dir, pending = PENDING) {
     if (!files.includes(name)) found.push(`${name} is on the pending list but is not a poem file; remove it from the list`)
   }
   for (const name of files) {
-    const { id } = JSON.parse(readFileSync(join(dir, name), 'utf8'))
+    const text = readFileSync(join(dir, name), 'utf8')
+    const { id } = JSON.parse(text)
+    // JSON.parse keeps the LAST of two equal keys and says nothing (#67): a merge of two branches that each
+    // minted an id for the same new file would leave one poem with two identities. Count the id lines.
+    const idLines = (text.match(/^\s*"id"\s*:/gm) || []).length
+    if (idLines > 1) {
+      found.push(`${name} has ${idLines} id lines; a poem has exactly one`)
+      continue
+    }
     if (name in pending) {
       if (id !== undefined) found.push(`${name} has an id but is on the pending list; decide it and remove it from the list`)
       continue
