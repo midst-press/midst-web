@@ -43,6 +43,17 @@ test('two poems with one id are refused, naming both', t => {
   assert.deepEqual(problems(base, {}), ['Zq.json has the same id as Xv.json'])
 })
 
+test('a file with two id lines is refused, whichever one JSON.parse keeps (#67)', t => {
+  const twice = `{\n  "id": "${A}",\n  "id": "${B}",\n  "author": "Zq Xv",\n  "title": "Kj"\n}\n`
+  assert.equal(JSON.parse(twice).id, B, 'the fixture is what the issue describes: JSON.parse keeps the last')
+  assert.deepEqual(problems(dir(t, { 'Zq.json': twice }), {}), ['Zq.json has 2 id lines; a poem has exactly one'])
+  // The same id twice is still two lines, and a pending file is not excused.
+  const same = `{\n  "id": "${A}",\n  "id": "${A}",\n  "title": "Kj"\n}\n`
+  assert.deepEqual(problems(dir(t, { 'Zq.json': same }), {}), ['Zq.json has 2 id lines; a poem has exactly one'])
+  assert.deepEqual(problems(dir(t, { 'Zq.json': same }), { 'Zq.json': 'undecided' }),
+    ['Zq.json has 2 id lines; a poem has exactly one'])
+})
+
 test('a pending file needs no id, must not have one, and must exist', t => {
   const pending = { 'Xv.json': 'undecided' }
   assert.deepEqual(problems(dir(t, { 'Zq.json': poem({ id: A }), 'Xv.json': poem({}) }), pending), [])
