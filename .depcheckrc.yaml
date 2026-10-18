@@ -2,6 +2,7 @@
 # Every entry carries a reason. An entry without one is not an allowlist entry, it is a shrug.
 ignores:
   - '@tiptap/pm'                      # TipTap's peer dependency, declared so it is pinned with the other TipTap packages.
+  - '@tiptap/starter-kit'             # Peer dependency of the vendored @midst-press/midst-format/extensions, which imports it from here.
   # --- bundler plugins: loaded by Parcel by NAME, never imported from source ---
   - parcel-plugin-static-files-copy   # copies static/ into dist at build time (Parcel 1)
   - parcel-reporter-static-files-copy # the Parcel 2 replacement; named in .parcelrc, not imported
