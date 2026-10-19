@@ -3,7 +3,7 @@
 #
 #   1. refuse unless the run is for a tag that is on main and has a published GitHub release, and the tag
 #      is a pre-release whose release has the "pre-release" box ticked. The version decides, as the About
-#      page's src/buildLabel.ts does (midst-infra #15, Stuart 14 Oct):
+#      page's build line does (midst-format build-label's isPreRelease; midst-infra #15, Stuart 14 Oct):
 #         v0.x.y, with or without a suffix          pre-release   beta
 #         v1.2.3-dev.N / -beta.N / -rc.N            pre-release   beta
 #         v1.2.3 (1.0 and later, no suffix)         release       production: none exists yet, so nothing

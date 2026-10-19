@@ -21,7 +21,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^src/components/MidstPlayer/follow\.ts$|^src/__tests__/editor-(follow|followMore)\.test\.ts$|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
@@ -38,20 +38,6 @@ repos:
   # ---- local guards. These enforce policy mechanically rather than by discipline. ----
   - repo: local
     hooks:
-      - id: editor-helpers-identical
-        name: copied player helpers and their tests match the pinned midst-editor commit
-        language: system
-        entry: node tools/check-editor-helpers.mjs
-        pass_filenames: false
-        always_run: true
-        # Show the output when it passes too: that is where the warning about copies behind editor main is.
-        verbose: true
-      - id: editor-helpers-check-self-test
-        name: the provenance check passes on faithful copies and fails on anything else
-        language: system
-        entry: node --test tools/test-check-editor-helpers.mjs
-        pass_filenames: false
-        files: '^tools/(test-)?check-editor-helpers\.mjs$'
       - id: vendored-format
         name: vendor/midst-format matches the SHA-256 block in its VENDOR.md
         language: system
