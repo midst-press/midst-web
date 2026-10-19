@@ -4,6 +4,8 @@
   "7:19 pm" above "November 5, 2019", in a box under the dot. The date is written the same way for everyone
   reading the English site, in the reader's own time zone. To make room for the box, the poem's area is
   20 pixels shorter.
+- **The time under the timeline stays inside the timeline** when the window is resized, and when the
+  site's font finishes loading after the poem appears.
 - **The scroll bar beside a poem can be dragged along its whole length** (GitHub #62). The empty space
   around the previous and next arrows used to catch the drag.
 - **Poems no longer show blank lines the old player never drew.** Poems written in the earlier editor are
