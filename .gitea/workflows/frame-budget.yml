@@ -1,0 +1,117 @@
+# The @frame-budget follow tests on the Studio's Gitea runner, under the `host` profile (midst-infra #102).
+#
+# gitearunner has no GUI session, and its headless Chromium stalls about 150 ms at a time, so the strict
+# verdict refuses every run there (#15). The `host` profile asserts only what separates good code from a
+# broken follow on this machine: frameAbrupt, offscreenEdits and wroteWhileGliding (0 in 20 of 20 at main;
+# frameAbrupt 4 in 12 of 12 with every glide made a jump, #201). abrupt, instant, unfollowed and the frame
+# intervals go into the summary, not into the verdict. See PROFILE in e2e/replay-follow.spec.ts.
+#
+# It is specific, not sensitive: it catches a follow that jumps or writes off screen, not a slow frame. The
+# strict profile still runs in Docker before the push-up, and on GitHub (frame-budget.yml there).
+#
+# Two triggers:
+# - workflow_dispatch with `sha`: the push-up gate asks for a verdict on exactly that commit. The run name
+#   and the summary carry the sha. The job refuses one that is not on main, or that is not the commit the
+#   dispatched ref points at (github.sha, the run's head_sha). A dispatched run writes no commit status on this
+#   Gitea (28.1; run 9837), so the gate reads the run's conclusion from the Actions runs API, matching head_sha.
+#   The job name stays constant: pr_watch alerts on any job name outside its contract.
+# - pull_request touching the follow code or this test, on the PR's turn only, as ci.yml's heavy jobs: the
+#   ci-turn or full-ci label, and only while the commit is still the PR's head (still_head.sh, midst-infra #102).
+# No retries and no re-run: a failure is a failure.
+name: frame-budget
+run-name: frame-budget ${{ inputs.sha || github.sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: full 40-character commit on main
+        required: true
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - src/components/MidstPlayer/**
+      - e2e/replay-follow.spec.ts
+      - tools/frame-budget-host-summary.mjs
+      - .gitea/workflows/frame-budget.yml
+concurrency:
+  group: frame-budget-${{ github.event_name == 'pull_request' && github.ref || inputs.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+env:
+  MIDST_KEY_SCHEME: legacy
+  MIDST_POEM_LIST: bundled
+  MIDST_FRAME_BUDGET_PROFILE: host
+defaults:
+  run:
+    shell: /opt/homebrew/bin/bash -eo pipefail {0}
+jobs:
+  follow:
+    name: replay follows the writing (host profile)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    runs-on: stuart-m3ultra-canary
+    timeout-minutes: 30
+    steps:
+      - name: Homebrew first on PATH
+        run: |
+          echo /opt/homebrew/sbin >> "$GITHUB_PATH"
+          echo /opt/homebrew/bin >> "$GITHUB_PATH"
+      # The input reaches the shell through the environment, never through the expression, so it cannot run.
+      - name: the requested commit is a full sha
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          WANT: ${{ inputs.sha }}
+        run: |
+          [[ "$WANT" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sha must be 40 lowercase hex characters, got: $WANT"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+          fetch-depth: 0
+      # Answers true without asking on workflow_dispatch.
+      - name: is this commit still the PR's head?
+        id: head
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          TOKEN: ${{ github.token }}
+        run: bash .gitea/scripts/still_head.sh
+      # The run is recorded against the commit the dispatched ref pointed at (github.sha, its head_sha), whatever
+      # `sha` says. So the job refuses a sha that is not that commit: a run matched by head_sha then tested it.
+      - name: checked out exactly that commit, it is on main, and it is the run's head_sha
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          WANT: ${{ inputs.sha }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          [ "$WANT" = "$RUN_SHA" ] || { echo "::error::asked for $WANT, but this run's head_sha is $RUN_SHA (the ref moved, or the wrong ref was dispatched)"; exit 1; }
+          got=$(git rev-parse HEAD)
+          [ "$got" = "$WANT" ] || { echo "::error::checked out $got, asked for $WANT"; exit 1; }
+          git fetch --quiet origin main
+          git merge-base --is-ancestor "$WANT" origin/main || { echo "::error::$WANT is not on main"; exit 1; }
+      - name: toolchain guard (Homebrew first, current versions)
+        if: steps.head.outputs.current == 'true'
+        run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
+      - if: steps.head.outputs.current == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.head.outputs.current == 'true'
+        run: npx playwright install chromium
+      - name: pick a free port
+        if: steps.head.outputs.current == 'true'
+        run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
+      # The verdict is Playwright's exit status. The summary is written either way, and says which commit.
+      - name: follow tests, host profile, no retries
+        if: steps.head.outputs.current == 'true'
+        run: |
+          out="$RUNNER_TEMP/frame-budget.md"
+          { echo "### frame-budget, host profile, $(git rev-parse HEAD)"; echo; } > "$out"
+          set +e
+          npx playwright test --grep "@frame-budget writing jumps" --retries 0 --reporter line > "$RUNNER_TEMP/run.log" 2>&1
+          rc=$?
+          node tools/frame-budget-host-summary.mjs "$RUNNER_TEMP/run.log" "$rc" >> "$out"
+          summary=$?
+          set -e
+          cat "$out" >> "$GITHUB_STEP_SUMMARY"
+          cat "$out"
+          [ "$rc" -eq 0 ] || { echo "::error::follow tests failed (exit $rc); the log follows"; tail -n 80 "$RUNNER_TEMP/run.log"; exit "$rc"; }
+          [ "$summary" -eq 0 ] || { echo "::error::the summary refused this run (exit $summary); the log follows"; tail -n 80 "$RUNNER_TEMP/run.log"; exit 1; }
