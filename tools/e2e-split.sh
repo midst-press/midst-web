@@ -4,7 +4,10 @@
 #
 #   MIDST_E2E_PORT=<free port> tools/e2e-split.sh [playwright test options, e.g. --grep-invert "@frame-budget|@gui"]
 #
-# Both runs always happen; the exit status is 1 if either failed. The server's own log is printed at the end.
+# Both runs always happen; the exit status is 1 if either failed. The server's own log is printed at the end. Each run
+# keeps its own results and HTML report (test-results/<project>, playwright-report/<project>), so a failure's trace
+# from the first run survives the second. Options that leave either project with no tests fail that run ("No tests
+# found"), so pass whole-suite filters, not a single spec file.
 set -euo pipefail
 port=${MIDST_E2E_PORT:?set MIDST_E2E_PORT to a free port}
 workers=${MIDST_E2E_WORKERS:-4}
@@ -25,7 +28,7 @@ trap stop EXIT
 
 # It answers 503 while it builds, then 200.
 deadline=$((SECONDS + 300))
-until curl -fsS -o /dev/null "http://127.0.0.1:$port/"; do
+until curl -fs -o /dev/null "http://127.0.0.1:$port/"; do  # quiet: it refuses or answers 503 until built
   kill -0 "$server" 2>/dev/null || { echo "e2e-split: the server exited before it was ready"; exit 1; }
   [ "$SECONDS" -lt "$deadline" ] || { echo "e2e-split: the server was not ready after 300 s"; exit 1; }
   sleep 1
@@ -40,7 +43,9 @@ echo "e2e-split: server ready on port $port after ${SECONDS} s"
 export MIDST_E2E_REUSE_SERVER=1
 status=0
 echo "e2e-split: parallel-safe specs, $workers workers"
-npx playwright test "$@" --project=parallel-safe --workers="$workers" || status=1
+PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/parallel-safe \
+  npx playwright test "$@" --project=parallel-safe --workers="$workers" --output=test-results/parallel-safe || status=1
 echo "e2e-split: timing specs, 1 worker"
-npx playwright test "$@" --project=timing --workers=1 || status=1
+PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/timing \
+  npx playwright test "$@" --project=timing --workers=1 --output=test-results/timing || status=1
 exit "$status"
