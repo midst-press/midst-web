@@ -12,8 +12,9 @@
 # Two triggers:
 # - workflow_dispatch with `sha`: the push-up gate asks for a verdict on exactly that commit. The run name
 #   and the summary carry the sha. The job refuses one that is not on main, or that is not the commit the
-#   dispatched ref points at, because that commit is the one Gitea writes the status to. The job name stays
-#   constant: pr_watch alerts on any job name outside its contract.
+#   dispatched ref points at (github.sha, the run's head_sha). A dispatched run writes no commit status on this
+#   Gitea (28.1; run 9837), so the gate reads the run's conclusion from the Actions runs API, matching head_sha.
+#   The job name stays constant: pr_watch alerts on any job name outside its contract.
 # - pull_request touching the follow code or this test.
 # No retries and no re-run: a failure is a failure.
 name: frame-budget
@@ -63,15 +64,15 @@ jobs:
         with:
           ref: ${{ inputs.sha || github.sha }}
           fetch-depth: 0
-      # The run's status is written to the commit the dispatched ref pointed at (github.sha), whatever `sha` says.
-      # So the job refuses a sha that is not that commit: a status on a commit then always means that commit was tested.
-      - name: checked out exactly that commit, it is on main, and it is the commit this status goes on
+      # The run is recorded against the commit the dispatched ref pointed at (github.sha, its head_sha), whatever
+      # `sha` says. So the job refuses a sha that is not that commit: a run matched by head_sha then tested it.
+      - name: checked out exactly that commit, it is on main, and it is the run's head_sha
         if: github.event_name == 'workflow_dispatch'
         env:
           WANT: ${{ inputs.sha }}
           RUN_SHA: ${{ github.sha }}
         run: |
-          [ "$WANT" = "$RUN_SHA" ] || { echo "::error::asked for $WANT, but this run's status goes on $RUN_SHA (the ref moved, or the wrong ref was dispatched)"; exit 1; }
+          [ "$WANT" = "$RUN_SHA" ] || { echo "::error::asked for $WANT, but this run's head_sha is $RUN_SHA (the ref moved, or the wrong ref was dispatched)"; exit 1; }
           got=$(git rev-parse HEAD)
           [ "$got" = "$WANT" ] || { echo "::error::checked out $got, asked for $WANT"; exit 1; }
           git fetch --quiet origin main
