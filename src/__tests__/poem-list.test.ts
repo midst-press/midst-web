@@ -130,6 +130,7 @@ describe('addresses (#141)', () => {
   })
 
   it('breaks a tie of times by id, and numbers an address the author\'s one would repeat', () => {
+    // By id, the order is ID_A (0a1b…), ID_C (1111…), ID_D (2222…), ID_B (ffff…).
     const time = { author: 'Zq Xv', firstPublishedAt: '2026-01-01T00:00:00.000Z' }
     const found = urls(at(ID_D, time), at(ID_C, time), at(ID_B, time), at(ID_A, time))
     expect(new Map(found as [string, string][])).toEqual(new Map([
@@ -146,6 +147,32 @@ describe('addresses (#141)', () => {
     expect(found.get(ID_A)).toBe('aa-title--zq-xv')
     expect(found.get(ID_C)).toBe('aa-title--zq-xv-2')
     expect(new Set(found.values()).size).toBe(3)
+  })
+
+  it('orders by code unit, not by the reader\'s collation, so every browser gives the same addresses', () => {
+    // vivian-1a61bc9a, review of #216: in Danish, "aa" collates after "ab". Any collation here is wrong.
+    const real = String.prototype.localeCompare
+    String.prototype.localeCompare = () => { throw new Error('collation used') }
+    try {
+      const found = new Map(urls(at('ab000000-zq', { author: 'Zq Xv' }), at('aa000000-zq', { author: 'Zq Xv' })) as [string, string][])
+      expect(found.get('aa000000-zq')).toBe('aa-title')
+      expect(found.get('ab000000-zq')).toBe('aa-title--zq-xv')
+    } finally {
+      String.prototype.localeCompare = real
+    }
+  })
+
+  it('moves a later poem onto an address its sibling gave up when it was unpublished', () => {
+    const time = (month: number) => ({ firstPublishedAt: `2026-0${month}-01T00:00:00.000Z` })
+    const all = urls(at(ID_A, time(1)), at(ID_B, time(2)), at(ID_C, time(3)))
+    expect(all).toEqual([[ID_A, 'aa-title'], [ID_B, 'aa-title--zq-xv'], [ID_C, 'aa-title--zq-xv-2']])
+    expect(urls(at(ID_A, time(1)), at(ID_C, time(3)))).toEqual([[ID_A, 'aa-title'], [ID_C, 'aa-title--zq-xv']])
+  })
+
+  it('gives the title\'s address back to a poem from before first publication was recorded, when it is republished', () => {
+    const since = at(ID_B, { author: 'Kj Wm', firstPublishedAt: '2026-05-05T00:00:00.000Z' })
+    expect(urls(since)).toEqual([[ID_B, 'aa-title']])
+    expect(urls(since, at(ID_A, { author: 'Zq Xv' }))).toEqual([[ID_B, 'aa-title--kj-wm'], [ID_A, 'aa-title']])
   })
 
   it('refuses a first publication time that is not text', () => {

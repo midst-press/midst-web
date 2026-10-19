@@ -90,7 +90,10 @@ from before it was recorded have none. The site derives each poem's address from
 - each later one is `<title>--<author>`, numbered if that is taken too;
 - a poem with no first publication time counts as first, and a tie goes by `poemId`.
 
-Reordering the list never moves an address.
+Reordering the list never moves an address. Because addresses come from the poems listed now, two things do move
+one: unpublishing a poem can move a later poem of the same title onto its address, and republishing a poem from
+before `firstPublishedAt` was recorded takes the title's address back. Ids are compared by code unit, so every
+browser gives the same addresses.
 
 **Submission:**
 

@@ -85,11 +85,17 @@ function parsePublishedList(json) {
  * title's address. Of those, the first published keeps the title's address, so publishing a second never moves
  * the first; each later one adds its author (`<title>--<author>`), and a number if that is taken too. Poems from
  * before first publication was recorded count as first, in id order. Reading order plays no part: reordering
- * the list must not move an address.
+ * the list must not move an address. The addresses are derived from the poems listed now, so unpublishing one can
+ * move a later poem of the same title onto its address, and republishing a poem from before first publication was
+ * recorded takes the title's address back: it was there first.
  * @template {{poemId: string, title: string, author: string, firstPublishedAt: string | null}} E
  * @param {E[]} entries
  * @returns {Array<E & {url: string}>}
  */
+// By code unit, never by the reader's collation: in Danish "aa" sorts after "z", and an address must be the same in
+// every browser (vivian-1a61bc9a, review of #216).
+const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+
 function withAddresses(entries) {
   const byAddress = new Map()
   for (const entry of entries) {
@@ -99,8 +105,8 @@ function withAddresses(entries) {
   const taken = new Set(byAddress.keys())
   const urls = new Map()
   for (const [base, group] of byAddress) {
-    const ordered = [...group].sort((a, b) => (a.firstPublishedAt ?? '').localeCompare(b.firstPublishedAt ?? '')
-      || a.poemId.localeCompare(b.poemId))
+    const ordered = [...group].sort((a, b) => byCodeUnit(a.firstPublishedAt ?? '', b.firstPublishedAt ?? '')
+      || byCodeUnit(a.poemId, b.poemId))
     ordered.forEach((entry, i) => {
       if (i === 0) return urls.set(entry.poemId, base)
       let url = `${base}--${authorId(entry.author)}`
