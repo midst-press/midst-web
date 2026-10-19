@@ -5,7 +5,8 @@
   flex-direction: column;
   box-sizing: border-box;
   padding-top: 98px;
-  padding-bottom: 100px;
+  /* The height of .control-container below. */
+  padding-bottom: 120px;
 }
 .midst-tiptap-player .editor {
   flex: 1;
@@ -24,7 +25,9 @@
 .midst-tiptap-player .editable * { font-family: inherit; font-size: inherit !important; }
 .midst-tiptap-player .editor--hide-scrollbar { scrollbar-width: none; }
 .midst-tiptap-player .editor--hide-scrollbar::-webkit-scrollbar { display: none; }
-.midst-tiptap-player .control-container { position: absolute; bottom: 0; width: 100%; height: 100px; padding: 10px; box-sizing: border-box; display: flex; justify-content: center; flex-direction: column; }
+/* The band sits 30px from the top, leaving room above it for the draft markers' names and below it for the two-line
+   edit time (#225), which the page would otherwise cut off at the player's bottom edge. */
+.midst-tiptap-player .control-container { position: absolute; bottom: 0; width: 100%; height: 120px; padding: 30px 10px 10px; box-sizing: border-box; display: flex; justify-content: flex-start; flex-direction: column; }
 .midst-tiptap-player .controls { height: 40px; border-radius: 6px; background: #ff91af; display: flex; align-items: center; gap: 1rem; padding: 0 10px; }
 .midst-tiptap-player .progress-bar { flex: 1; accent-color: rgb(236, 124, 154); }
 .midst-tiptap-player .control-button { width: 30px; height: 30px; border: none; background: transparent; color: white; cursor: pointer; border-radius: 50%; }
@@ -45,8 +48,8 @@
 .midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; min-width: 80px; max-width: 140px; padding: 3px 10px; text-align: center; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .midst-tiptap-player .draft-markers .draft-marker:hover, .midst-tiptap-player .draft-markers .draft-marker:focus-visible { z-index: 1; }
 .midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }
-.midst-tiptap-player .frame-timestamp { position: absolute; top: 100%; left: 0; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: #666; pointer-events: none; margin-top: 4px; }
-.midst-tiptap-player .frame-timestamp--unavailable { color: #999; font-style: italic; }
+.midst-tiptap-player .frame-timestamp { position: absolute; top: 100%; left: 0; transform: translateX(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; box-sizing: border-box; padding: 3px 12px; border: 1px solid #000; border-radius: 6px; background: #fff; color: #000; font: 12px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; pointer-events: none; margin-top: 6px; }
+.midst-tiptap-player .frame-timestamp--unavailable { color: #666; font-style: italic; }
 .midst-tiptap-player .playback-controls { display: flex; align-items: center; gap: .25rem; flex-shrink: 0; }
 .midst-tiptap-player .playback-controls .control-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
 .midst-tiptap-player .playback-controls .control-button:disabled { opacity: .5; cursor: default; }

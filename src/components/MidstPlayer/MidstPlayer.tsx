@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
 import { clampLabelCentre } from './timestamp-position'
+import { editTime } from './edit-time'
 import { draftMarkers, playerFont } from './timeline'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from '@midst-press/midst-format/follow'
 import './player.css'
@@ -201,12 +202,11 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     && rawTimestamp != null && Number.isFinite(rawTimestamp)
   const frameTimestamp = hasRealTimestamp ? currentFrame!.timestamp : null
   const playheadPercent = maxStep > 0 ? Math.min(step, maxStep) / maxStep * 100 : 0
-  // The formatted label text — depend on this, not on frameTimestamp (raw ms, different every frame).
-  const labelText = frameTimestamp != null
-    ? new Date(frameTimestamp).toLocaleString(undefined, {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
+  // The time over the date, in the page's language (#225). labelText is what the timeline says to a screen reader,
+  // and what the label's measuring depends on: not frameTimestamp, raw ms that differ every frame.
+  const shownTime = frameTimestamp != null ? editTime(frameTimestamp, i18n.locale) : null
+  const labelText = shownTime != null
+    ? i18n._('player.editTime', { time: shownTime.time, date: shownTime.date })
     : currentFrame != null ? i18n._('player.editTimeUnavailable') : null
   // Continuous bounding: clamp the label's CENTRE so the label stays within the timeline container.
   // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
@@ -288,7 +288,9 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
               <div ref={timestampRef} data-guide="frame-edit-time" aria-hidden="true"
                 className={`frame-timestamp${frameTimestamp == null ? ' frame-timestamp--unavailable' : ''}`}
                 style={{ left: playheadLeft, transform: playheadTransform }}>
-                {labelText}
+                {shownTime != null
+                  ? <><span className="frame-timestamp-time">{shownTime.time}</span><span className="frame-timestamp-date">{shownTime.date}</span></>
+                  : labelText}
               </div>
             )}
           </div>
