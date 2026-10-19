@@ -1,3 +1,39 @@
+# 0.3.0
+
+- **The time under the timeline is easier to read** (GitHub #63). It shows the time over the date, such as
+  "7:19 pm" above "November 5, 2019", in a box under the dot. The date is written the same way for everyone
+  reading the English site, in the reader's own time zone. To make room for the box, the poem's area is
+  20 pixels shorter.
+- **The time under the timeline stays inside the timeline** when the window is resized, and when the
+  site's font finishes loading after the poem appears.
+- **The scroll bar beside a poem can be dragged along its whole length** (GitHub #62). The empty space
+  around the previous and next arrows used to catch the drag.
+- **Poems no longer show blank lines the old player never drew.** Poems written in the earlier editor are
+  converted with midst-format 0.4.0. A paragraph the old player drew nothing for no longer adds an empty
+  line, and neither does a line ending in coloured or resized text. The poems on the site have been
+  converted again with these fixes.
+- **The player's words come from the message catalog**: the names a screen reader gives its buttons and
+  timeline, the speed readout, and "edit time unavailable". The catalog is the file the wording will be
+  changed in, without a change to the code. Nothing a reader sees or hears is different.
+- **Two published poems with the same title each have their own page.** The first one published keeps the
+  title's address, and a later one adds its author's name to it.
+- **The site asks AI crawlers not to collect it**, in `robots.txt`, a text-and-data-mining reservation and
+  a tag in each page. Search engines are still allowed.
+- **The reader's guide covers the process note**, opened from the poet's name and the poem's title, and
+  says that Escape closes the speed slider.
+- **For the people who run Midst:**
+  - The admin page can resend the invitation to anyone still invited.
+  - On the publisher's page, the Poets section offers Resend invitation and Disable only for poets who are
+    nothing else, since the server refuses both for a publisher or an admin.
+  - A change that was saved, but whose list could not be refreshed afterwards, now says it was saved and
+    asks for a reload. It used to look like a failure.
+- **A poem that fails to load always says so**, and trying again clears the old message while it loads.
+- Under the hood:
+  - The player takes the poem format from midst-format 0.4.0, the library shared with the editor. It is
+    copied into the site, and CI checks the copy against that release.
+  - Stored dates are written YYYY-MM-DD, and a poem's id, once given, never changes.
+  - The bug report form asks for the build line from the About page.
+
 # 0.2.0
 
 - **The list of patrons can be changed without a new release.** The patrons on the home page and the
