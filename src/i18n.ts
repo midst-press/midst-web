@@ -36,4 +36,16 @@ export function activateLocale(locale: string): string {
   return used
 }
 
+/** The reader's languages, in order of preference: the browser's, or none where there is no browser. */
+export function readerLanguages(): readonly string[] {
+  return typeof navigator === 'undefined' ? [] : navigator.languages ?? []
+}
+
+/** Activate the reader's language unless a language is already active, and return the active one. Lingui
+ *  throws on a lookup with no language active, so whatever reads the catalog calls this first, wherever it is
+ *  mounted. */
+export function ensureLocale(): string {
+  return i18n.locale || activateLocale(pickLocale(readerLanguages()))
+}
+
 export { i18n }
