@@ -265,6 +265,8 @@ body {
   margin-top: -110px;
   text-align: center;
   font-size: 30px;
+  /* The empty space between arrows must not intercept the poem's scroll bar. */
+  pointer-events: none;
 }
 
 .site-header #poem-nav a {
@@ -281,6 +283,8 @@ body {
   width: 30px;
   height: 30px;
   background: #FF91AF;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .site-header #poem-nav .arrow.arrow-forward {
@@ -298,6 +302,8 @@ body {
 .site-header #poem-nav a.disabled .arrow {
   background: #000;
   opacity: 0.1;
+  pointer-events: none;
+  cursor: default;
 }
 
 .site-header #back-to-toc {

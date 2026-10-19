@@ -43,7 +43,7 @@ test('forward from the first poem and back from the last visits every published 
   await page.goto(expected[0])
   const visited = [pathOf(page.url())]
   for (let i = 1; i < expected.length; i += 1) {
-    await forward(page).click()
+    await forward(page).locator('.arrow').click()
     await page.waitForURL(url => pathOf(url.toString()) === expected[i])
     visited.push(pathOf(page.url()))
   }
@@ -52,7 +52,7 @@ test('forward from the first poem and back from the last visits every published 
 
   const returned = [pathOf(page.url())]
   for (let i = expected.length - 2; i >= 0; i -= 1) {
-    await back(page).click()
+    await back(page).locator('.arrow').click()
     await page.waitForURL(url => pathOf(url.toString()) === expected[i])
     returned.push(pathOf(page.url()))
   }
