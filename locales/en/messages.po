@@ -13,6 +13,13 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+# Heard, not seen: what a screen reader says for the timeline's position. {time} is the time, such as "7:19 pm", and {date} the date, such as "November 5, 2019". Under the timeline they are shown on two lines instead.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.editTime"
+msgstr "{time}, {date}"
+
 # Shown under the timeline, in place of a date, when a poem did not record when this moment was written. Lower case, because it sits where a date would.
 #. js-lingui-explicit-id
 #: src/components/MidstPlayer/MidstPlayer.tsx

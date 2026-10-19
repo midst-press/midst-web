@@ -182,13 +182,41 @@ test('label stays inside after a resize when the player was mounted before its d
 
 // ---- accessibility (Cyril's review on #107) ------------------------------------------------
 
-test('aria-valuetext on the timeline equals the visible label text', async ({ page }) => {
+// The label shows the time over the date (#225); the timeline reads the same two as one value.
+test('aria-valuetext on the timeline says the visible time and date', async ({ page }) => {
   await mount(page)
   await setStep(page, 40)
-  const label = page.locator('.frame-timestamp')
-  const labelText = await label.textContent()
+  const time = await page.locator('.frame-timestamp-time').textContent()
+  const date = await page.locator('.frame-timestamp-date').textContent()
+  expect(time).toMatch(/^\d{1,2}:\d\d (am|pm)$/)
+  expect(date).toMatch(/^[A-Z][a-z]+ \d{1,2}, \d{4}$/)
   const valuetext = await page.locator('.progress-bar').getAttribute('aria-valuetext')
-  expect(valuetext).toBe(labelText)
+  expect(valuetext).toBe(`${time}, ${date}`)
+})
+
+// The player is the height of its page, and the page hides what overflows it, so a label below the player's bottom
+// edge is cut off (#225: the two-line label is taller than the one line was).
+test('the label ends above the bottom of the player', async ({ page }) => {
+  await mount(page)
+  await setStep(page, 40)
+  await settled(page)
+  const label = (await page.locator('.frame-timestamp').boundingBox())!
+  const player = (await page.locator('.midst-tiptap-player').boundingBox())!
+  expect(label.y + label.height).toBeLessThanOrEqual(player.y + player.height)
+})
+
+test('the time sits above the date, inside one box', async ({ page }) => {
+  await mount(page)
+  await setStep(page, 40)
+  const box = (await page.locator('.frame-timestamp').boundingBox())!
+  const time = (await page.locator('.frame-timestamp-time').boundingBox())!
+  const date = (await page.locator('.frame-timestamp-date').boundingBox())!
+  expect(time.y + time.height).toBeLessThanOrEqual(date.y + 0.5)
+  for (const line of [time, date]) {
+    expect(line.x).toBeGreaterThanOrEqual(box.x)
+    expect(line.x + line.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
+    expect(line.y + line.height).toBeLessThanOrEqual(box.y + box.height + 0.5)
+  }
 })
 
 test('label is aria-hidden and carries data-guide', async ({ page }) => {
