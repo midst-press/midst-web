@@ -1,0 +1,330 @@
+{
+  "about": "Synthetic published.json cases. Both parsers must agree: midst-infra beta/check_published_list.py and midst-web src/poems/poem-list.js. accepted means the list is read; text is the file's exact content. Change it here, then copy it to midst-web deploy/beta/ and update tools/midst-infra-copies.sha256 there (midst-infra #65).",
+  "cases": [
+    {
+      "name": "populated, one note and one null note",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}, {\"poemId\": \"zq-bravo\", \"title\": \"Xv zq\", \"author\": \"Vb Qz\", \"timelapse\": \"poems/zq-bravo/timelapse.midst.zip\", \"processNote\": null}]}"
+    },
+    {
+      "name": "empty poems list",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": []}"
+    },
+    {
+      "name": "version 1.0",
+      "accepted": true,
+      "text": "{\"version\": 1.0, \"poems\": []}"
+    },
+    {
+      "name": "process note absent",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\"}]}"
+    },
+    {
+      "name": "extra fields: publishDate, highlighted, date",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"publishDate\": \"2026-10-18\", \"highlighted\": true, \"date\": \"2026-10-17\"}]}"
+    },
+    {
+      "name": "empty segment in a key",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha//timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "not an object: array",
+      "accepted": false,
+      "text": "[]"
+    },
+    {
+      "name": "not an object: null",
+      "accepted": false,
+      "text": "null"
+    },
+    {
+      "name": "not an object: string",
+      "accepted": false,
+      "text": "\"poems\""
+    },
+    {
+      "name": "poems absent",
+      "accepted": false,
+      "text": "{\"version\": 1}"
+    },
+    {
+      "name": "poems not a list",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": {}}"
+    },
+    {
+      "name": "version 2",
+      "accepted": false,
+      "text": "{\"version\": 2, \"poems\": []}"
+    },
+    {
+      "name": "version \"1\"",
+      "accepted": false,
+      "text": "{\"version\": \"1\", \"poems\": []}"
+    },
+    {
+      "name": "version true",
+      "accepted": false,
+      "text": "{\"version\": true, \"poems\": []}"
+    },
+    {
+      "name": "version false",
+      "accepted": false,
+      "text": "{\"version\": false, \"poems\": []}"
+    },
+    {
+      "name": "version 0",
+      "accepted": false,
+      "text": "{\"version\": 0, \"poems\": []}"
+    },
+    {
+      "name": "version null",
+      "accepted": false,
+      "text": "{\"version\": null, \"poems\": []}"
+    },
+    {
+      "name": "version absent",
+      "accepted": false,
+      "text": "{\"poems\": []}"
+    },
+    {
+      "name": "entry not an object: string",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [\"poems/zq-alpha/timelapse.midst.zip\"]}"
+    },
+    {
+      "name": "entry not an object: array",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [[]]}"
+    },
+    {
+      "name": "entry null",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [null]}"
+    },
+    {
+      "name": "poemId absent",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "poemId blank",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "poemId a number",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": 7, \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "title absent",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "title blank",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "title a number",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": 7, \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "author absent",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "author blank",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "author a number",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": 7, \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "duplicate poemId",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}, {\"poemId\": \"zq-alpha\", \"title\": \"Xv zq\", \"author\": \"Vb Qz\", \"timelapse\": \"poems/zq-bravo/timelapse.midst.zip\", \"processNote\": null}]}"
+    },
+    {
+      "name": "timelapse absent",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse outside poems/",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"other/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse with a leading slash",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"/poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse exactly poems/",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse with a .. segment",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/../zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse with a . segment",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/./zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse ending in ..",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/..\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "timelapse a URL",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"https://elsewhere.invalid/poems/zq-alpha/t.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\"}]}"
+    },
+    {
+      "name": "processNote blank",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"\"}]}"
+    },
+    {
+      "name": "processNote outside poems/",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"process-note.txt\"}]}"
+    },
+    {
+      "name": "processNote with a .. segment",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/../n.txt\"}]}"
+    },
+    {
+      "name": "processNote a number",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": 5}]}"
+    },
+    {
+      "name": "processNote false",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": false}]}"
+    },
+    {
+      "name": "publishDate null",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"publishDate\": null}]}"
+    },
+    {
+      "name": "date on 29 February in a leap year",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2024-02-29\"}]}"
+    },
+    {
+      "name": "date in year 0000",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"0000-01-01\"}]}"
+    },
+    {
+      "name": "date on 29 February 2000 (400-year rule)",
+      "accepted": true,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2000-02-29\"}]}"
+    },
+    {
+      "name": "date 31 April",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2026-04-31\"}]}"
+    },
+    {
+      "name": "date day 00",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2024-01-00\"}]}"
+    },
+    {
+      "name": "date month 00",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2026-00-10\"}]}"
+    },
+    {
+      "name": "date as a year only",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2026\"}]}"
+    },
+    {
+      "name": "publishDate as M/D/YYYY",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"publishDate\": \"10/18/2026\"}]}"
+    },
+    {
+      "name": "date 30 February",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2026-02-30\"}]}"
+    },
+    {
+      "name": "date 29 February 1900",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"1900-02-29\"}]}"
+    },
+    {
+      "name": "date month 13",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2026-13-01\"}]}"
+    },
+    {
+      "name": "date with a time",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"publishDate\": \"2026-10-18T00:00:00Z\"}]}"
+    },
+    {
+      "name": "date with a trailing newline",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"2026-10-18\\n\"}]}"
+    },
+    {
+      "name": "date in non-ASCII digits",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": \"\\u0662\\u0660\\u0662\\u0666-10-18\"}]}"
+    },
+    {
+      "name": "date a number",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"date\": 20261018}]}"
+    },
+    {
+      "name": "date blank",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [{\"poemId\": \"zq-alpha\", \"title\": \"Zq xv\", \"author\": \"Qz Vb\", \"timelapse\": \"poems/zq-alpha/timelapse.midst.zip\", \"processNote\": \"poems/zq-alpha/process-note.txt\", \"publishDate\": \"\"}]}"
+    },
+    {
+      "name": "NaN literal",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [], \"n\": NaN}"
+    },
+    {
+      "name": "Infinity literal",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [], \"n\": Infinity}"
+    },
+    {
+      "name": "trailing comma",
+      "accepted": false,
+      "text": "{\"version\": 1, \"poems\": [],}"
+    },
+    {
+      "name": "not JSON",
+      "accepted": false,
+      "text": "<html>not json</html>"
+    }
+  ]
+}
