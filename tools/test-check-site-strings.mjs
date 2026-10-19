@@ -19,6 +19,7 @@ test('a word attribute is found in each written form', () => {
     '<b aria-label="Zq" />', "<b title={'Zq'} />", '<b alt={`Zq`} />', '<b placeholder={`Zq ${n}`} />',
     "<b aria-valuetext={on ? t('a') : 'Zq'} />", "<b aria-label={'Zq ' + n} />", "<b title={hint || 'Zq'} />",
     "<b title={hint ?? 'Zq'} />", "<b alt={on && 'Zq'} />", "<b aria-description={('Zq' as string)} />",
+    "<b title={['Zq']} />", "<b aria-label={n + ' Zq'} />", '<b alt={`${n} Zq`} />',
   ]
   for (const form of forms) assert.deepEqual(kinds(`const x = ${form}`), [`1:${form.split(/[ =]/)[1]}`], form)
 })
@@ -45,6 +46,7 @@ test('the CLI scans src/**/*.tsx except tests, prints lines and kinds only, and 
     writeFileSync(join(root, 'src', '__tests__', 'Page.test.tsx'), 'const x = <p>Zq test</p>\n')
     writeFileSync(join(root, 'src', '__tests__', 'helper.tsx'), 'const x = <p>Zq helper</p>\n')
     writeFileSync(join(root, 'src', 'routes', 'Page.spec.tsx'), 'const x = <p>Zq spec</p>\n')
+    writeFileSync(join(root, 'src', 'routes', 'Page.test.tsx'), 'const x = <p>Zq test beside the page</p>\n')
     writeFileSync(join(root, 'src', 'plain.ts'), "export const s = 'Zq not tsx'\n")
     const run = args => spawnSync(process.execPath, [join(process.cwd(), 'tools', 'check-site-strings.mjs'), '--root', root, ...args],
       { encoding: 'utf8' })

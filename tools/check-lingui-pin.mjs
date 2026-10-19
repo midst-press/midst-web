@@ -43,7 +43,14 @@ function readJson(path) {
 
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2)
-  const root = args[0] === '--root' && args[1] ? args[1] : join(dirname(fileURLToPath(import.meta.url)), '..')
+  let root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  if (args.length > 0) {
+    if (args[0] !== '--root' || args.length !== 2 || !args[1]) {
+      console.error('usage: node tools/check-lingui-pin.mjs [--root <dir>]')
+      process.exit(2)
+    }
+    root = args[1]
+  }
   const problems = pinProblems(readJson(join(root, 'package.json')), readJson(join(root, 'package-lock.json')))
   for (const problem of problems) console.log(`check-lingui-pin: ${problem}`)
   if (problems.length > 0) process.exit(1)

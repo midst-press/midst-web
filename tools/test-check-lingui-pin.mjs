@@ -37,6 +37,14 @@ test('no @lingui package declared, or none locked, is a problem, not a pass', ()
   assert.deepEqual(pinProblems(pkg(), { packages: {} }), ['package-lock.json locks no @lingui package.'])
 })
 
+test('a --root with no directory, or an unknown argument, is a usage error, not a check of this repository', () => {
+  for (const args of [['--root'], ['--root', ''], ['--bogus'], ['--root', '.', 'extra']]) {
+    const run = spawnSync(process.execPath, ['tools/check-lingui-pin.mjs', ...args], { encoding: 'utf8' })
+    assert.equal(run.status, 2, args.join(' '))
+    assert.match(run.stderr, /usage:/)
+  }
+})
+
 test('a broken package.json is exit 2, named', () => {
   const run = spawnSync(process.execPath, ['tools/check-lingui-pin.mjs', '--root', 'tools/no-such-dir'], { encoding: 'utf8' })
   assert.equal(run.status, 2)
