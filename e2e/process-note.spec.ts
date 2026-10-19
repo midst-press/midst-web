@@ -46,7 +46,7 @@ test('a poem\'s note is its own: shown for it, not carried to a poem whose note 
   await expect(note(page)).toContainText(ownNote)
 
   // The next poem has no fixture, so its note answers 404 and the poem shows its load failure.
-  await page.locator('#poem-nav a:has(.arrow-forward)').click()
+  await page.locator('#poem-nav .arrow-forward').click()
   await page.waitForURL(url => decodeURIComponent(url.pathname) === route(failing))
   await expect(page.locator(`${scope(failing)}.sliding-poems__poem--failed`)).toBeVisible()
   await openNote(page)
@@ -55,7 +55,7 @@ test('a poem\'s note is its own: shown for it, not carried to a poem whose note 
   expect(seen.externalPoemFiles().length, 'a poem file was asked of another host').toBe(0)
   expect(seen.archive.length, 'no poem file came from the local fixture server').toBeGreaterThan(0)
 
-  await page.locator('#poem-nav a:has(.arrow-back)').click()
+  await page.locator('#poem-nav .arrow-back').click()
   await page.waitForURL(url => decodeURIComponent(url.pathname) === route(published[withNote]))
   await openNote(page)
   await expect(note(page)).toContainText(ownNote)

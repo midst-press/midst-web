@@ -13,11 +13,11 @@ const ID_C = '11111111-2222-4333-8444-555555555555'
 
 // List order is B, C, A on purpose; by author it is C, A, B (A and B share nothing); by title A, B, C.
 const entries = [
-  { poemId: ID_B, title: 'Bb Title', author: 'Zq Xv', publishDate: '2019-04-04', date: '2019-01-01', highlighted: false,
+  { poemId: ID_B, title: 'Bb Title', url: 'bb-title', author: 'Zq Xv', publishDate: '2019-04-04', date: '2019-01-01', highlighted: false,
     keys: { timelapse: `${ID_B}/t.zip`, processNote: `${ID_B}/n.md` } },
-  { poemId: ID_C, title: 'Cc Title', author: 'Kj Wm', publishDate: null, date: null, highlighted: true,
+  { poemId: ID_C, title: 'Cc Title', url: 'cc-title', author: 'Kj Wm', publishDate: null, date: null, highlighted: true,
     keys: { timelapse: `${ID_C}/t.zip`, processNote: null } },
-  { poemId: ID_A, title: 'Aa Title', author: 'Mm Nn', publishDate: '2020-03-03', date: '2020-02-02', highlighted: false,
+  { poemId: ID_A, title: 'Aa Title', url: 'aa-title', author: 'Mm Nn', publishDate: '2020-03-03', date: '2020-02-02', highlighted: false,
     keys: { timelapse: `${ID_A}/t.zip`, processNote: `${ID_A}/n.md` } },
 ]
 
@@ -37,6 +37,26 @@ beforeAll(() => {
 
 const loaded = () => reducer(initialState, { type: LOAD_POEM_LIST, payload: { entries } })
 
+describe('two published poems with the same title (#141)', () => {
+  // Two poets, one title: each has its own address from the list, and its own id, so a load for one never lands on
+  // the other. The same author is used on purpose: the derived id authorId--url would be the same for both.
+  const twins = [
+    { ...entries[0], poemId: ID_B, url: 'bb-title' },
+    { ...entries[0], poemId: ID_C, url: 'bb-title--zq-xv' },
+  ]
+  const both = () => reducer(initialState, { type: LOAD_POEM_LIST, payload: { entries: twins } })
+
+  it('gives each the address and id the list gives it, and keeps the name-derived class for styling', () => {
+    expect(both().poems.map(poem => [poem.poemId, poem.url])).toEqual([[ID_B, 'bb-title'], [ID_C, 'bb-title--zq-xv']])
+    expect(both().poems.map(poem => poem.cssId)).toEqual(['zq-xv--bb-title', 'zq-xv--bb-title'])
+  })
+
+  it('lands a load on the poem it was for, and only that one', () => {
+    const next = reducer(both(), { type: LOAD_POEM_DATA, payload: { poemId: ID_C, data: { text: 'x' }, processNote: '' } })
+    expect(next.poems.map(poem => poem.loaded)).toEqual([false, true])
+  })
+})
+
 describe('published mode: before the list arrives', () => {
   it('starts with no poems and says it is loading; the bundle is not used', () => {
     expect(initialState.poems).toEqual([])
@@ -53,10 +73,10 @@ describe('LOAD_POEM_LIST', () => {
     expect(titles(next)).not.toContain('Bundled Title')
   })
 
-  it('makes the same poem createPoem makes, with id = poemId and the recorded keys carried', () => {
+  it('makes the same poem createPoem makes, with the list\'s id and address, and the recorded keys carried', () => {
     const [b, c] = loaded().poems
     expect(b).toMatchObject({
-      id: ID_B, author: 'Zq Xv', title: 'Bb Title', authorId: 'zq-xv', url: 'bb-title', poemId: 'zq-xv--bb-title',
+      id: ID_B, author: 'Zq Xv', title: 'Bb Title', authorId: 'zq-xv', url: 'bb-title', poemId: ID_B,
       slug: 'bb-title', loaded: false, data: null, processNote: '', highlighted: false,
       keys: { timelapse: `${ID_B}/t.zip`, processNote: `${ID_B}/n.md` },
     })
@@ -70,6 +90,15 @@ describe('LOAD_POEM_LIST', () => {
     expect(c.keys).toEqual({ timelapse: `${ID_C}/t.zip`, processNote: null })
     expect(c.date.isValid()).toBe(false)
     expect(c.publishDate.isValid()).toBe(false)
+  })
+
+  it('reads a stored date strictly as YYYY-MM-DD: another form is no date, never a guessed one (#81)', () => {
+    const next = reducer(initialState, { type: LOAD_POEM_LIST, payload: { entries: [
+      { ...entries[0], publishDate: '4/4/2019', date: '2019-01-01T00:00:00Z' },
+    ] } })
+    const [p] = next.poems
+    expect(p.publishDate.isValid()).toBe(false)
+    expect(p.date.isValid()).toBe(false)
   })
 
   it('numbers the poems by their place in the list', () => {
@@ -89,9 +118,9 @@ describe('LOAD_POEM_LIST', () => {
   })
 
   it('loaded poems take LOAD_POEM_DATA and LOAD_POEM_FAILED like bundled ones', () => {
-    const withData = reducer(loaded(), { type: LOAD_POEM_DATA, payload: { poemId: 'kj-wm--cc-title', data: { text: 'x' }, processNote: '' } })
+    const withData = reducer(loaded(), { type: LOAD_POEM_DATA, payload: { poemId: ID_C, data: { text: 'x' }, processNote: '' } })
     expect(withData.poems[1].loaded).toBe(true)
-    const failed = reducer(loaded(), { type: LOAD_POEM_FAILED, payload: { poemId: 'zq-xv--bb-title', reason: 'missing' } })
+    const failed = reducer(loaded(), { type: LOAD_POEM_FAILED, payload: { poemId: ID_B, reason: 'missing' } })
     expect(failed.poems[0].loadFailure).toBe('missing')
   })
 })
@@ -131,7 +160,7 @@ describe('sorting a loaded list', () => {
   })
 
   it('keeps the data a poem has loaded', () => {
-    const withData = reducer(loaded(), { type: LOAD_POEM_DATA, payload: { poemId: 'zq-xv--bb-title', data: { text: 'x' }, processNote: 'note' } })
+    const withData = reducer(loaded(), { type: LOAD_POEM_DATA, payload: { poemId: ID_B, data: { text: 'x' }, processNote: 'note' } })
     const sorted = reducer(withData, { type: SET_SORT_TERM, payload: 'title' })
     const b = sorted.poems.find(poem => poem.id === ID_B)
     expect(b?.loaded).toBe(true)

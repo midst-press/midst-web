@@ -14,6 +14,16 @@ const scope = `.sliding-poems__poem--${names.poemId(meta.author, meta.title)}`
 // Numeric recordings below are retained as attachments; failure screenshots still run afterward.
 test.use({ trace: 'off' })
 
+// Which verdict the follow tests assert (midst-infra #102). `strict`, the default, asserts every counter and refuses
+// a run whose sampler interval reached 50 ms. `host` is for the Studio's headless gitearunner, whose Chromium
+// stalls about 150 ms at a time: there only frameAbrupt, offscreenEdits and wroteWhileGliding separate good code
+// (0 in 20 of 20) from the negative control, every glide a jump (frameAbrupt 4 in 12 of 12), because follow.ts
+// clamps a glide to two frames' progress per rendered frame, so a stall cannot turn a glide into a jump.
+// abrupt, instant and unfollowed are reported under `host`, not asserted: on good code there they read 1-7, 0-29
+// and 1 in 7 of 20. Anything else is refused rather than read as `strict`.
+const PROFILE = process.env.MIDST_FRAME_BUDGET_PROFILE ?? 'strict'
+if (PROFILE !== 'strict' && PROFILE !== 'host') throw new Error(`MIDST_FRAME_BUDGET_PROFILE must be strict or host, not ${JSON.stringify(PROFILE)}`)
+
 async function record(page: Page, done: () => Promise<void>, selector = scope): Promise<Rec> {
   await page.evaluate(selector => {
     const g = window as any
@@ -265,6 +275,9 @@ test('@frame-budget recorder observes quiet offscreen writing and distinguishes 
     await page.locator('.editable p').nth(140).evaluate(p => { p.textContent += 'x' })
     await page.waitForTimeout(700)
   })
+  const quietSampler = quiet.samples.slice(1).map((s, i) => s[4] - quiet.samples[i][4]).sort((a, b) => a - b)
+  expect(quietSampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(quietSampler[quietSampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(verdict(quiet).unfollowed).toBe(1)
   const scenario = async (top: number, to: number | null) => {
     await controlled(90)
@@ -312,7 +325,7 @@ function jumpingFile(position: string) {
   return 'midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: positions[i] })) })
 }
 
-for (const position of ['end', 'middle']) test(`actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
+for (const position of ['end', 'middle']) test(`@gui actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
   const raw = jumpingFile(position)
   await serveArchive(page, baseURL!, zip(raw))
   await page.goto('/legacy-harness.html')
@@ -327,11 +340,14 @@ for (const position of ['end', 'middle']) test(`actual legacy runtime rejects th
     await page.waitForTimeout(1700)
   }, '#legacy-control')
   const result = verdict(rec)
+  const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
+  expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(result.settledTargets).toEqual(expect.arrayContaining([140, 4, 110, 20]))
   expect(result.unfollowed, 'the actual legacy player must discriminate the follow guard').toBeGreaterThan(0)
 })
 
-for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`@frame-budget writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL }, testInfo) => {
+for (const height of [600, 720]) for (const position of ['end', 'middle']) test(`@frame-budget writing jumps are followed gently and playback waits: ${position}, height ${height}`, async ({ page, baseURL, browser }, testInfo) => {
   await page.setViewportSize({ width: 1280, height })
   const archive = zip(jumpingFile(position))
   await serveArchive(page, baseURL!, archive)
@@ -348,14 +364,17 @@ for (const height of [600, 720]) for (const position of ['end', 'middle']) test(
   const intervals = (rec.rafIntervals || []).slice().sort((a, b) => a - b)
   const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
   await testInfo.attach('follow-motion', { body: Buffer.from(JSON.stringify(rec)), contentType: 'application/json' })
+  // The verdict this test asserts, and the browser it ran, for the attestation to print as they are (#20).
+  await testInfo.attach('follow-verdict', { body: Buffer.from(JSON.stringify({ result, browser: browser.version() })), contentType: 'application/json' })
   console.log(JSON.stringify({ follow: { height, position, result }, raf: { count: intervals.length, medianMs: intervals.length ? intervals[Math.floor(intervals.length / 2)] : null, maxMs: intervals.length ? intervals[intervals.length - 1] : null }, sampler: { medianMs: sampler.length ? sampler[Math.floor(sampler.length / 2)] : null, maxMs: sampler.length ? sampler[sampler.length - 1] : null }, layout: rec.layout, longTasks: rec.longTasks, cacheValid: rec.cacheValid }))
   if (process.env.FOLLOW_DEBUG) console.log(JSON.stringify({ result, jumps: rec.samples.map((s, i) => ({ s, previous: rec.samples[i - 1] })).filter(({ s, previous }) => previous && Math.abs(s[3] - previous[3]) > rec.viewport / 3) }))
   expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
-  expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
+  if (PROFILE === 'strict') expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(result.settledTargets, 'every writing target must have been judged').toEqual(expect.arrayContaining([140, 4, 110, 20]))
   expect(result.viewport, 'no scroll container measured').toBeGreaterThan(0)
   expect(rec.framePositions!.length, 'rendered-frame measurement must run').toBeGreaterThan(0)
   expect(rec.cacheValid, 'positive control: ResizeObserver cache must be verified').not.toBeNull()
   expect(rec.cacheValid!.match, `positive control: cached sizes must match direct reads (cached SH=${rec.cacheValid!.cachedSH} CH=${rec.cacheValid!.cachedCH}, direct SH=${rec.cacheValid!.directSH} CH=${rec.cacheValid!.directCH})`).toBe(true)
-  expect(result).toMatchObject({ unfollowed: 0, offscreenEdits: 0, abrupt: 0, frameAbrupt: 0, instant: 0, wroteWhileGliding: 0 })
+  if (PROFILE === 'host') expect(result).toMatchObject({ offscreenEdits: 0, frameAbrupt: 0, wroteWhileGliding: 0 })
+  else expect(result).toMatchObject({ unfollowed: 0, offscreenEdits: 0, abrupt: 0, frameAbrupt: 0, instant: 0, wroteWhileGliding: 0 })
 })

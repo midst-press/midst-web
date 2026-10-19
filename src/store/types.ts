@@ -77,6 +77,8 @@ export interface IPoem {
   loaded: boolean
   loadFailure?: PoemLoadFailure | null
   poemId: string
+  /* authorId--titleUrl, for styling one poem by name (index.css); not unique, unlike poemId (#141) */
+  cssId: string
   processNote: string
   slug: string
   tags: string
@@ -104,6 +106,7 @@ export interface IState {
 
 export const LOAD_POEM_DATA = 'LOAD_POEM_DATA'
 export const LOAD_POEM_FAILED = 'LOAD_POEM_FAILED'
+export const LOAD_POEM_RETRY = 'LOAD_POEM_RETRY'
 export const LOAD_POEM_LIST = 'LOAD_POEM_LIST'
 export const POEM_LIST_FAILED = 'POEM_LIST_FAILED'
 export const REVERSE_SORT_ORDER = 'REVERSE_SORT_ORDER'
@@ -119,6 +122,12 @@ export interface ILoadPoemData extends AnyAction {
 export interface ILoadPoemFailed extends AnyAction {
   payload: { poemId: string, reason: PoemLoadFailure }
   type: typeof LOAD_POEM_FAILED
+}
+
+// A new attempt at a poem whose last load failed: its failure message comes down while the attempt runs (#43).
+export interface ILoadPoemRetry extends AnyAction {
+  payload: { poemId: string }
+  type: typeof LOAD_POEM_RETRY
 }
 
 export interface ISetMobileNavOpen extends AnyAction {

@@ -21,10 +21,20 @@ async function mount(page: Page, data = syntheticData()) {
   )
 }
 
+// The harness loads the site's fonts from FONTS_URL (#191), so a label first drawn in the fallback font widens when
+// the web font arrives, and the player re-measures it on the next layout (#206). Measure the settled layout: once
+// every pending font has loaded, and two frames later, so that ResizeObserver and React have both run. A label left
+// at a stale width is still outside after this.
+async function settled(page: Page) {
+  await page.evaluate(() => document.fonts.ready.then(() =>
+    new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))))
+}
+
 // The label must be entirely inside the timeline-control box.
 async function assertLabelInsideTimeline(page: Page) {
   const label = page.locator('.frame-timestamp')
   await expect(label).toBeVisible()
+  await settled(page)
   const labelBox = await label.boundingBox()
   const timelineBox = await page.locator('.timeline-control').boundingBox()
   expect(labelBox).not.toBeNull()
@@ -35,6 +45,7 @@ async function assertLabelInsideTimeline(page: Page) {
 }
 
 async function labelCentre(page: Page): Promise<number> {
+  await settled(page)
   const box = await page.locator('.frame-timestamp').boundingBox()
   const timeline = await page.locator('.timeline-control').boundingBox()
   expect(box).not.toBeNull()
@@ -92,6 +103,46 @@ test('label follows the playhead', async ({ page }) => {
   expect(late, 'label did not move right with the playhead').toBeGreaterThan(early + 0.3)
 })
 
+// Inside is not enough: a label that sat still in the middle passes every inside test (#95). At either end the
+// label meets the timeline's end; between, its centre is at the playhead.
+async function boxes(page: Page) {
+  await settled(page)
+  const label = await page.locator('.frame-timestamp').boundingBox()
+  const timeline = await page.locator('.timeline-control').boundingBox()
+  expect(label).not.toBeNull()
+  expect(timeline).not.toBeNull()
+  return { label: label!, timeline: timeline! }
+}
+
+for (const width of [1024, 320]) {
+  test(`at ${width}px the label meets the timeline's left end at the first frame (#95)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 })
+    await mount(page)
+    await setStep(page, 0)
+    const { label, timeline } = await boxes(page)
+    expect(Math.abs(label.x - timeline.x), 'left edges').toBeLessThanOrEqual(2)
+  })
+
+  test(`at ${width}px the label meets the timeline's right end at the last frame (#95)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 })
+    await mount(page)
+    await setStep(page, 79)
+    const { label, timeline } = await boxes(page)
+    expect(Math.abs(label.x + label.width - (timeline.x + timeline.width)), 'right edges').toBeLessThanOrEqual(2)
+  })
+}
+
+test('between the ends the label is centred on the playhead (#95)', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await mount(page)
+  for (const frame of [30, 40, 50]) {
+    await setStep(page, frame)
+    const { label, timeline } = await boxes(page)
+    const playhead = timeline.x + timeline.width * frame / 79
+    expect(Math.abs(label.x + label.width / 2 - playhead), `centre at frame ${frame}`).toBeLessThanOrEqual(2)
+  }
+})
+
 test('label stays inside after a paused wide-to-narrow resize', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 720 })
   await mount(page)
@@ -114,15 +165,58 @@ test('label stays inside after a paused narrow-to-wide resize', async ({ page })
     .toPass({ timeout: 5000 })
 })
 
+test('label stays inside after a resize when the player was mounted before its data (#94)', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.evaluate(() =>
+    (window as any).mountPlayerOptions(null, { activePlayer: true, cursorFollowing: false, hasScrollbar: true }))
+  await expect(page.locator('.timeline-control')).toBeVisible()
+  await expect(page.locator('.frame-timestamp')).toHaveCount(0)
+  await mount(page)
+  await setStep(page, 79)
+  await assertLabelInsideTimeline(page)
+
+  await page.setViewportSize({ width: 320, height: 720 })
+  await expect(async () => { await assertLabelInsideTimeline(page) })
+    .toPass({ timeout: 5000 })
+})
+
 // ---- accessibility (Cyril's review on #107) ------------------------------------------------
 
-test('aria-valuetext on the timeline equals the visible label text', async ({ page }) => {
+// The label shows the time over the date (#225); the timeline reads the same two as one value.
+test('aria-valuetext on the timeline says the visible time and date', async ({ page }) => {
   await mount(page)
   await setStep(page, 40)
-  const label = page.locator('.frame-timestamp')
-  const labelText = await label.textContent()
+  const time = await page.locator('.frame-timestamp-time').textContent()
+  const date = await page.locator('.frame-timestamp-date').textContent()
+  expect(time).toMatch(/^\d{1,2}:\d\d (am|pm)$/)
+  expect(date).toMatch(/^[A-Z][a-z]+ \d{1,2}, \d{4}$/)
   const valuetext = await page.locator('.progress-bar').getAttribute('aria-valuetext')
-  expect(valuetext).toBe(labelText)
+  expect(valuetext).toBe(`${time}, ${date}`)
+})
+
+// The player is the height of its page, and the page hides what overflows it, so a label below the player's bottom
+// edge is cut off (#225: the two-line label is taller than the one line was).
+test('the label ends above the bottom of the player', async ({ page }) => {
+  await mount(page)
+  await setStep(page, 40)
+  await settled(page)
+  const label = (await page.locator('.frame-timestamp').boundingBox())!
+  const player = (await page.locator('.midst-tiptap-player').boundingBox())!
+  expect(label.y + label.height).toBeLessThanOrEqual(player.y + player.height)
+})
+
+test('the time sits above the date, inside one box', async ({ page }) => {
+  await mount(page)
+  await setStep(page, 40)
+  const box = (await page.locator('.frame-timestamp').boundingBox())!
+  const time = (await page.locator('.frame-timestamp-time').boundingBox())!
+  const date = (await page.locator('.frame-timestamp-date').boundingBox())!
+  expect(time.y + time.height).toBeLessThanOrEqual(date.y + 0.5)
+  for (const line of [time, date]) {
+    expect(line.x).toBeGreaterThanOrEqual(box.x)
+    expect(line.x + line.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
+    expect(line.y + line.height).toBeLessThanOrEqual(box.y + box.height + 0.5)
+  }
 })
 
 test('label is aria-hidden and carries data-guide', async ({ page }) => {

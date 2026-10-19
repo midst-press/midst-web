@@ -35,12 +35,8 @@ npm install <pkg>      # only to change dependencies; commit the lockfile change
 
 The hooks are the checks CI runs. They cover formatting (prettier), `tsc --noEmit`, unused dependencies, relative-import letter case, poem ids, the generated poem index, copies kept from other repositories, and rules that refuse poem data, font files, log files and a second lockfile. A `commit-msg` hook refuses closing keywords such as `fixes #12`; write `Refs #12`.
 
-One hook needs a checkout of `midst-editor` (see "Copies of midst-editor files"):
-
 ```
-git clone https://github.com/midst-press/midst-editor.git ../midst-editor   # once; fetch before each check
-export MIDST_EDITOR_ROOT=$PWD/../midst-editor
-pre-commit run --all-files --show-diff-on-failure                           # what CI runs
+pre-commit run --all-files --show-diff-on-failure   # what CI runs
 ```
 
 Several hooks call tools from `node_modules`, so run `npm ci` first.
@@ -192,6 +188,8 @@ node tools/poem-ids.mjs --mint    # after adding a poem file: gives it an id
 node tools/poem-ids.mjs           # the check the commit hook runs
 ```
 
+The check also compares with the merge base of `HEAD` and `origin/main`: every id there must still be on a poem file, so an id cannot be edited without the check failing. A renamed file keeps its id and passes. To withdraw a poem, remove its file and put its id, with the reason, in `tools/retired-poem-ids.json`. A retired id is reserved for good: it may not be on a live file, and it never leaves the list. It needs `origin/main` with history, and refuses to run without it; `POEM_IDS_BASE` names another base.
+
 A poem file can be left without an id only by listing it, with the reason, in `PENDING` in `tools/poem-ids.mjs`. Under the `canonical` key scheme the id is the poem's object name. Under `legacy` nothing reads it.
 
 ### Key scheme
@@ -283,40 +281,14 @@ bash deploy/beta/deploy_site.sh --web-repo <clone> --key-scheme legacy --poem-li
 shasum -a 256 -c tools/midst-infra-copies.sha256
 ```
 
-## Copies of midst-editor files
+## The player helpers and the guide
 
-Four files are copied byte for byte from midst-editor, and four editor test files are copied with them:
+The scroll engine (`follow`) and the build line (`build-label`) are midst-format's, vendored in
+`vendor/midst-format/` at the tag its `VENDOR.md` names, as the editor takes them (midst-web #194). The website
+has no copy of either, so there is no editor checkout to hold them to.
 
-- `src/components/MidstPlayer/follow.ts` and `helpers.ts`
-- `src/buildLabel.ts`
-- `src/guide/editor-user-guide.md`
-- tests: `src/__tests__/editor-follow.test.ts`, `editor-followMore.test.ts`, `editor-trackingUtils.test.ts`, `editor-buildLabel.test.ts`
-
-A test copy must equal its original except for a header note and the import path.
-
-The copies are held to one editor commit, recorded in `tools/editor-copies-pin`, and not to whatever editor `main` is now. So an editor merge that changes a copied file doesn't turn every website branch red (#152). The `editor-helpers-identical` hook fails when:
-- a copy differs from that commit;
-- the pin is not a full SHA, or not on editor `main`;
-- your editor checkout doesn't have the pinned commit, or its origin is not `midst-editor`;
-- `MIDST_EDITOR_ROOT` is not set;
-- `origin/main` moves during the comparison.
-
-When editor `main` has changed a copied file since the pin, every run prints a WARNING naming the files: a copy PR is due. It doesn't fail.
-
-```
-git -C "$MIDST_EDITOR_ROOT" fetch origin
-node tools/check-editor-helpers.mjs
-```
-
-A copy PR copies the originals (reapplying each test copy's header note and import path), then moves the pin to editor `main` and checks in one step, committing the pin with the copies:
-
-```
-node tools/check-editor-helpers.mjs --pin-to-main
-```
-
-Hooks that write files skip `follow.ts`, `helpers.ts` and three of the test copies, so formatting does not change them.
-
-CI on Gitea clones editor `main`, with its history, using a read-only deploy key (`MIDST_EDITOR_DEPLOY_KEY`). CI on GitHub checks out the public repository, also with history, and with no credential. So on GitHub the pin must be an editor commit that has been published there.
+`src/guide/editor-user-guide.md` began as a copy of the editor's `docs/user-guide.md` and is now the website's own
+file. Any difference from the editor's is Annelyse's to settle, not a check's.
 
 ## Contributing
 

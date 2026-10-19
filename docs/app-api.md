@@ -42,6 +42,7 @@ Every error has the same body:
 | 409 | `archive` | an upload-only action on an archive record: `complete`, the review copy's timelapse, or a decision |
 | 409 | `already_registered` | registering an email that already has an account |
 | 409 | `already_signed_in` | resending an invitation to someone who has already set their password |
+| 409 | `disabled` | resending an invitation to someone whose account is disabled: enable them first |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
 
@@ -81,6 +82,19 @@ A 429 means wait and try again.
 `poemId` is the opaque id minted when a submission arrives (#41). Names never appear in a key; keys are
 recorded, not derived. `publishDate` and `highlighted` are `null` / `false` until the publisher sets them.
 
+A list entry also carries `firstPublishedAt`, the ISO time of the poem's first publication. It is kept across an
+unpublish and a republish, and a revision takes it over from the version it replaces (midst-infra #83). Entries
+from before it was recorded have none. The site derives each poem's address from the list (#141):
+- the title's address (`/poem/<title>`) goes to whichever poem with that title was published first, so publishing
+  a second never moves the first;
+- each later one is `<title>--<author>`, numbered if that is taken too;
+- a poem with no first publication time counts as first, and a tie goes by `poemId`.
+
+Reordering the list never moves an address. Because addresses come from the poems listed now, two things do move
+one: unpublishing a poem can move a later poem of the same title onto its address, and republishing a poem from
+before `firstPublishedAt` was recorded takes the title's address back. Ids are compared by code unit, so every
+browser gives the same addresses.
+
 **Submission:**
 
 ```json
@@ -90,7 +104,7 @@ recorded, not derived. `publishDate` and `highlighted` are `null` / `false` unti
   "author": "Qz Vb",
   "poet": "qz@example.invalid",
   "origin": "upload",
-  "submittedAt": "2026-10-15T09:30:00Z",
+  "submittedAt": "2026-10-15T09:30:00.000Z",
   "status": "received",
   "note": null
 }
@@ -237,6 +251,9 @@ A submission's status becomes `published` when its poem is published, and `accep
 - `GET /admin/users` → `{ "users": [Person, ...] }`
 - `POST /admin/users` `{ "name", "email", "groups": [...] }` → `Person`
   Invites the person: Cognito emails them a temporary password. Nobody can sign up on their own.
+- `POST /admin/users/{username}/resend` → `Person`. Sends the invitation again, with a new temporary password, to
+  anyone still `invited`, whatever their groups: the publisher's resend reaches poets only. 409 `already_signed_in`
+  once they have set their password; 409 `disabled` while the account is disabled. Unknown `username`: 404.
 - `PUT /admin/users/{username}/groups` `{ "groups": [...] }` → `Person`
 - `POST /admin/users/{username}/disable` and `/enable` → `Person`
 
@@ -252,7 +269,7 @@ change a group without going to the AWS console, which is how the first admin is
 | `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable; patrons: edit the list |
 | `/submit` | poet | submit a poem, and your submissions and where each stands |
 | `/review` | publisher | submissions: play, accept or decline with a note |
-| `/admin` | admin | publishers and admins: invite, change groups, disable |
+| `/admin` | admin | publishers and admins: invite, resend an invitation, change groups, disable |
 
 Sign-in is Cognito's managed login, authorisation code with PKCE. The tokens are held in memory and in
 `sessionStorage` (so a reload keeps you signed in), never in `localStorage`.

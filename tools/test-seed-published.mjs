@@ -13,7 +13,7 @@ const B = '22222222-2222-4222-8222-222222222222'
 const C = '33333333-3333-4333-8333-333333333333'
 
 const meta = (id, extra = {}) => ({
-  id, author: `Au ${id[0]}`, title: `Zq ${id[0]}`, date: 'Spring', tags: ['x'], publishDate: '2026-10-01',
+  id, author: `Au ${id[0]}`, title: `Zq ${id[0]}`, date: '9/2/2026', tags: ['x'], publishDate: '10/1/2026',  // M/D/YYYY in, YYYY-MM-DD out, for both date fields (#158, #81)
   highlighted: false, published: true, ...extra,
 })
 
@@ -47,7 +47,7 @@ test('the list follows order.json, with canonical keys, a note only where one wa
   assert.deepEqual(list.poems.map(p => p.poemId), [B, A])
   assert.deepEqual(list.poems[0], {
     poemId: B, title: 'Zq 2', author: 'Au 2', timelapse: tl(B), processNote: note(B),
-    publishDate: '2026-10-01', highlighted: true, date: 'Spring', tags: ['x'],
+    publishDate: '2026-10-01', highlighted: true, date: '2026-09-02', tags: ['x'],
   })
   assert.equal(list.poems[1].processNote, null)
   assert.equal(statSync(s.out).mode & 0o777, 0o600)
