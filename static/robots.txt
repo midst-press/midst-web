@@ -1,0 +1,28 @@
+# midst.press: search engines welcome; AI crawlers refused (#9; Stuart, 12 Oct 2026).
+# The poems are the poets' work. People looking for poetry, and for how poems are written, should find the site,
+# so ordinary search crawlers (Googlebot, Bingbot, DuckDuckBot, Applebot) are not named here and stay allowed.
+# robots.txt is a request (RFC 9309): well-behaved crawlers honour it. Tokens from each vendor's own crawler
+# documentation, checked 18 Oct 2026; the list changes, and github.com/ai-robots-txt/ai.robots.txt tracks it.
+
+# --- AI training and AI-data crawlers
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: anthropic-ai
+User-agent: Claude-Web
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+User-agent: Meta-ExternalAgent
+User-agent: FacebookBot
+User-agent: Bytespider
+User-agent: Amazonbot
+User-agent: cohere-training-data-crawler
+User-agent: cohere-ai
+User-agent: Diffbot
+Disallow: /
+
+# --- AI search and answer engines (index pages to answer questions with them, not for training)
+User-agent: OAI-SearchBot
+User-agent: Claude-SearchBot
+User-agent: PerplexityBot
+Disallow: /
