@@ -46,8 +46,9 @@ describe('two published poems with the same title (#141)', () => {
   ]
   const both = () => reducer(initialState, { type: LOAD_POEM_LIST, payload: { entries: twins } })
 
-  it('gives each the address and id the list gives it', () => {
+  it('gives each the address and id the list gives it, and keeps the name-derived class for styling', () => {
     expect(both().poems.map(poem => [poem.poemId, poem.url])).toEqual([[ID_B, 'bb-title'], [ID_C, 'bb-title--zq-xv']])
+    expect(both().poems.map(poem => poem.cssId)).toEqual(['zq-xv--bb-title', 'zq-xv--bb-title'])
   })
 
   it('lands a load on the poem it was for, and only that one', () => {
