@@ -168,29 +168,33 @@ test('playback advances during continuous speed changes with real timers', async
     const start = performance.now()
     let previous = start
     let changes = 0
+    // Changes that come within one frame period (at 26 fps) of the one before. Only these can starve playback
+    // if a change restarts the frame timer (58974d4), so only these test the fix.
+    let fast = 0
     let maxGap = 0
     const values = new Set<string>()
     // This interval is the input stimulus, not a readiness sleep or a replacement playback clock.
     const stimulus = setInterval(() => {
       const now = performance.now()
       maxGap = Math.max(maxGap, now - previous)
+      if (now - previous < 1000 / 26) fast++
       previous = now
       setValue.call(rate, String(changes % 2 ? 26 : 25))
       rate.dispatchEvent(new Event('input', { bubbles: true }))
       values.add(element.querySelector('.playback-speed-value')!.textContent!)
       changes++
     }, 20)
-    // The stream runs for at least 1500 ms and until 26 changes have gone out, whichever is later, so the count
-    // asserted below is of changes the player received and not of how often this host fires a 20 ms timer: a
-    // stalled host fired 22 in 1500 ms (#203). It stops at 10 s, so a stream that never gets through still fails.
-    while ((changes < 26 || performance.now() - start < 1500) && performance.now() - start < 10000) await wait(20)
+    // The stream runs for at least 1500 ms and until 26 fast changes have gone out, whichever is later, so a host
+    // that stalls the stimulus now and then still gets its stream (one fired 22 in a fixed 1500 ms, #203). It
+    // stops at 10 s: a host that cannot produce the stream fails on the fast count, not vacuously.
+    while ((fast < 26 || performance.now() - start < 1500) && performance.now() - start < 10000) await wait(20)
     clearInterval(stimulus)
     return { baselineFrames: startFrame - before, duringFrames: Number(timeline.value) - startFrame,
-      elapsed: performance.now() - start, changes, maxGap, values: Array.from(values).sort() }
+      elapsed: performance.now() - start, changes, fast, maxGap, values: Array.from(values).sort() }
   })
   await testInfo.attach('continuous-speed-measurement', { body: JSON.stringify(measured), contentType: 'application/json' })
   expect(measured.baselineFrames, 'real playback baseline must advance').toBeGreaterThan(2)
-  expect(measured.changes, 'the change stream must actually be delivered').toBeGreaterThan(25)
+  expect(measured.fast, 'the change stream must come faster than a frame period: 26 changes each within 1000/26 ms of the one before').toBeGreaterThan(25)
   expect(measured.values).toEqual(['25 fps', '26 fps'])
   expect(measured.duringFrames, 'playing must keep advancing during the change stream').toBeGreaterThan(8)
   await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
