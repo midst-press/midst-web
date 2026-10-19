@@ -180,7 +180,10 @@ test('playback advances during continuous speed changes with real timers', async
       values.add(element.querySelector('.playback-speed-value')!.textContent!)
       changes++
     }, 20)
-    await wait(1500)
+    // The stream runs for at least 1500 ms and until 26 changes have gone out, whichever is later, so the count
+    // asserted below is of changes the player received and not of how often this host fires a 20 ms timer: a
+    // stalled host fired 22 in 1500 ms (#203). It stops at 10 s, so a stream that never gets through still fails.
+    while ((changes < 26 || performance.now() - start < 1500) && performance.now() - start < 10000) await wait(20)
     clearInterval(stimulus)
     return { baselineFrames: startFrame - before, duringFrames: Number(timeline.value) - startFrame,
       elapsed: performance.now() - start, changes, maxGap, values: Array.from(values).sort() }
