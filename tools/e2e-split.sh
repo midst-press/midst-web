@@ -30,6 +30,11 @@ until curl -fsS -o /dev/null "http://127.0.0.1:$port/"; do
   [ "$SECONDS" -lt "$deadline" ] || { echo "e2e-split: the server was not ready after 300 s"; exit 1; }
   sleep 1
 done
+# The 200 must be OUR server's. With reuse on, Playwright no longer refuses a port someone else holds, and serve-local
+# binds before it builds and exits at once if the port is taken, so a foreign server answering means ours is gone
+# (silas-397300f6, review of #221).
+kill -0 "$server" 2>/dev/null || { echo "e2e-split: the port answered, but our server had exited (port taken?)"; exit 1; }
+grep -q "bound to 127.0.0.1:$port " "$log" || { echo "e2e-split: the server never said it bound 127.0.0.1:$port"; exit 1; }
 echo "e2e-split: server ready on port $port after ${SECONDS} s"
 
 export MIDST_E2E_REUSE_SERVER=1
