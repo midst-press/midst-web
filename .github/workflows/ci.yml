@@ -143,8 +143,8 @@ jobs:
   # unminified build to map back to src/, and the e2e job above must keep testing the build that
   # ships. Prints file paths and percentages only; see scripts/coverage-merge.mjs. Reported, not gated
   # on any figure: this job fails only if the tests fail or the measurement's own control does.
-  # Frame-budget tests require a GUI session (real frame rate). This job runs on ubuntu-latest with
-  # no GUI, so they are excluded with a visible warning — the same treatment as Gitea's coverage job.
+  # The @frame-budget tests are excluded here, as in Gitea's coverage job: they need a real frame cadence
+  # (Chromium headed under Xvfb), and they run in frame-budget.yml.
   coverage:
     name: coverage (what the tests execute; numbers only)
     runs-on: ubuntu-latest
@@ -156,12 +156,10 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
-      - name: coverage (frame-budget tests excluded — no GUI session)
+      - name: coverage (not the frame-budget or @gui tests; those run in frame-budget.yml)
         env:
-          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
-        run: |
-          echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
-          npm run coverage
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget|@gui
+        run: npm run coverage
 
   # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this
   # required until its findings are worked through -- and do not delete it to make the page green,

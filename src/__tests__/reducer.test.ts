@@ -2,6 +2,7 @@ import { initialState, reducer } from '../store/reducer'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_RETRY,
   REVERSE_SORT_ORDER,
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
@@ -325,5 +326,24 @@ describe('REVERSE_SORT_ORDER', () => {
     reducer(byAuthor, { type: REVERSE_SORT_ORDER })
     expect(byAuthor.sortOrder).toBe('ASC')
     expect(titles(byAuthor)).toEqual(BY_AUTHOR)
+  })
+})
+
+describe('LOAD_POEM_RETRY (#43)', () => {
+  const poemId = 'kj,-wm--cc-title'
+  const failed = reducer(initialState, { type: LOAD_POEM_FAILED, payload: { poemId, reason: 'network' } })
+
+  it('takes the failure down for that poem only, leaving it unloaded', () => {
+    const other = reducer(failed, { type: LOAD_POEM_FAILED, payload: { poemId: failed.poems.find(p => p.poemId !== poemId)!.poemId, reason: 'missing' } })
+    const next = reducer(other, { type: LOAD_POEM_RETRY, payload: { poemId } })
+    const target = next.poems.find(p => p.poemId === poemId)!
+    expect(target.loadFailure).toBeNull()
+    expect(target.loaded).toBe(false)
+    expect(next.poems.filter(p => p.loadFailure === 'missing')).toHaveLength(1)
+  })
+
+  it('changes nothing for an unknown poemId', () => {
+    const next = reducer(failed, { type: LOAD_POEM_RETRY, payload: { poemId: 'no-one--nothing' } })
+    expect(next.poems.find(p => p.poemId === poemId)?.loadFailure).toBe('network')
   })
 })

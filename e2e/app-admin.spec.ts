@@ -51,6 +51,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       target.status = 'disabled'
     } else if (action === 'enable') {
       target.status = 'active'
+    } else if (action === 'resend') {
+      if (target.status !== 'invited') return reply(409, { error: 'already_signed_in', message: 'Zq has already chosen a password.' })
     }
     return reply(200, target)
   })
@@ -74,6 +76,23 @@ test('invite someone and see them listed as invited', async ({ page, baseURL }) 
   await expect(row(page, 'zq@example.invalid')).toContainText('invited')
   expect(store.writes).toEqual(['POST /admin/users'])
   expect(store.bodies).toEqual([{ name: 'Zq Xv', email: 'zq@example.invalid', groups: ['poet', 'publisher'] }])
+})
+
+test('resend the invitation to an invited admin; nobody who has signed in, or is disabled, is offered it', async ({ page, baseURL }) => {
+  const store: Store = {
+    people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['admin'], 'invited'), person('c3', 'Vb Qz', ['publisher'], 'disabled')],
+    writes: [],
+    bodies: [],
+  }
+  await signedInAs(page, ['admin'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/admin')
+  await expect(row(page, 'Zq Xv')).toContainText('invited')
+  await expect(row(page, 'Qz Vb').getByRole('button', { name: 'Resend invitation' })).toHaveCount(0)
+  await expect(row(page, 'Vb Qz').getByRole('button', { name: 'Resend invitation' })).toHaveCount(0)
+  await row(page, 'Zq Xv').getByRole('button', { name: 'Resend invitation' }).click()
+  await expect(page.getByRole('status')).toContainText('Sent the invitation to Zq Xv again.')
+  expect(store.writes).toEqual(['POST /admin/users/b2/resend'])
 })
 
 test('change a person’s groups', async ({ page, baseURL }) => {

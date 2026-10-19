@@ -204,6 +204,24 @@ test('the publisher registers a poet, resends the invitation and disables them; 
   expect(store.writes).toEqual(['POST /publisher/poets', 'POST /publisher/poets/u-1/resend', 'POST /publisher/poets/u-1/disable'])
 })
 
+test('resend and disable are offered only for a poet-only account; the API refuses them for anyone else (#122)', async ({ page, baseURL }) => {
+  const store: Store = {
+    etag: 1, published: [], unpublished: [], writes: [],
+    poets: [
+      { username: 'u-1', name: 'Qz Poet', email: 'qz@example.invalid', groups: ['poet'], status: 'invited' },
+      { username: 'u-2', name: 'Vb Both', email: 'vb@example.invalid', groups: ['poet', 'publisher'], status: 'invited' },
+    ],
+  }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const row = (name: string) => page.getByRole('list', { name: 'Registered poets' }).getByRole('listitem').filter({ hasText: name })
+  await expect(row('Qz Poet').getByRole('button', { name: 'Resend invitation' })).toBeVisible()
+  await expect(row('Qz Poet').getByRole('button', { name: 'Disable' })).toBeVisible()
+  await expect(row('Vb Both')).toContainText('Invited, has not signed in yet')
+  await expect(row('Vb Both').getByRole('button')).toHaveCount(0)
+})
+
 test('registering an email that already has an account says so and keeps what was typed', async ({ page, baseURL }) => {
   const store: Store = { etag: 1, published: [], unpublished: [], writes: [],
     poets: [{ username: 'u-1', name: 'Qz', email: 'qz@example.invalid', groups: ['poet'], status: 'active' }] }

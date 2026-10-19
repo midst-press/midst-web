@@ -42,6 +42,7 @@ Every error has the same body:
 | 409 | `archive` | an upload-only action on an archive record: `complete`, the review copy's timelapse, or a decision |
 | 409 | `already_registered` | registering an email that already has an account |
 | 409 | `already_signed_in` | resending an invitation to someone who has already set their password |
+| 409 | `disabled` | resending an invitation to someone whose account is disabled: enable them first |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
 
@@ -237,6 +238,9 @@ A submission's status becomes `published` when its poem is published, and `accep
 - `GET /admin/users` → `{ "users": [Person, ...] }`
 - `POST /admin/users` `{ "name", "email", "groups": [...] }` → `Person`
   Invites the person: Cognito emails them a temporary password. Nobody can sign up on their own.
+- `POST /admin/users/{username}/resend` → `Person`. Sends the invitation again, with a new temporary password, to
+  anyone still `invited`, whatever their groups: the publisher's resend reaches poets only. 409 `already_signed_in`
+  once they have set their password; 409 `disabled` while the account is disabled. Unknown `username`: 404.
 - `PUT /admin/users/{username}/groups` `{ "groups": [...] }` → `Person`
 - `POST /admin/users/{username}/disable` and `/enable` → `Person`
 
@@ -252,7 +256,7 @@ change a group without going to the AWS console, which is how the first admin is
 | `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable; patrons: edit the list |
 | `/submit` | poet | submit a poem, and your submissions and where each stands |
 | `/review` | publisher | submissions: play, accept or decline with a note |
-| `/admin` | admin | publishers and admins: invite, change groups, disable |
+| `/admin` | admin | publishers and admins: invite, resend an invitation, change groups, disable |
 
 Sign-in is Cognito's managed login, authorisation code with PKCE. The tokens are held in memory and in
 `sessionStorage` (so a reload keeps you signed in), never in `localStorage`.

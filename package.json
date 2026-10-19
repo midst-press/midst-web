@@ -20,7 +20,7 @@
     "start": "node tools/check-key-scheme.mjs && parcel src/index.html --no-autoinstall",
     "test:e2e": "playwright test",
     "test:e2e:published": "MIDST_POEM_LIST=published playwright test --config playwright.published.config.ts",
-    "e2e:frame-budget": "playwright test --grep \"@frame-budget\"",
+    "e2e:frame-budget": "playwright test --grep \"@frame-budget|@gui\"",
     "e2e:frame-budget:attest": "node tools/frame-budget-attest.mjs",
     "prepare": "node tools/install-hooks.cjs",
     "test": "jest",
