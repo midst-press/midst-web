@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -84,8 +84,11 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       Object.assign(target, { publishDate: body.publishDate, highlighted: body.highlighted })
     }
     // Publish and unpublish say whether withdrawn copies were cleared from CloudFront (#239); the others never do.
+    // edgeClearedEverywhere sends it on every route, so a test can show the page itself keeps the note off a change
+    // that withdraws nothing.
     const withdrew = url.pathname === '/publisher/publish' || url.pathname === '/publisher/unpublish'
-    const edge = withdrew && store.edgeCleared !== undefined ? { edgeCleared: store.edgeCleared } : {}
+    const edge = store.edgeClearedEverywhere ? { edgeCleared: false }
+      : withdrew && store.edgeCleared !== undefined ? { edgeCleared: store.edgeCleared } : {}
     return reply(200, { listEtag: `e${store.etag}`, published: store.published, ...edge })
   })
 }
@@ -125,13 +128,14 @@ const UNPUBLISH_LEFT = 'Its copies could not be cleared from the site\'s cache, 
 const PUBLISH_LEFT = 'The copies of the version it replaced could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.'
 
 test('an unpublish whose copies were left in the cache says so (#239)', async ({ page, baseURL }) => {
-  const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [], edgeCleared: false }
+  const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [], edgeClearedEverywhere: true }
   await signedInAs(page, ['publisher'])
   await standIn(page, baseURL!, store)
   await page.goto('/publisher')
   await page.getByRole('listitem').filter({ hasText: 'Zq 1' }).getByRole('button', { name: 'Unpublish' }).click()
   await expect(page.getByRole('status')).toHaveText(`Unpublished Zq 1. ${UNPUBLISH_LEFT}`)
-  // A change that withdraws nothing never carries the note, even while the stand-in would say false.
+  // A change that withdraws nothing never carries the note. The stand-in answers edgeCleared: false here too, so
+  // only the page's choice keeps the note off it.
   await page.getByRole('listitem').filter({ hasText: 'Zq 2' }).getByLabel('Highlighted').click()
   await expect(page.getByRole('status')).toHaveText('Highlighted Zq 2.')
 })
