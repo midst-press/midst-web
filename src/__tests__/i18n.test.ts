@@ -1,4 +1,4 @@
-import { i18n, activateLocale, catalogs, pickLocale, SOURCE_LOCALE } from '../i18n'
+import { i18n, activateLocale, catalogs, ensureLocale, pickLocale, readerLanguages, SOURCE_LOCALE } from '../i18n'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const linguiConfig = require('../../lingui.config')
 
@@ -47,5 +47,47 @@ describe('catalogs', () => {
   it('has exactly the locales lingui.config.js lists, with English as the source', () => {
     expect(Object.keys(catalogs).sort()).toEqual([...linguiConfig.locales].sort())
     expect(linguiConfig.sourceLocale).toBe(SOURCE_LOCALE)
+  })
+})
+
+describe('readerLanguages', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  afterEach(() => {
+    if (original) Object.defineProperty(globalThis, 'navigator', original)
+    else delete (globalThis as { navigator?: unknown }).navigator
+  })
+  const browser = (value: unknown) => Object.defineProperty(globalThis, 'navigator', { value, configurable: true })
+
+  it("is the browser's languages, in its order", () => {
+    browser({ languages: ['fr-CA', 'en'] })
+    expect(readerLanguages()).toEqual(['fr-CA', 'en'])
+  })
+
+  it('is none where there is no browser, or it lists no languages', () => {
+    browser(undefined)
+    expect(readerLanguages()).toEqual([])
+    browser({})
+    expect(readerLanguages()).toEqual([])
+  })
+})
+
+describe('ensureLocale', () => {
+  it("activates the reader's language when none is active", () => {
+    jest.isolateModules(() => {
+      // A fresh @lingui/core, so no language is active yet.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const fresh = require('../i18n') as typeof import('../i18n')
+      expect(fresh.i18n.locale).toBeFalsy()
+      expect(fresh.ensureLocale()).toBe('en')
+      expect(fresh.i18n.locale).toBe('en')
+      expect(fresh.i18n._('player.timeline')).toBe('Timeline')
+    })
+  })
+
+  it('leaves a language that is already active', () => {
+    i18n.loadAndActivate({ locale: 'zq', messages: {} })
+    expect(ensureLocale()).toBe('zq')
+    expect(i18n.locale).toBe('zq')
+    activateLocale('en')
   })
 })

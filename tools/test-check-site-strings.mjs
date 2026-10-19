@@ -37,6 +37,18 @@ test('catalog calls, references, computed values, empty strings and other attrib
   for (const form of clean) assert.deepEqual(kinds(`const x = ${form}`), [], form)
 })
 
+test('symbols alone are not words, in text or an attribute; punctuation, digits and letters with them are', () => {
+  const symbols = ['▶', ' ↑ ', '$', '🌱', '❤️', '👩‍💻', '+', '<b title="▶" />']
+  for (const form of symbols) {
+    const source = form.startsWith('<b') ? `const x = ${form}` : `const x = <p>${form}</p>\nconst y = <p>{'${form}'}</p>`
+    assert.deepEqual(kinds(source), [], form)
+  }
+  const words = ['?', ': ', '*', '7', '▶ Zq', '🌱,', 'é']
+  for (const form of words) {
+    assert.deepEqual(kinds(`const x = <p>${form}</p>\nconst y = <b title={\`${form}\${n}\`} />`), ['1:text', '2:title'], form)
+  }
+})
+
 test('the CLI scans src/**/*.tsx except tests, prints lines and kinds only, and fails unless --report-only', () => {
   const root = mkdtempSync(join(tmpdir(), 'site-strings-'))
   try {

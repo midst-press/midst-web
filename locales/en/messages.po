@@ -12,3 +12,94 @@ msgstr ""
 "Last-Translator: \n"
 "Language-Team: \n"
 "Plural-Forms: \n"
+
+# Shown under the timeline, in place of a date, when a poem did not record when this moment was written. Lower case, because it sits where a date would.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.editTimeUnavailable"
+msgstr "edit time unavailable"
+
+# Shown under the speed slider. {fps} is a number such as 16.7. Keep it short: the panel is narrow.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.fpsShort"
+msgstr "{fps} fps"
+
+# Heard, not seen: what a screen reader says as the speed slider moves. {fps} is a number such as 16.7.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.framesPerSecond"
+msgstr "{fps} frames per second"
+
+# Heard, not seen: a mark on the timeline where a draft begins. {draft} is that draft's name, from the poem. The reader's guide refers to these marks.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.jumpTo"
+msgstr "Jump to {draft}"
+
+# The same button while the poem is playing. The reader's guide names it in bold, so change it there too.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.pause"
+msgstr "Pause"
+
+# The play button while the poem is stopped. The reader's guide names it in bold, so change it there too.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.play"
+msgstr "Play"
+
+# Heard, not seen: the slider inside that panel.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.playbackFrameRate"
+msgstr "Playback frame rate"
+
+# The button that opens the speed slider. The reader's guide names it in bold, so change it there too.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.playbackSpeed"
+msgstr "Playback speed"
+
+# Heard, not seen: the small panel the speed button opens.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.playbackSpeedControls"
+msgstr "Playback speed controls"
+
+# Heard, not seen: what a screen reader calls the area where the poem is replayed.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.poemReplay"
+msgstr "Poem replay"
+
+# The button that goes to the finished poem. The reader's guide names it in bold, so change it there too.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.skipToEnd"
+msgstr "Skip to end"
+
+# The button that goes back to the poem's first moment. The reader's guide names it in bold, so change it there too.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.skipToStart"
+msgstr "Skip to start"
+
+# Heard, not seen: the slider under the poem that moves through its drafts. The reader's guide names it in bold, so change it there too.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.timeline"
+msgstr "Timeline"
