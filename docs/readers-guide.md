@@ -44,7 +44,13 @@ If it says "edit time unavailable", the poem's record has no date for that chang
 
 Press **Playback speed** (the dial) to open a slider. Move it up to watch faster and down to watch slower. The number under it is the speed in frames per second (fps): how many of the poet's changes you see each second, from 1 to 60.
 
-Changing the speed does not pause the poem or move you along the timeline. Press the dial again, or click anywhere else, to close the slider.
+Changing the speed does not pause the poem or move you along the timeline. Press the dial again, click anywhere else, or press Escape to close the slider.
+
+## The process note
+
+At the top of the page are the poet's name and the poem's title. Click them to open the process note: the poet's own note on the poem, with their photograph.
+
+To close it, click its x, click anywhere outside it, or press Escape.
 
 ## Using the keyboard
 
@@ -55,6 +61,8 @@ Press Tab to move between the controls. When a button is selected, Space or Ente
 When the timeline is selected, the arrow keys move one change at a time.
 
 When the speed slider is open, the arrow keys change the speed and Escape closes it.
+
+Escape also closes the process note.
 
 ## Which version of the site is this?
 

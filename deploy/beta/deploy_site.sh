@@ -57,7 +57,8 @@
 #   9. smoke check: every published poem's page mounts the player with text (smoke_site.cjs);
 #      fonts are not checked, see that file
 #
-# Requires: git, node/npm, aws (v2), python3. Exit 0 deployed (and smoke passed), 1 failed.
+# Requires: git, node/npm, aws (v2), python3. Exit 0 deployed (and smoke passed), 1 failed before upload,
+#   2 deployed but smoke check failed (previous SHA printed for rollback).
 set -euo pipefail
 
 STACK=midst-press-beta-site
@@ -71,12 +72,12 @@ DRY=0
 SMOKE=1
 while [ $# -gt 0 ]; do
   case "$1" in
-    --web-repo) WEB="$2"; shift 2 ;;
-    --key-scheme) SCHEME="${2:-}"; shift 2 ;;
-    --poem-list) POEM_LIST="${2:-}"; shift 2 ;;
-    --ref) REF="$2"; shift 2 ;;
-    --tag) TAG="${2:-}"; shift 2 ;;
-    --stack) STACK="$2"; shift 2 ;;
+    --web-repo) [ $# -ge 2 ] || { echo "--web-repo requires a value" >&2; exit 1; }; WEB="$2"; shift 2 ;;
+    --key-scheme) [ $# -ge 2 ] || { echo "--key-scheme requires a value: legacy or canonical" >&2; exit 1; }; SCHEME="$2"; shift 2 ;;
+    --poem-list) [ $# -ge 2 ] || { echo "--poem-list requires a value: bundled or published" >&2; exit 1; }; POEM_LIST="$2"; shift 2 ;;
+    --ref) [ $# -ge 2 ] || { echo "--ref requires a value" >&2; exit 1; }; REF="$2"; shift 2 ;;
+    --tag) [ $# -ge 2 ] || { echo "--tag requires a value" >&2; exit 1; }; TAG="$2"; shift 2 ;;
+    --stack) [ $# -ge 2 ] || { echo "--stack requires a value" >&2; exit 1; }; STACK="$2"; shift 2 ;;
     --site) [ $# -ge 5 ] || { echo "--site takes four values: BUCKET DISTRIBUTION POEMS_URL SITE_URL" >&2; exit 1; }
             # A missing value would otherwise take the next option as a value: "--dry-run" as SITE_URL.
             for x in "$2" "$3" "$4" "$5"; do
@@ -126,7 +127,16 @@ if [ -n "$TAG" ]; then
     || { echo "tag $TAG does not exist in $WEB" >&2; exit 1; }
   [ "$TAG_SHA" = "$SHA" ] || { echo "tag $TAG is commit $TAG_SHA, not $SHA ($REF); nothing deployed" >&2; exit 1; }
 else
-  TAG="$(git -C "$WEB" describe --tags --exact-match "$SHA" 2> /dev/null || true)"
+  TAGS=()
+  while IFS= read -r t; do [ -n "$t" ] && TAGS+=("$t"); done < <(git -C "$WEB" tag --points-at "$SHA")
+  if [ "${#TAGS[@]}" -eq 0 ]; then
+    TAG=""
+  elif [ "${#TAGS[@]}" -eq 1 ]; then
+    TAG="${TAGS[0]}"
+  else
+    echo "commit $SHA carries ${#TAGS[@]} tags: ${TAGS[*]}. Pass --tag to choose one." >&2
+    exit 1
+  fi
 fi
 COMMITTED_AT="$(git -C "$WEB" show -s --format=%cI "$SHA")"
 WHO="$(aws sts get-caller-identity --query Arn --output text)"
@@ -137,6 +147,7 @@ echo "  poems  $POEMS_URL (key scheme: $SCHEME, poem list: $POEM_LIST)"
 [ $DRY = 1 ] && echo "  DRY RUN: nothing will be written to AWS"
 
 WT="$(mktemp -d)/midst-web"
+# shellcheck disable=SC2329  # invoked by trap on EXIT
 cleanup() { git -C "$WEB" worktree remove --force "$WT" 2>/dev/null || true; git -C "$WEB" worktree prune; }
 trap cleanup EXIT
 git -C "$WEB" worktree add -q --detach "$WT" "$SHA"
@@ -154,9 +165,11 @@ if [ "$POEM_LIST" != bundled ] && [ ! -f "$WT/src/poems/poem-list.js" ]; then
   echo "midst-web $SHA predates the published poem list and can only be deployed with --poem-list bundled" >&2; exit 1
 fi
 
-( cd "$WT" && npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund > npm.log 2>&1 ) \
+( cd "$WT" && env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+    npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund > npm.log 2>&1 ) \
   || { echo "npm ci failed; last lines of its log:" >&2; tail -20 "$WT/npm.log" >&2; exit 1; }
-( cd "$WT" && MIDST_POEMS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" MIDST_POEM_LIST="$POEM_LIST" \
+( cd "$WT" && env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+    MIDST_POEMS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" MIDST_POEM_LIST="$POEM_LIST" \
     MIDST_BUILD_TAG="$TAG" MIDST_BUILD_COMMIT="$SHORT" MIDST_BUILD_DATE="$COMMITTED_AT" npm run build > build.log 2>&1 ) \
   || { echo "build failed; last lines of its log:" >&2; tail -20 "$WT/build.log" >&2; exit 1; }
 [ -s "$WT/dist/index.html" ] || { echo "build produced no dist/index.html" >&2; exit 1; }
@@ -171,14 +184,15 @@ if [ "$POEM_LIST" = published ]; then
     || { echo "the published list at $POEMS_URL cannot be read, or not every poem on it is reachable; nothing uploaded." >&2
          exit 1; }
 else
-( cd "$WT" && MIDST_ASSETS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" node tools/poem-canary.mjs > canary.log 2>&1 ) \
+( cd "$WT" && env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+    MIDST_ASSETS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" node tools/poem-canary.mjs > canary.log 2>&1 ) \
   || { echo "the poems at $POEMS_URL are not all reachable under key scheme '$SCHEME'; nothing uploaded." >&2
        tail -20 "$WT/canary.log" >&2; exit 1; }
 echo "poems reachable under '$SCHEME': $(grep -m1 '^timelapses reachable' "$WT/canary.log" | cut -d' ' -f3)"
 fi
 
 python3 -c 'import json,sys,datetime; print(json.dumps({"midst-web": sys.argv[1], "tag": sys.argv[3] or None,
-  "key_scheme": sys.argv[2], "poem_list": sys.argv[4], "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}))' \
+  "key_scheme": sys.argv[2], "poem_list": sys.argv[4], "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")}))' \
   "$SHA" "$SCHEME" "$TAG" "$POEM_LIST" > "$WT/deployed.json"
 
 # Parcel names a bundled file name.<8 hex>.ext, so a changed file is a new name and a name never changes
@@ -211,6 +225,18 @@ if [ $DRY = 1 ]; then
   exit 0
 fi
 
+# Read the previous deployed.json before upload, so a smoke failure has a rollback target.
+PREV_SHA="unknown"
+if PREV_JSON="$(aws s3 cp "s3://$BUCKET/deployed.json" - --only-show-errors 2>&1)"; then
+  if PARSE_OUT="$(printf '%s' "$PREV_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("midst-web","unknown"))' 2>&1)"; then
+    PREV_SHA="$PARSE_OUT"
+  else
+    echo "could not parse previous deployed.json: $PARSE_OUT" >&2
+  fi
+else
+  echo "could not read previous deployed.json: $PREV_JSON" >&2
+fi
+
 # cp, not sync: sync skips a file already in the bucket at the same size and time, which would leave a bundle
 # from an earlier deploy without the header. A hashed name never changes content, so re-sending is safe
 # (river-2fc1630e, review of #77).
@@ -227,5 +253,17 @@ aws cloudfront wait invalidation-completed --distribution-id "$DIST" --id "$INV"
 echo "deployed $SHA to $SITE_URL (invalidation $INV complete)"
 
 [ $SMOKE = 1 ] || exit 0
-( cd "$WT" && npx playwright install chromium > /dev/null 2>&1 || true )
-node "$HERE/smoke_site.cjs" "$WT" "$SITE_URL"
+( cd "$WT" && env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN npx playwright install chromium > /dev/null 2>&1 || true )
+# A rollback to a commit before /about rendered .build-info has no build-info.ts.
+if [ -f "$WT/src/build-info.ts" ]; then
+  SMOKE_ARGS=("$WT" "$SITE_URL" "$TAG" "$SHORT")
+else
+  echo "note: worktree has no src/build-info.ts (pre-build-info commit); skipping /about check"
+  SMOKE_ARGS=("$WT" "$SITE_URL")
+fi
+if env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN node "$HERE/smoke_site.cjs" "${SMOKE_ARGS[@]}"; then
+  exit 0
+else
+  echo "deployed $SHA to $SITE_URL, but smoke check failed. Previous SHA (rollback target): $PREV_SHA" >&2
+  exit 2
+fi

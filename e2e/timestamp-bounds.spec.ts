@@ -21,10 +21,20 @@ async function mount(page: Page, data = syntheticData()) {
   )
 }
 
+// The harness loads the site's fonts from FONTS_URL (#191), so a label first drawn in the fallback font widens when
+// the web font arrives, and the player re-measures it on the next layout (#206). Measure the settled layout: once
+// every pending font has loaded, and two frames later, so that ResizeObserver and React have both run. A label left
+// at a stale width is still outside after this.
+async function settled(page: Page) {
+  await page.evaluate(() => document.fonts.ready.then(() =>
+    new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))))
+}
+
 // The label must be entirely inside the timeline-control box.
 async function assertLabelInsideTimeline(page: Page) {
   const label = page.locator('.frame-timestamp')
   await expect(label).toBeVisible()
+  await settled(page)
   const labelBox = await label.boundingBox()
   const timelineBox = await page.locator('.timeline-control').boundingBox()
   expect(labelBox).not.toBeNull()
@@ -35,6 +45,7 @@ async function assertLabelInsideTimeline(page: Page) {
 }
 
 async function labelCentre(page: Page): Promise<number> {
+  await settled(page)
   const box = await page.locator('.frame-timestamp').boundingBox()
   const timeline = await page.locator('.timeline-control').boundingBox()
   expect(box).not.toBeNull()
@@ -95,6 +106,7 @@ test('label follows the playhead', async ({ page }) => {
 // Inside is not enough: a label that sat still in the middle passes every inside test (#95). At either end the
 // label meets the timeline's end; between, its centre is at the playhead.
 async function boxes(page: Page) {
+  await settled(page)
   const label = await page.locator('.frame-timestamp').boundingBox()
   const timeline = await page.locator('.timeline-control').boundingBox()
   expect(label).not.toBeNull()
