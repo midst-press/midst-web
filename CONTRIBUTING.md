@@ -19,6 +19,30 @@ poets' names from unpublished work. Pre-commit hooks refuse poem data files, but
 text, so the responsibility is yours. The end-to-end tests generate synthetic poems
 (`MIDST_KEY_SCHEME=legacy MIDST_POEM_LIST=bundled npm run e2e:fixtures`); use those.
 
+## Words people see or hear
+
+Every word a reader, poet or publisher sees or hears lives in a message catalog under `locales/`, never in the
+code, so the journal's editor can change the wording without changing any code. The design is midst-infra
+`docs/design/message-catalog.md`.
+
+- **Short texts** (labels, buttons, notices, error messages, page titles, accessible names, tooltips and alt
+  text) are messages in `locales/en/messages.po`. Each has a stable id such as `player.speed.label`, never the
+  English text, and placeholders use ICU syntax (`{fileName}`).
+- **Pages and guides that are mostly prose** are one Markdown file per language in `locales/en/docs/`, the
+  reader's guide among them. The editor's user guide is a byte-identical copy of midst-editor's, checked as it
+  is today.
+- **Text you add or move goes in marked as a draft** (`#, fuzzy` on a message, `status: draft` in a document's
+  front matter), so it appears on the journal's editor's review list. Move existing text without rewording it;
+  the wording is the journal's editor's to change.
+- **English is complete and is the source.** Another language sits beside it (`locales/fr/...`) with the same
+  structure, and anything it doesn't have yet shows in English.
+- **Not catalog text:** poem content, poets' names and titles, log and console output, code comments, and test
+  fixtures.
+
+The catalog is being introduced now, in the order the design gives. Until it has reached the part of the code
+you're changing, put new user-facing text where the existing text lives and list it in the pull request, so it
+moves with the rest.
+
 ## Licence
 
 AGPL-3.0-or-later (`LICENSE`) for the site's source. By contributing you agree your contribution is
