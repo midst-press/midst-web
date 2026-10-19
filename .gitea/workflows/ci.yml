@@ -169,7 +169,9 @@ jobs:
       # The @gui legacy-runtime tests need a GUI (their sampler precondition, #28), and run only there too.
       - name: run e2e (not the frame-budget or @gui tests; see .gitea and .github frame-budget.yml)
         if: steps.head.outputs.current == 'true'
-        run: npx playwright test --grep-invert "@frame-budget|@gui"
+        # One server, built once; the specs that never time the player on 4 workers, then the timing specs alone on 1
+        # (playwright.config.ts PARALLEL_SAFE; CI task, Stuart, 19 Oct). The same 146 tests as one serial run.
+        run: tools/e2e-split.sh --grep-invert "@frame-budget|@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
       - name: the same site under canonical keys
