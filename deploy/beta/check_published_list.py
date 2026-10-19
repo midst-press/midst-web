@@ -5,7 +5,7 @@ Usage: check_published_list.py <poems url>      (the site's POEMS_URL, ending in
 
 The site fetches <poems url>published.json once when it starts, and then fetches each entry's RECORDED keys
 (midst-web #110). This asks the same questions first: the list is there, has version 1 and a list of poems,
-every entry has a poemId, title and author (no poemId twice), every timelapse key (and every process note
+every entry has a poemId, title and author (no poemId twice), any date is YYYY-MM-DD, every timelapse key (and every process note
 that is not null) is a key under poems/, and each one answers. One bad entry refuses the list, as the site does.
 A list with no poems is reported, not refused: the publisher may have unpublished everything.
 
@@ -14,6 +14,7 @@ Exit 0 when all of that holds, 1 when anything does not. Prints counts only, nev
 
 import http.client
 import json
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -26,6 +27,26 @@ def is_text(value):
     return isinstance(value, str) and len(value) > 0
 
 
+# The site's stored date (midst-web src/poems/canonical-date.js, midst-infra #81): exactly YYYY-MM-DD, ASCII digits, and
+# a real Gregorian date, by arithmetic for every four-digit year.
+ISO_DATE = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})")
+
+
+def is_real_date(y, m, d):
+    if m < 1 or m > 12 or d < 1:
+        return False
+    leap = (y % 4 == 0 and y % 100 != 0) or y % 400 == 0
+    return d <= [31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]
+
+
+def is_absent_or_date(value):
+    """The site's isAbsentOrDate: null, absent, or a canonical date. Anything else refuses the list."""
+    if value is None:
+        return True
+    match = ISO_DATE.fullmatch(value) if isinstance(value, str) else None
+    return match is not None and is_real_date(*(int(g) for g in match.groups()))
+
+
 def is_key(value):
     """The site's own rule (midst-web src/poems/poem-list.js): "poems/<something>", nothing climbing out of it."""
     return (
@@ -34,6 +55,19 @@ def is_key(value):
         and len(value) > len(KEY_ROOT)
         and not any(part in ("..", ".") for part in value.split("/"))
     )
+
+
+def _not_json(constant):
+    raise ValueError(f"{constant} is not JSON")
+
+
+def read_listing(raw):
+    """Parse published.json as the site's response.json() does: UTF-8 (one leading BOM dropped), and no NaN or
+    Infinity, which Python's json accepts and JSON.parse refuses. Raises ValueError if it is not JSON.
+
+    One difference, on purpose: invalid UTF-8 is refused here, while the site replaces each bad byte with U+FFFD
+    and reads the list. The check is the stricter of the two, never the looser."""
+    return json.loads(raw.decode("utf-8-sig"), parse_constant=_not_json)
 
 
 def recorded_keys(listing):
@@ -50,6 +84,8 @@ def recorded_keys(listing):
             raise ValueError("an entry in published.json has no timelapse key under poems/")
         if not all(is_text(entry.get(field)) for field in ("poemId", "title", "author")):
             raise ValueError("an entry in published.json lacks a poemId, title or author")
+        if not (is_absent_or_date(entry.get("publishDate")) and is_absent_or_date(entry.get("date"))):
+            raise ValueError("an entry in published.json has a date that is not YYYY-MM-DD")
         if entry["poemId"] in seen:
             raise ValueError("two entries in published.json have the same poemId")
         seen.add(entry["poemId"])
@@ -78,7 +114,7 @@ def main(argv):
     base = argv[1]
     try:
         with urllib.request.urlopen(base + "published.json", timeout=TIMEOUT) as response:
-            listing = json.loads(response.read())
+            listing = read_listing(response.read())
     except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError):
         print("published.json could not be fetched or is not JSON", file=sys.stderr)
         return 1
