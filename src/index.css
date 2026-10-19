@@ -302,6 +302,8 @@ body {
 .site-header #poem-nav a.disabled .arrow {
   background: #000;
   opacity: 0.1;
+  pointer-events: none;
+  cursor: default;
 }
 
 .site-header #back-to-toc {
