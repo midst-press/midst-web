@@ -1,0 +1,54 @@
+{
+  "poemReplay": {
+    "text": "Poem replay",
+    "note": "Heard, not seen: what a screen reader calls the area where the poem is replayed."
+  },
+  "timeline": {
+    "text": "Timeline",
+    "note": "Heard, not seen: the slider under the poem that moves through its drafts. The reader's guide names it in bold, so change it there too."
+  },
+  "jumpTo": {
+    "text": "Jump to {draft}",
+    "note": "Heard, not seen: a mark on the timeline where a draft begins. {draft} is that draft's name, from the poem. The reader's guide refers to these marks."
+  },
+  "skipToStart": {
+    "text": "Skip to start",
+    "note": "The button that goes back to the poem's first moment. The reader's guide names it in bold, so change it there too."
+  },
+  "skipToEnd": {
+    "text": "Skip to end",
+    "note": "The button that goes to the finished poem. The reader's guide names it in bold, so change it there too."
+  },
+  "play": {
+    "text": "Play",
+    "note": "The play button while the poem is stopped. The reader's guide names it in bold, so change it there too."
+  },
+  "pause": {
+    "text": "Pause",
+    "note": "The same button while the poem is playing. The reader's guide names it in bold, so change it there too."
+  },
+  "playbackSpeed": {
+    "text": "Playback speed",
+    "note": "The button that opens the speed slider. The reader's guide names it in bold, so change it there too."
+  },
+  "playbackSpeedControls": {
+    "text": "Playback speed controls",
+    "note": "Heard, not seen: the small panel the speed button opens."
+  },
+  "playbackFrameRate": {
+    "text": "Playback frame rate",
+    "note": "Heard, not seen: the slider inside that panel."
+  },
+  "framesPerSecond": {
+    "text": "{fps} frames per second",
+    "note": "Heard, not seen: what a screen reader says as the speed slider moves. {fps} is a number such as 16.7."
+  },
+  "fpsShort": {
+    "text": "{fps} fps",
+    "note": "Shown under the speed slider. {fps} is a number such as 16.7. Keep it short: the panel is narrow."
+  },
+  "editTimeUnavailable": {
+    "text": "edit time unavailable",
+    "note": "Shown under the timeline, in place of a date, when a poem did not record when this moment was written. Lower case, because it sits where a date would."
+  }
+}
