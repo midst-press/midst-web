@@ -87,11 +87,17 @@ repos:
         pass_filenames: false
         files: '^(package\.json|package-lock\.json|tools/(test-)?check-lingui-pin\.mjs)$'
       - id: site-strings-self-test
-        name: the site-strings check finds written-out words, and only those (message catalog, report only)
+        name: the site-strings check finds written-out words, and only those (message catalog)
         language: system
         entry: node --test tools/test-check-site-strings.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-site-strings\.mjs$'
+      - id: site-strings-player
+        name: the player's words come from the message catalog (enforcing there; the rest of the site is report only)
+        language: system
+        entry: bash -c 'node tools/check-site-strings.mjs src/components/MidstPlayer/*.tsx'
+        pass_filenames: false
+        files: '^(src/components/MidstPlayer/.*\.tsx|tools/check-site-strings\.mjs)$'
       - id: still-head-self-test
         name: a heavy CI job stops when the PR has moved on, and runs in full when it cannot tell (midst-infra #102)
         language: system
