@@ -28,11 +28,25 @@ export const callerFor = (baseUrl: string, idToken: string): Call =>
 
 export const loadList = (call: Call) => call<PublisherList>('/publisher/poems')
 
+/** What publish and unpublish answer. `edgeCleared` is there when copies were withdrawn (an unpublish, or a publish
+ *  that replaced an earlier version), and false when CloudFront did not take the request to clear them (midst-infra
+ *  #117): they may then be served from its cache for up to a day. */
+export interface ListChange {
+  listEtag: string
+  published: Poem[]
+  edgeCleared?: boolean
+}
+
 export const publish = (call: Call, poemId: string, listEtag: string) =>
-  call('/publisher/publish', { method: 'POST', body: { poemId, listEtag } })
+  call<ListChange>('/publisher/publish', { method: 'POST', body: { poemId, listEtag } })
 
 export const unpublish = (call: Call, poemId: string, listEtag: string) =>
-  call('/publisher/unpublish', { method: 'POST', body: { poemId, listEtag } })
+  call<ListChange>('/publisher/unpublish', { method: 'POST', body: { poemId, listEtag } })
+
+/** Whether a change's answer says withdrawn copies were left in CloudFront's cache. Only an explicit false: an
+ *  answer with no field withdrew nothing. */
+export const leftInCache = (result: unknown): boolean =>
+  typeof result === 'object' && result !== null && (result as { edgeCleared?: unknown }).edgeCleared === false
 
 export const saveOrder = (call: Call, poemIds: string[], listEtag: string) =>
   call('/publisher/order', { method: 'PUT', body: { poemIds, listEtag } })

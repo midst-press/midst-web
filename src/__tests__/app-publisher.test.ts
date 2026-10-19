@@ -1,4 +1,4 @@
-import { Call, Poem, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish } from '../app/publisher'
+import { Call, Poem, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish } from '../app/publisher'
 
 // The publisher's calls (docs/app-api.md) and the reordering the page does before it saves.
 
@@ -44,5 +44,19 @@ describe('the calls', () => {
       ['/publisher/order', { method: 'PUT', body: { poemIds: ['p2', 'p1'], listEtag: 'e3' } }],
       ['/publisher/poems/p%2F1', { method: 'PUT', body: { publishDate: '2026-10-20', highlighted: true, listEtag: 'e4' } }],
     ])
+  })
+})
+
+// #239: the page warns only on an explicit false. No field means nothing was withdrawn.
+describe('leftInCache', () => {
+  it('is true only for an answer whose edgeCleared is false', () => {
+    expect(leftInCache({ listEtag: 'e2', published: [], edgeCleared: false })).toBe(true)
+  })
+
+  it('is false when the copies were cleared, when nothing was withdrawn, and for anything else', () => {
+    for (const result of [{ edgeCleared: true }, { listEtag: 'e2', published: [] }, { edgeCleared: 'false' }, { edgeCleared: 0 },
+      { edgeCleared: null }, null, undefined, 'false', false]) {
+      expect(leftInCache(result)).toBe(false)
+    }
   })
 })

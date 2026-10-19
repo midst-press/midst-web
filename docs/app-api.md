@@ -145,10 +145,14 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
-- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
-  Copies the poem into the publishing bucket and adds it at the end of the list.
-- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
-  Removes it from the list and deletes the publishing copy. The draft stays.
+- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared"? }`
+  Copies the poem into the publishing bucket and adds it at the end of the list. A revision replaces the version
+  it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
+  CloudFront took the request.
+- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
+  Removes it from the list and deletes the publishing copy. The draft stays. The copy is cleared from CloudFront's
+  cache too. `edgeCleared` is false when CloudFront did not take that request; the copy may then be served for up
+  to a day (`max-age=86400`), and the publisher's page says so (midst-infra #117).
 - `PUT /publisher/order` `{ "poemIds": [...], "listEtag" }` → `{ "listEtag", "published" }`
   400 `invalid` unless `poemIds` is exactly the published set, each once.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`

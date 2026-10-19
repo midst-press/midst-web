@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[] }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -83,7 +83,10 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       const target = store.published.find(p => p.poemId === decodeURIComponent(url.pathname.split('/').pop()!))!
       Object.assign(target, { publishDate: body.publishDate, highlighted: body.highlighted })
     }
-    return reply(200, { listEtag: `e${store.etag}`, published: store.published })
+    // Publish and unpublish say whether withdrawn copies were cleared from CloudFront (#239); the others never do.
+    const withdrew = url.pathname === '/publisher/publish' || url.pathname === '/publisher/unpublish'
+    const edge = withdrew && store.edgeCleared !== undefined ? { edgeCleared: store.edgeCleared } : {}
+    return reply(200, { listEtag: `e${store.etag}`, published: store.published, ...edge })
   })
 }
 
@@ -116,6 +119,48 @@ test('publish, reorder, highlight and unpublish, each saved to the list', async 
   await page.getByRole('listitem').filter({ hasText: 'Zq 1' }).getByRole('button', { name: 'Unpublish' }).click()
   await expect(page.getByRole('status')).toHaveText('Unpublished Zq 1.')
   await expect(page.getByRole('list', { name: 'Poems not published' })).toContainText('Zq 1')
+})
+
+const UNPUBLISH_LEFT = 'Its copies could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.'
+const PUBLISH_LEFT = 'The copies of the version it replaced could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.'
+
+test('an unpublish whose copies were left in the cache says so (#239)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [], edgeCleared: false }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('listitem').filter({ hasText: 'Zq 1' }).getByRole('button', { name: 'Unpublish' }).click()
+  await expect(page.getByRole('status')).toHaveText(`Unpublished Zq 1. ${UNPUBLISH_LEFT}`)
+  // A change that withdraws nothing never carries the note, even while the stand-in would say false.
+  await page.getByRole('listitem').filter({ hasText: 'Zq 2' }).getByLabel('Highlighted').click()
+  await expect(page.getByRole('status')).toHaveText('Highlighted Zq 2.')
+})
+
+test('a publish whose replaced version was left in the cache says so (#239)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2)], writes: [], edgeCleared: false }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('list', { name: 'Poems not published' }).getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByRole('status')).toHaveText(`Published Zq 2. ${PUBLISH_LEFT}`)
+})
+
+test('copies cleared from the cache add nothing to the notice (#239)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [], edgeCleared: true }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('listitem').filter({ hasText: 'Zq 1' }).getByRole('button', { name: 'Unpublish' }).click()
+  await expect(page.getByRole('status')).toHaveText('Unpublished Zq 1.')
+})
+
+test('copies left in the cache are said even when the list reload fails (#239)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [], failReload: true, edgeCleared: false }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('listitem').filter({ hasText: 'Zq 1' }).getByRole('button', { name: 'Unpublish' }).click()
+  await expect(page.getByRole('alert')).toHaveText(`The change was saved, but the list could not be refreshed. Reload the page to see it. ${UNPUBLISH_LEFT}`)
 })
 
 test('a saved change whose list reload fails is shown as saved, not as a failure (#127)', async ({ page, baseURL }) => {
