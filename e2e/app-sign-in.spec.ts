@@ -63,7 +63,7 @@ test('signing in on /me comes back to /me showing who you are and your roles', a
   expect(await page.evaluate(() => window.localStorage.length)).toBe(0)
 })
 
-test('the forgotten-password link sits beside Sign in, and the reset comes back to /me signed in (#243)', async ({ page, baseURL }) => {
+test('the forgotten-password link sits beside Sign in, signed in it is Change your password, and both come back to /me signed in (#243)', async ({ page, baseURL }) => {
   const seen = await standIns(page, baseURL!, { status: 200, body: { username: 'u1', email: 'qz@example.invalid', groups: ['publisher'] } })
   await page.goto('/me')
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
@@ -73,9 +73,14 @@ test('the forgotten-password link sits beside Sign in, and the reset comes back 
   await expect(page).toHaveURL(/\/me$/)
   expect(seen.managedLogin).toEqual(['/forgotPassword'])
   expect(seen.token[0].get('code_verifier')).toMatch(/^[A-Za-z0-9_-]{43,}$/)
-  // Signed in, neither the link nor its note is offered.
+  // Signed in, neither the link nor its note is offered; the same reset is offered as Change your password.
   await expect(page.getByRole('link', { name: 'Forgot your password?' })).toHaveCount(0)
   await expect(page.getByText('If you have never signed in')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Change your password' }).click()
+  await expect(page.getByText('You are signed in as qz@example.invalid.')).toBeVisible()
+  await expect(page).toHaveURL(/\/me$/)
+  expect(seen.managedLogin).toEqual(['/forgotPassword', '/forgotPassword'])
+  expect(seen.token).toHaveLength(2)
 })
 
 test('signing out forgets the session', async ({ page, baseURL }) => {

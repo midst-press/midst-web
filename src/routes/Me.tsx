@@ -75,7 +75,12 @@ function Me(): ReactElement {
       <section className="heroine heroine--normal">
         <h2>Your account</h2>
         {content}
-        {session && <p><button type="button" className="app-button" onClick={leave}>Sign out</button></p>}
+        {session && (
+          <p>
+            <button type="button" className="app-button" onClick={leave}>Sign out</button>
+            {' '}<a href="/me" onClick={forgotPassword}>Change your password</a>
+          </p>
+        )}
       </section>
     </div>
   )
