@@ -1,5 +1,15 @@
 import { ApiError, apiFetch } from '../app/api'
 
+// The rejection of a call that must fail, held to being an ApiError, so the tests read its fields typed.
+async function failure(call: Promise<unknown>): Promise<ApiError> {
+  const outcome = await call.then(
+    () => undefined,
+    (e: unknown) => e
+  )
+  if (!(outcome instanceof ApiError)) throw new Error(`expected an ApiError, got ${String(outcome)}`)
+  return outcome
+}
+
 // Calls to the beta app's back end, and its error shape (docs/app-api.md).
 
 const respond = (status: number, text: string) =>
@@ -29,13 +39,13 @@ describe('apiFetch', () => {
 
   it('turns the contract’s error into an ApiError carrying its code, message and the rest of the body', async () => {
     const fetchFn = respond(409, '{"error":"conflict","message":"The list changed.","listEtag":"e3"}')
-    const error = await apiFetch('u', 't', '/p', { method: 'POST', body: {} }, fetchFn as unknown as typeof fetch).catch(e => e)
+    const error = await failure(apiFetch('u', 't', '/p', { method: 'POST', body: {} }, fetchFn as unknown as typeof fetch))
     expect(error).toBeInstanceOf(ApiError)
     expect([error.status, error.code, error.message, error.body.listEtag]).toEqual([409, 'conflict', 'The list changed.', 'e3'])
   })
 
   it('shows its own sentence, not a page’s text, when an error is not the contract’s shape', async () => {
-    const error = await apiFetch('u', 't', '/p', {}, respond(502, '<html>Bad gateway</html>') as unknown as typeof fetch).catch(e => e)
+    const error = await failure(apiFetch('u', 't', '/p', {}, respond(502, '<html>Bad gateway</html>') as unknown as typeof fetch))
     expect([error.status, error.code]).toEqual([502, 'server'])
     expect(error.message).not.toContain('html')
   })
@@ -48,25 +58,25 @@ describe('apiFetch', () => {
       [503, '{"message":"Service Unavailable"}', 'server', 'Something went wrong on our side. Please try again.'],
     ]
     for (const [status, text, code, message] of cases) {
-      const error = await apiFetch('u', 't', '/me', {}, respond(status, text) as unknown as typeof fetch).catch(e => e)
+      const error = await failure(apiFetch('u', 't', '/me', {}, respond(status, text) as unknown as typeof fetch))
       expect([error.status, error.code, error.message]).toEqual([status, code, message])
     }
   })
 
   it('uses its own sentence when our error has no message, and returns {} for an empty success', async () => {
-    const error = await apiFetch('u', 't', '/p', {}, respond(400, '{"error":"invalid"}') as unknown as typeof fetch).catch(e => e)
+    const error = await failure(apiFetch('u', 't', '/p', {}, respond(400, '{"error":"invalid"}') as unknown as typeof fetch))
     expect([error.code, error.message]).toEqual(['invalid', 'Something went wrong on our side. Please try again.'])
     expect(await apiFetch('u', 't', '/p', {}, respond(204, '') as unknown as typeof fetch)).toEqual({})
   })
 
   it('keeps our own 403 and its message when the body is ours', async () => {
-    const error = await apiFetch('u', 't', '/me', {}, respond(403, '{"error":"forbidden","message":"Zq."}') as unknown as typeof fetch).catch(e => e)
+    const error = await failure(apiFetch('u', 't', '/me', {}, respond(403, '{"error":"forbidden","message":"Zq."}') as unknown as typeof fetch))
     expect([error.code, error.message]).toEqual(['forbidden', 'Zq.'])
   })
 
   it('says the app could not be reached when the request itself fails', async () => {
     const fetchFn = jest.fn(async () => { throw new TypeError('Failed to fetch') })
-    const error = await apiFetch('u', 't', '/me', {}, fetchFn as unknown as typeof fetch).catch(e => e)
+    const error = await failure(apiFetch('u', 't', '/me', {}, fetchFn as unknown as typeof fetch))
     expect([error.status, error.code]).toEqual([0, 'network'])
   })
 })

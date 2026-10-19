@@ -156,6 +156,14 @@ repos:
         entry: npx --no-install tsc --noEmit
         pass_filenames: false
         files: '\.(ts|tsx)$'
+      # The unit tests, which tsconfig.json excludes and ts-jest compiles without checking (#27): a test that
+      # calls a function with the wrong types fails here. tsconfig.test.json compiles them as ts-jest does.
+      - id: typecheck-tests
+        name: tsc --noEmit -p tsconfig.test.json (the unit tests)
+        language: system
+        entry: npx --no-install tsc --noEmit -p tsconfig.test.json
+        pass_filenames: false
+        files: '(\.(ts|tsx)|^tsconfig(\.test)?\.json)$'
       - id: poem-object-names
         name: derived poem object names still match the bucket (snapshot)
         language: system
