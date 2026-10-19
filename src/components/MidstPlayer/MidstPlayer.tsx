@@ -7,10 +7,12 @@ import { draftMarkers, playerFont } from './timeline'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from './follow'
 import './player.css'
 import { installFonts } from '../../fonts'
-import { t } from '../../i18n'
+import { ensureLocale, i18n } from '../../i18n'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
+// Its words come from the catalog, so a language must be active before it renders.
+ensureLocale()
 
 const MIN_FPS = 1
 const MAX_FPS = 60
@@ -75,7 +77,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     content: '',
     editable: false,
     parseOptions: { preserveWhitespace: true },
-    editorProps: { attributes: { class: 'editable', 'aria-label': t('player', 'poemReplay') } },
+    editorProps: { attributes: { class: 'editable', 'aria-label': i18n._('player.poemReplay') } },
   })
 
   function cancelGlide() {
@@ -205,7 +207,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
         year: 'numeric', month: 'short', day: 'numeric',
         hour: '2-digit', minute: '2-digit',
       })
-    : currentFrame != null ? t('player', 'editTimeUnavailable') : null
+    : currentFrame != null ? i18n._('player.editTimeUnavailable') : null
   // Continuous bounding: clamp the label's CENTRE so the label stays within the timeline container.
   // Measure the rendered label width; re-measure on container resize (ResizeObserver) so a paused
   // resize does not leave a stale width. Measurement runs on text change and resize, not per frame.
@@ -271,14 +273,14 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       <div className="control-container">
         <div className="controls" onKeyDown={event => event.stopPropagation()}>
           <div className="timeline-control" ref={timelineRef}>
-          <input type="range" aria-label={t('player', 'timeline')} aria-valuetext={labelText ?? undefined} className="progress-bar"
+          <input type="range" aria-label={i18n._('player.timeline')} aria-valuetext={labelText ?? undefined} className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
             onChange={event => seekTo(Number(event.target.value))} />
             <div className="draft-markers" ref={markerRow}>
               {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
                 style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
-                title={marker.label} aria-label={t('player', 'jumpTo', { draft: marker.label })} disabled={!activePlayer}
+                title={marker.label} aria-label={i18n._('player.jumpTo', { draft: marker.label })} disabled={!activePlayer}
                 onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
                 <span className="draft-marker-name">{marker.label}</span></button>)}
             </div>
@@ -291,18 +293,18 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             )}
           </div>
           <div className="playback-controls">
-            <button type="button" className="control-button" aria-label={t('player', 'skipToStart')}
+            <button type="button" className="control-button" aria-label={i18n._('player.skipToStart')}
               disabled={!canPlay} onClick={() => seekTo(0)}>
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M5 5v14M19 5 8 12l11 7Z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />
               </svg>
             </button>
-            <button type="button" aria-label={playing ? t('player', 'pause') : t('player', 'play')}
+            <button type="button" aria-label={playing ? i18n._('player.pause') : i18n._('player.play')}
               className={`play-pause-button control-button${playing ? ' playing' : ''}`}
               onClick={playPause} disabled={!canPlay}>
               {playing ? <><span className="pause-rectangle" /><span className="pause-rectangle" /></> : '▶'}
             </button>
-            <button type="button" className="control-button" aria-label={t('player', 'skipToEnd')}
+            <button type="button" className="control-button" aria-label={i18n._('player.skipToEnd')}
               disabled={!canPlay} onClick={() => seekTo(maxStep)}>
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M19 5v14M5 5l11 7-11 7Z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />
@@ -316,7 +318,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 setSpeedOpen(false)
                 speedButton.current?.focus()
               }}>
-              <button type="button" className="control-button" aria-label={t('player', 'playbackSpeed')}
+              <button type="button" className="control-button" aria-label={i18n._('player.playbackSpeed')}
                 ref={speedButton} aria-expanded={speedOpen} disabled={!canPlay}
                 onClick={() => setSpeedOpen(open => !open)}>
                 <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -326,15 +328,15 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 </svg>
               </button>
               {speedOpen && (
-                <div className="playback-speed-popup" role="group" aria-label={t('player', 'playbackSpeedControls')}>
+                <div className="playback-speed-popup" role="group" aria-label={i18n._('player.playbackSpeedControls')}>
                   <span aria-hidden="true">{MAX_FPS}</span>
                   <input type="range" className="playback-speed-slider" ref={speedSlider}
-                    aria-label={t('player', 'playbackFrameRate')} aria-orientation="vertical"
-                    aria-valuetext={t('player', 'framesPerSecond', { fps: displayFPS(fps) })}
+                    aria-label={i18n._('player.playbackFrameRate')} aria-orientation="vertical"
+                    aria-valuetext={i18n._('player.framesPerSecond', { fps: displayFPS(fps) })}
                     min={MIN_FPS} max={MAX_FPS} step="any" value={fps} disabled={!canPlay}
                     onChange={event => changeFPS(Number(event.target.value))} />
                   <span aria-hidden="true">{MIN_FPS}</span>
-                  <output className="playback-speed-value" aria-live="off">{t('player', 'fpsShort', { fps: displayFPS(fps) })}</output>
+                  <output className="playback-speed-value" aria-live="off">{i18n._('player.fpsShort', { fps: displayFPS(fps) })}</output>
                 </div>
               )}
             </div>

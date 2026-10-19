@@ -1,7 +1,7 @@
 import React, { ReactElement } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
-import { readersGuide } from '../i18n'
+import guide from '../guide/readers-guide.json'
 
 // "Press **Play** to watch" becomes "Press <strong>Play</strong> to watch". Bold is the only markup.
 function withBold(text: string): Array<string | ReactElement> {
@@ -9,7 +9,6 @@ function withBold(text: string): Array<string | ReactElement> {
 }
 
 function ReadersGuide(): ReactElement {
-  const guide = readersGuide()
   return (
     <div className="guide-page">
       <Helmet>

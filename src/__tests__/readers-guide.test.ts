@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { CATALOGS, DEFAULT_LANGUAGE, READERS_GUIDES, readersGuide } from '../i18n'
+import guide from '../guide/readers-guide.json'
+import { activateLocale, catalogs, i18n } from '../i18n'
 import { guideMarkdown } from '../guide/markdown'
 
 // The reader's guide (issue #92) must not drift from the player it describes, and its two forms,
@@ -37,12 +38,12 @@ function attributeValues(source: string, names: string[]): string[] {
   return values
 }
 
-// t('player', 'key', ...) in the code, and what it says in English, up to the first {value}.
-const catalogCall = /\bt\(\s*'(\w+)'\s*,\s*'(\w+)'[^)]*\)/g
-function catalogWords(surface: string, key: string): string {
-  const entry = (CATALOGS.en as Record<string, Record<string, { text: string }> | undefined>)[surface]?.[key]
-  if (!entry) throw new Error(`no English text for t('${surface}', '${key}')`)
-  return entry.text.split('{')[0].trim()
+// i18n._('player.key', ...) in the code, and what it says in English, up to the first {value}.
+const catalogCall = /\bi18n\._\(\s*'([\w.]+)'[^)]*\)/g
+function catalogWords(id: string): string {
+  if (!Object.prototype.hasOwnProperty.call(catalogs.en, id)) throw new Error(`no English text for i18n._('${id}')`)
+  activateLocale('en')
+  return i18n._(id).split('{')[0].trim()
 }
 
 // Words written straight into an attribute rather than taken from the catalog.
@@ -57,14 +58,14 @@ function literals(expression: string): string[] {
   return found
 }
 
-// Every accessible name the player gives a control, in the catalog's English: aria-label={t('player', 'x')},
+// Every accessible name the player gives a control, in the catalog's English: aria-label={i18n._('player.x')},
 // either side of a ?:, and the words before a {value}. Also data-guide="X", which marks something a reader sees
 // that has no accessible name of its own (the date under the timeline is hidden from screen readers, which hear
 // it from the timeline instead).
 function controlLabels(source: string): string[] {
   const labels = new Set<string>()
   for (const expression of attributeValues(source, ['aria-label'])) {
-    for (const call of Array.from(expression.matchAll(catalogCall))) labels.add(catalogWords(call[1], call[2]))
+    for (const call of Array.from(expression.matchAll(catalogCall))) labels.add(catalogWords(call[1]))
   }
   for (const expression of attributeValues(source, ['data-guide'])) literals(expression).forEach(label => labels.add(label))
   return Array.from(labels)
@@ -72,9 +73,9 @@ function controlLabels(source: string): string[] {
 
 describe('the control-label reader', () => {
   it('finds each form the player writes a label in', () => {
-    const sample = `<input aria-label={t('player', 'timeline')} /> { 'aria-label': t('player', 'poemReplay') }
-      <button aria-label={on ? t('player', 'pause') : t('player', 'play')} />
-      <button aria-label={t('player', 'jumpTo', { draft: name })} disabled /> <div data-guide="zq-six" />`
+    const sample = `<input aria-label={i18n._('player.timeline')} /> { 'aria-label': i18n._('player.poemReplay') }
+      <button aria-label={on ? i18n._('player.pause') : i18n._('player.play')} />
+      <button aria-label={i18n._('player.jumpTo', { draft: name })} disabled /> <div data-guide="zq-six" />`
     expect(controlLabels(sample).sort()).toEqual(['Jump to', 'Pause', 'Play', 'Poem replay', 'Timeline', 'zq-six'])
   })
 
@@ -83,18 +84,18 @@ describe('the control-label reader', () => {
   })
 
   it('finds words written into the player instead of its catalog', () => {
-    const sample = `<b aria-label="Zq one" /> { 'aria-label': 'Zq two' } <b aria-label={on ? t('player', 'play') : 'Zq three'} />
+    const sample = `<b aria-label="Zq one" /> { 'aria-label': 'Zq two' } <b aria-label={on ? i18n._('player.play') : 'Zq three'} />
       <b aria-valuetext={\`\${n} zq four\`} /> <b title="Zq five" />`
     const found = attributeValues(sample, ['aria-label', 'aria-valuetext', 'title']).flatMap(literals)
     expect(found.sort()).toEqual(['Zq five', 'Zq one', 'Zq three', 'Zq two', 'zq four'])
   })
 
-  it('finds none: every word the player says comes from src/i18n/en/player.json', () => {
+  it('finds none: every word the player says comes from its catalog', () => {
     expect(attributeValues(player, ['aria-label', 'aria-valuetext', 'title']).flatMap(literals)).toEqual([])
   })
 })
 
-describe.each(Object.entries(READERS_GUIDES))("the reader's guide in %s", (_language, guide) => {
+describe("the reader's guide", () => {
   const documented = new Set(guide.sections.flatMap(section => section.labels))
 
   it('has a section for every control in the player', () => {
@@ -126,18 +127,10 @@ describe.each(Object.entries(READERS_GUIDES))("the reader's guide in %s", (_lang
       expect(text.split('**').length % 2).toBe(1)
     }
   })
-})
 
-describe("the reader's guide's words", () => {
-  it('are English by default, and a language without a file falls back to English', () => {
-    expect(DEFAULT_LANGUAGE).toBe('en')
-    expect(readersGuide()).toBe(READERS_GUIDES.en)
-    expect(readersGuide('zq')).toBe(READERS_GUIDES.en)
-  })
-
-  it('are the same in docs/readers-guide.md', () => {
+  it('is the same words in docs/readers-guide.md', () => {
     const path = join(root, 'docs/readers-guide.md')
-    const expected = guideMarkdown(READERS_GUIDES.en)
+    const expected = guideMarkdown(guide)
     if (process.env.UPDATE_GUIDE) writeFileSync(path, expected)
     expect(readFileSync(path, 'utf8')).toBe(expected)
   })
