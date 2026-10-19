@@ -90,6 +90,22 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium
+      # The deploy key is rotated every 90 days (midst-infra beta/DEPLOY_KEY.md, #19): a warning from day 76, and no
+      # deploy at 90. If IAM can't be read (the stack without ReadOwnKeyDates, or oidc with no key), it says so
+      # and goes on: the check must never be the reason an urgent deploy can't happen for want of a permission.
+      - name: The deploy key is within its 90 days
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          set +e -uo pipefail  # GitHub's bash runs with -e, which would end the step on a failed read before it can warn
+          created="$(aws iam list-access-keys --query "AccessKeyMetadata[?AccessKeyId=='${AWS_ACCESS_KEY_ID}'].CreateDate | [0]" --output text 2>&1)"
+          if [ $? -ne 0 ] || [ -z "$created" ] || [ "$created" = None ]; then
+            echo "::warning::could not read the deploy key's age (${created:-no answer}); deploying without the 90-day check (midst-infra beta/DEPLOY_KEY.md)"
+            exit 0
+          fi
+          python3 deploy/beta/key_age.py --created "$created"
       - name: Deploy
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
