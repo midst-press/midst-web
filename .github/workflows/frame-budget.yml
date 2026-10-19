@@ -63,6 +63,10 @@ jobs:
           cat "$RUNNER_TEMP/frame-budget.md" >> "$GITHUB_STEP_SUMMARY"
           cat "$RUNNER_TEMP/frame-budget.md"
           exit "$failed"
+      # The two legacy-runtime tests need a GUI (their sampler precondition, #28). Run them headed
+      # under the same Xvfb. The attest tool greps only @frame-budget, so they are separate.
+      - name: legacy-runtime follow tests (headed under Xvfb)
+        run: xvfb-run -a --server-args="-screen 0 1440x1000x24" npx playwright test --grep @gui --headed
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
