@@ -2,14 +2,16 @@
 # The e2e suite as CI runs it: one server, built once, then the parallel-safe specs on several workers and the timing
 # specs on one, with nothing else of this job running beside them (playwright.config.ts, PARALLEL_SAFE).
 #
-#   MIDST_E2E_PORT=<free port> tools/e2e-split.sh [playwright test options, e.g. --grep-invert "@frame-budget|@gui"]
+#   [MIDST_E2E_PORT=<free port>] tools/e2e-split.sh [playwright test options, e.g. --grep-invert "@frame-budget|@gui"]
 #
 # Both runs always happen; the exit status is 1 if either failed. The server's own log is printed at the end. Each run
 # keeps its own results and HTML report (test-results/<project>, playwright-report/<project>), so a failure's trace
 # from the first run survives the second. Options that leave either project with no tests fail that run ("No tests
 # found"), so pass whole-suite filters, not a single spec file.
 set -euo pipefail
-port=${MIDST_E2E_PORT:?set MIDST_E2E_PORT to a free port}
+# Unset, a free port is picked, as CI does: the 8099 default in e2e:serve and playwright.config.ts can be taken.
+port=${MIDST_E2E_PORT:-$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')}
+export MIDST_E2E_PORT="$port"
 workers=${MIDST_E2E_WORKERS:-4}
 log=$(mktemp "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/e2e-serve.XXXXXX")
 
