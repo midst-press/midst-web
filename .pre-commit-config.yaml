@@ -88,6 +88,12 @@ repos:
         entry: node --test tools/test-publish-date.mjs
         pass_filenames: false
         files: '^tools/(test-)?publish-date\.mjs$'
+      - id: still-head-self-test
+        name: a heavy CI job stops when the PR has moved on, and runs in full when it cannot tell (midst-infra #102)
+        language: system
+        entry: node --test tools/test-still-head.mjs
+        pass_filenames: false
+        files: '^(\.gitea/scripts/still_head\.sh|tools/test-still-head\.mjs)$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail
