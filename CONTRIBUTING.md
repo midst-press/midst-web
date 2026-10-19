@@ -69,12 +69,7 @@ instead of amending one that is pushed. A clone set up before that hook existed 
 
 Several hooks call tools from `node_modules`, so run `npm ci` first.
 
-Some player helpers are copied from the editor and must stay identical to it, and a hook checks that.
-It needs a current checkout of `midst-press/midst-editor`, named by `MIDST_EDITOR_ROOT`:
-
 ```
-git clone https://github.com/midst-press/midst-editor.git ../midst-editor   # once; pull it before checking
-export MIDST_EDITOR_ROOT=$PWD/../midst-editor
 npx playwright install chromium                                             # once; the end-to-end tests need it
 
 pre-commit run --all-files    # formatting, type check, unused dependencies, project rules
