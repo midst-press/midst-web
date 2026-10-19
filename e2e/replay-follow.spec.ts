@@ -315,7 +315,7 @@ function jumpingFile(position: string) {
   return 'midstVersion: 1\n' + JSON.stringify({ text: snapshots[snapshots.length - 1], history: snapshots.map((inserted, i) => ({ front: 0, end: 0, inserted, t: i * 1000, pos: positions[i] })) })
 }
 
-for (const position of ['end', 'middle']) test(`actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
+for (const position of ['end', 'middle']) test(`@gui actual legacy runtime rejects the same follow scenario: ${position}`, async ({ page, baseURL }) => {
   const raw = jumpingFile(position)
   await serveArchive(page, baseURL!, zip(raw))
   await page.goto('/legacy-harness.html')
@@ -330,6 +330,9 @@ for (const position of ['end', 'middle']) test(`actual legacy runtime rejects th
     await page.waitForTimeout(1700)
   }, '#legacy-control')
   const result = verdict(rec)
+  const sampler = rec.samples.slice(1).map((sample, i) => sample[4] - rec.samples[i][4]).sort((a, b) => a - b)
+  expect(sampler.length, 'invalid measurement: sampler must have run').toBeGreaterThan(0)
+  expect(sampler[sampler.length - 1], 'invalid measurement: sampler interval must stay below 50ms to detect instant moves').toBeLessThan(50)
   expect(result.settledTargets).toEqual(expect.arrayContaining([140, 4, 110, 20]))
   expect(result.unfollowed, 'the actual legacy player must discriminate the follow guard').toBeGreaterThan(0)
 })

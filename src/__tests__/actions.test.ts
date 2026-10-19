@@ -7,6 +7,9 @@ import {
   setProcessNoteOpen,
   reverseSortOrder,
   setSortTerm,
+  ARCHIVE_READ_TIMEOUT_MS,
+  causeName,
+  describeCause,
 } from '../store/actions'
 import {
   LOAD_POEM_DATA,
@@ -18,6 +21,16 @@ import {
 } from '../store/types'
 
 // The names are the real ones; only the request is faked.
+// marked as it is, unless a test asks it to throw.
+const mockMarked = { throws: false }
+jest.mock('marked', () => {
+  const actual = jest.requireActual('marked')
+  const wrapped = (...args: unknown[]) => {
+    if (mockMarked.throws) throw new TypeError('zq marked')
+    return actual(...args)
+  }
+  return Object.assign(wrapped, actual)
+})
 jest.mock('../poems/key-scheme', () => ({ ...jest.requireActual('../poems/key-scheme'), fetchPoemAsset: jest.fn() }))
 let mockScheme: string | undefined = 'legacy'
 jest.mock('../config', () => ({
@@ -260,7 +273,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('refused'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: refused']])
   })
 
   it('timelapse response not ok: no reader, failure dispatched', async () => {
@@ -272,7 +285,7 @@ describe('loadPoemData failures before unzip', () => {
     expect(mockFetchAsset).toHaveBeenCalledTimes(2)
     expect(zip.createReader).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('refused'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: refused']])
   })
 
   it('network error on the note: no second fetch, failure dispatched', async () => {
@@ -283,7 +296,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('network'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to fetch the poem: Error: network down']])
   })
 
   it.each([
@@ -329,7 +342,7 @@ describe('loadPoemData failures before unzip', () => {
 
     expect(mockFetchAsset).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
   })
 })
 
@@ -343,7 +356,7 @@ describe('loadPoemData failures during unzip and parse', () => {
 
     expect(zip.createReader).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive']])
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: no cause given']])
   })
 
   it.each([
@@ -357,7 +370,7 @@ describe('loadPoemData failures during unzip and parse', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst file']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst file: Error']])
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain('QZXSENTINEL')
     expect(JSON.stringify(dispatch.mock.calls)).not.toContain('QZXSENTINEL')
   })
@@ -371,7 +384,7 @@ describe('loadPoemData failures during unzip and parse', () => {
 
     expect(zip.BlobWriter).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive']])
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: the archive has no entries']])
   })
 
   it('a failure names the poem at the index, not the first', async () => {
@@ -393,6 +406,134 @@ describe('window.zip missing', () => {
 
     expect(mockFetchAsset).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('unknown'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data']])
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
+  })
+})
+
+// #43: every way the archive read or a body read can fail reaches LOAD_POEM_FAILED. None of these may leave the
+// loading mark turning for ever.
+describe('loadPoemData: failures inside the archive read and the body read (#43)', () => {
+  const entryWith = (getData: any) => {
+    zip.createReader = jest.fn((_r: any, onReader: any) => onReader({ getEntries: (cb: any) => cb([{ getData }]) }))
+  }
+
+  it('asks zip.js to check the CRC, so a mismatch reaches its error callback rather than the parser', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    const getData = jest.fn((_w: any, cb: any) => cb(fakeBlob))
+    entryWith(getData)
+    await loadPoemData(0)(jest.fn(), stateWith([poemB]))
+    expect(getData.mock.calls[0][3]).toBe(true)
+  })
+
+  it('a CRC mismatch is logged with zip.js\'s own message', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    zip.createReader = jest.fn((_r: any, _ok: any, onError: any) => onError('CRC failed.'))
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: CRC failed.']])
+  })
+
+  it('a TypeError in our own callback is logged as one, not as a damaged file alone', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    entryWith(() => { throw new TypeError('zq is not a function') })
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: TypeError: zq is not a function']])
+  })
+
+  it('a throw inside a zip.js callback is damaged, not silent', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    entryWith(() => { throw new Error('zq inflate') })
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+  })
+
+  it('zip.js throwing as the reader is created is damaged', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    zip.createReader = jest.fn(() => { throw new Error('zq reader') })
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+  })
+
+  it('a FileReader error is damaged', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    ;(globalThis as any).FileReader = class {
+      private listeners: Record<string, any> = {}
+      // A real reader leaves result null on error, and the parser would then call it damaged anyway. A readable
+      // result beside the error makes this test fail unless the reader's error itself is checked.
+      result: string | null = validText
+      error = new Error('zq read')
+      addEventListener(type: string, fn: any) { this.listeners[type] = fn }
+      readAsText() { this.listeners.loadend({ target: this }) }
+    }
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
+  })
+
+  it('an archive read that never finishes gives up after the timeout', async () => {
+    jest.useFakeTimers()
+    try {
+      mockFetchAsset.mockResolvedValue(okResponse())
+      entryWith(() => { /* a worker that never answers */ })
+      const dispatch = jest.fn()
+      const done = loadPoemData(0)(dispatch, stateWith([poemB]))
+      await jest.advanceTimersByTimeAsync(ARCHIVE_READ_TIMEOUT_MS - 1)
+      expect(dispatch).not.toHaveBeenCalled()
+      await jest.advanceTimersByTimeAsync(1)
+      await done
+      expect(dispatch.mock.calls).toEqual(failedB('unknown'))
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('a connection dropped while reading the archive body is network', async () => {
+    mockFetchAsset.mockResolvedValue({ ok: true, text: async () => 'zq note', blob: async () => { throw new TypeError('zq dropped') } })
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('network'))
+  })
+
+  it('a connection dropped while reading the note body is network', async () => {
+    mockFetchAsset.mockResolvedValue({ ok: true, text: async () => { throw new TypeError('zq dropped') }, blob: async () => fakeBlob })
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('network'))
+  })
+})
+
+describe('the cause in a failure log', () => {
+  it('describeCause: name and message of an error, a string as it is, and what anything else was', () => {
+    expect(describeCause(new TypeError('zq'))).toBe('TypeError: zq')
+    expect(describeCause({ name: 'NotReadableError', message: 'zq xv' })).toBe('NotReadableError: zq xv')
+    expect(describeCause('CRC failed.')).toBe('CRC failed.')
+    expect(describeCause(undefined)).toBe('no cause given')
+    expect(describeCause(7)).toBe('a thrown number')
+    expect(describeCause(null)).toBe('a thrown object')
+    expect(describeCause('x'.repeat(300))).toHaveLength(200)
+  })
+
+  it('causeName: the name only, never the message', () => {
+    expect(causeName(new SyntaxError('Unexpected token, "zq xv" is not valid JSON'))).toBe('SyntaxError')
+    expect(causeName('zq')).toBe('a thrown string')
+    expect(causeName(null)).toBe('a thrown object')
+  })
+})
+
+describe('a failure outside the archive and the network', () => {
+  afterEach(() => { mockMarked.throws = false })
+
+  it('a throw from marked on the note is logged by name, never by its message', async () => {
+    mockFetchAsset.mockResolvedValue(okResponse())
+    mockMarked.throws = true
+    const dispatch = jest.fn()
+    await loadPoemData(0)(dispatch, stateWith([poemB]))
+    expect(dispatch.mock.calls).toEqual(failedB('unknown'))
+    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
   })
 })
