@@ -122,7 +122,7 @@ jobs:
       # generator derives their names from the app's own slug module, so if that derivation changes the
       # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
       # and it holds without storing anything poem-shaped in git.
-      - run: npm run test:e2e
+      - run: npx playwright test --grep-invert "@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme.
       - name: the same site under canonical keys
         env:
@@ -156,9 +156,9 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
-      - name: coverage (not the frame-budget tests; those run in frame-budget.yml)
+      - name: coverage (not the frame-budget or @gui tests; those run in frame-budget.yml)
         env:
-          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget|@gui
         run: npm run coverage
 
   # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this

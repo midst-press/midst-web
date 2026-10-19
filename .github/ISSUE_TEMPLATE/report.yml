@@ -26,3 +26,10 @@ body:
     attributes:
       label: Which page, in which browser, on what device?
       description: For example "the poem at midst.press/..., Safari on an iPhone".
+  - type: input
+    id: build
+    attributes:
+      label: Copy the line at the foot of the About page
+      description: Go to the About page and copy the build line at the foot, for example "Version v1.0.0, commit 4f2a3b1, committed 2026-10-18 20:30 UTC". This tells us which deployed build you saw the problem on.
+    validations:
+      required: false
