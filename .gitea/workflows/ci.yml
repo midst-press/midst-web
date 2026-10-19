@@ -19,9 +19,21 @@
 #
 # The end-to-end suite runs here too (job e2e). Its Chromium is installed into the runner account's
 # Playwright cache, so only the first job downloads it.
+#
+# Heavy jobs on a PR's turn (midst-infra #102). gates runs on every event. build, e2e and coverage run on a push
+# to main, and on a PR only while it carries the `ci-turn` label (the merge sweep's: this PR is next to merge)
+# or `full-ci` (an author's: run them now, before the turn). Any labelled run on such a PR runs them, whatever
+# label was added: a narrower condition lets another label post `skipped` over the turn's result.
+# Removing a label is NOT kept out by leaving `unlabeled` out of types: Gitea sends removing one label as the
+# same event as adding one (label_updated, a `labeled` run; only clearing every label is `unlabeled`). So taking
+# ci-turn off starts a run, which cancels a heavy run in progress and posts `skipped` for the heavy jobs (seen
+# on #200, runs 9848 and 9850). The merge sweep must not remove the label while that PR's CI is running.
+# Each heavy job first asks whether its commit is still the PR's head (.gitea/scripts/still_head.sh) and, if
+# the PR has moved on, stops there: a second guard, for a superseded run that cancel-in-progress misses.
 name: ci
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
 concurrency:
@@ -95,6 +107,7 @@ jobs:
           MIDST_FORMAT_ROOT="$RUNNER_TEMP/midst-format" node tools/check-vendored-format.mjs --rebuild
 
   build:
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: stuart-m3ultra-canary
     steps:
       - name: Homebrew first on PATH
@@ -102,15 +115,28 @@ jobs:
           echo /opt/homebrew/sbin >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: is this commit still the PR's head?
+        id: head
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          TOKEN: ${{ github.token }}
+        run: bash .gitea/scripts/still_head.sh
       - name: toolchain guard (Homebrew first, current versions)
+        if: steps.head.outputs.current == 'true'
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --ignore-scripts
-      - run: npm run build
+      - if: steps.head.outputs.current == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.head.outputs.current == 'true'
+        run: npm run build
       - name: record what was built
+        if: steps.head.outputs.current == 'true'
         run: echo "files=$(find dist -type f | wc -l | tr -d ' ') kilobytes=$(du -sk dist | cut -f1)"
 
   e2e:
     name: end-to-end (does a poem still play?)
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: stuart-m3ultra-canary
     steps:
       - name: Homebrew first on PATH
@@ -118,15 +144,27 @@ jobs:
           echo /opt/homebrew/sbin >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: is this commit still the PR's head?
+        id: head
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          TOKEN: ${{ github.token }}
+        run: bash .gitea/scripts/still_head.sh
       - name: toolchain guard (Homebrew first, current versions)
+        if: steps.head.outputs.current == 'true'
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --ignore-scripts
-      - run: npx playwright install chromium
+      - if: steps.head.outputs.current == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.head.outputs.current == 'true'
+        run: npx playwright install chromium
       # Jobs on this runner share one host, and CI runs in parallel, so a fixed port could collide.
       # playwright.config.ts and the e2e npm scripts all read MIDST_E2E_PORT.
       # The port is free when picked and is bound a moment later, when Playwright starts e2e:serve,
       # which takes it BEFORE building and exits 3 at once if another job got there first (#35).
       - name: pick a free port
+        if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
       # The @frame-budget follow tests never run here, so a green run of this job says nothing about
@@ -134,14 +172,17 @@ jobs:
       # run in .github/workflows/frame-budget.yml on GitHub, on the push-up after the Gitea merge (PROGRAMME).
       # The @gui legacy-runtime tests also need a GUI (their sampler precondition, #28); they run in frame-budget.yml.
       - name: run e2e (not the frame-budget or @gui tests; those run in frame-budget.yml)
+        if: steps.head.outputs.current == 'true'
         run: npx playwright test --grep-invert "@frame-budget|@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
       - name: the same site under canonical keys
+        if: steps.head.outputs.current == 'true'
         env:
           MIDST_KEY_SCHEME: canonical
         run: npx playwright test e2e/key-scheme.spec.ts e2e/poem-plays.spec.ts e2e/load-failure.spec.ts e2e/asset-canary.spec.ts
       - name: the site with the published poem list
+        if: steps.head.outputs.current == 'true'
         env:
           MIDST_POEM_LIST: published
         run: npx playwright test --config playwright.published.config.ts
@@ -152,6 +193,7 @@ jobs:
   # on any figure: this job fails only if the tests fail or the measurement's own control does.
   coverage:
     name: coverage (what the tests execute; numbers only)
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: stuart-m3ultra-canary
     steps:
       - name: Homebrew first on PATH
@@ -159,14 +201,27 @@ jobs:
           echo /opt/homebrew/sbin >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: is this commit still the PR's head?
+        id: head
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          TOKEN: ${{ github.token }}
+        run: bash .gitea/scripts/still_head.sh
       - name: toolchain guard (Homebrew first, current versions)
+        if: steps.head.outputs.current == 'true'
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --ignore-scripts
-      - run: npx playwright install chromium
+      - if: steps.head.outputs.current == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.head.outputs.current == 'true'
+        run: npx playwright install chromium
       - name: pick a free port
+        if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Excludes the @frame-budget and @gui tests, which never run on this runner (see the e2e job above).
       - name: coverage (not the frame-budget or @gui tests)
+        if: steps.head.outputs.current == 'true'
         env:
           MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget|@gui
         run: npm run coverage
