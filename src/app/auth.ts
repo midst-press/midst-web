@@ -58,7 +58,16 @@ export function claimsOf(token: string): Record<string, unknown> {
 }
 
 /** Where to send the browser to sign in. Remembers where to come back to. */
-export async function signInUrl(settings: AuthSettings, deps: AuthDeps, returnTo: string): Promise<string> {
+export const signInUrl = (settings: AuthSettings, deps: AuthDeps, returnTo: string): Promise<string> =>
+  managedLoginUrl('/oauth2/authorize', settings, deps, returnTo)
+
+/** Where to send the browser to reset a forgotten password (#243): the managed login's reset page, which takes "the
+ *  same parameters as /oauth2/authorize" (AWS, managed login endpoints). After the reset it asks the person to sign in,
+ *  and that sign-in comes back here like any other. */
+export const forgotPasswordUrl = (settings: AuthSettings, deps: AuthDeps, returnTo: string): Promise<string> =>
+  managedLoginUrl('/forgotPassword', settings, deps, returnTo)
+
+async function managedLoginUrl(path: string, settings: AuthSettings, deps: AuthDeps, returnTo: string): Promise<string> {
   const state = base64url(deps.randomBytes(16))
   const verifier = base64url(deps.randomBytes(48))
   deps.storage.setItem(PENDING, JSON.stringify({ state, verifier, returnTo }))
@@ -71,7 +80,7 @@ export async function signInUrl(settings: AuthSettings, deps: AuthDeps, returnTo
     code_challenge_method: 'S256',
     code_challenge: await challengeFor(verifier, deps),
   })
-  return `${settings.domain}/oauth2/authorize?${query}`
+  return `${settings.domain}${path}?${query}`
 }
 
 /**
