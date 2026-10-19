@@ -41,6 +41,8 @@ jobs:
       MIDST_EDITOR_ROOT: ${{ github.workspace }}/.editor-provenance
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the poem-ids hook compares ids with the merge base on origin/main (#65)
       - name: read-only checkout of editor main for helper provenance
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,12 +65,23 @@ jobs:
       # branch are line 118, the function's closing brace, which Jest's V8 converter counts and nothing can run.
       - name: unit tests with coverage thresholds
         run: npm test -- --coverage
+      - name: the coverage control's messages each fire
+        run: npm run test:coverage-control
       # The e2e server must hold its port from the start and fail early when it is taken (#35).
       # No dependencies: node's own test runner.
       - name: e2e server holds its port
         run: node --test tools/test-serve-local.mjs
       - run: pip install 'pre-commit==4.6.2'
       - run: pre-commit run --all-files --show-diff-on-failure
+      - name: vendored midst-format matches its VENDOR.md hashes
+        run: node tools/check-vendored-format.mjs
+      # Rebuilds the tag VENDOR.md names and byte-compares it with vendor/midst-format/. It runs in Gitea CI. Here
+      # it waits until the tag is on GitHub's midst-press/midst-format, which comes with the next push-up (Stuart's):
+      # without the tag the clone has nothing to rebuild and the step would fail.
+      # - name: vendored midst-format equals a rebuild of its tag
+      #   run: |
+      #     git clone --quiet https://github.com/midst-press/midst-format.git "$RUNNER_TEMP/midst-format"
+      #     MIDST_FORMAT_ROOT="$RUNNER_TEMP/midst-format" node tools/check-vendored-format.mjs --rebuild
 
   build:
     name: build
@@ -109,7 +122,7 @@ jobs:
       # generator derives their names from the app's own slug module, so if that derivation changes the
       # app asks for a name no fixture has and the tests go red -- which is the guarantee we wanted,
       # and it holds without storing anything poem-shaped in git.
-      - run: npm run test:e2e
+      - run: npx playwright test --grep-invert "@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme.
       - name: the same site under canonical keys
         env:
@@ -130,8 +143,8 @@ jobs:
   # unminified build to map back to src/, and the e2e job above must keep testing the build that
   # ships. Prints file paths and percentages only; see scripts/coverage-merge.mjs. Reported, not gated
   # on any figure: this job fails only if the tests fail or the measurement's own control does.
-  # Frame-budget tests require a GUI session (real frame rate). This job runs on ubuntu-latest with
-  # no GUI, so they are excluded with a visible warning — the same treatment as Gitea's coverage job.
+  # The @frame-budget tests are excluded here, as in Gitea's coverage job: they need a real frame cadence
+  # (Chromium headed under Xvfb), and they run in frame-budget.yml.
   coverage:
     name: coverage (what the tests execute; numbers only)
     runs-on: ubuntu-latest
@@ -143,12 +156,10 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
-      - name: coverage (frame-budget tests excluded — no GUI session)
+      - name: coverage (not the frame-budget or @gui tests; those run in frame-budget.yml)
         env:
-          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget
-        run: |
-          echo "::warning::coverage EXCLUDES the frame-budget tests: runner has no GUI session"
-          npm run coverage
+          MIDST_COVERAGE_TEST_ARGS: --grep-invert @frame-budget|@gui
+        run: npm run coverage
 
   # NON-BLOCKING. Exists so Linux breakage is VISIBLE rather than unknown. Do not make this
   # required until its findings are worked through -- and do not delete it to make the page green,

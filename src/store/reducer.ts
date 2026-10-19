@@ -6,6 +6,7 @@ import produce from 'immer'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
+  LOAD_POEM_RETRY,
   LOAD_POEM_LIST,
   POEM_LIST_FAILED,
   REVERSE_SORT_ORDER,
@@ -22,6 +23,10 @@ import poemData from '../poems'
 import * as poemNames from '../poems/poem-names'
 import { POEM_LIST } from '../config'
 
+// A stored date is YYYY-MM-DD (midst-infra #81), parsed strictly: anything else, or null, is an invalid moment,
+// which the page shows as no date, never as a date moment guessed from another form.
+const storedDate = (value: unknown) => moment(typeof value === 'string' ? value : null, 'YYYY-MM-DD', true)
+
 function createPoem(data: any, position: number = 0) {
   // Derived by src/poems/poem-names.js, which is the one definition shared with the tooling. It
   // used to be inlined here and transcribed again in tools/poem-canary.mjs; two copies of the rule
@@ -35,8 +40,8 @@ function createPoem(data: any, position: number = 0) {
     authorSecondaryFolder: data.authorSecondaryFolder,
     cursorFollowing: data.cursorFollowing,
     data: null,
-    date: moment(data.date),
-    publishDate: moment(data.publishDate),
+    date: storedDate(data.date),
+    publishDate: storedDate(data.publishDate),
     poemId: `${authorId}--${url}`,
     position,
     hasScrollbar: data.hasScrollbar,
@@ -63,8 +68,8 @@ function createPublishedPoem(entry: any, position: number): IPoem {
     highlighted: entry.highlighted,
     id: entry.poemId,
   }, position)
-  poem.date = moment(entry.date)
-  poem.publishDate = moment(entry.publishDate)
+  poem.date = storedDate(entry.date)
+  poem.publishDate = storedDate(entry.publishDate)
   poem.keys = entry.keys
   return poem
 }
@@ -112,6 +117,13 @@ const reducer = (
       return produce(state, draftState => {
         const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
         if (poem) poem.loadFailure = payload.reason
+      })
+
+    // A retry of a failed poem: the failure message comes down, so the page shows the loading mark again (#43).
+    case LOAD_POEM_RETRY:
+      return produce(state, draftState => {
+        const poem = draftState.poems.find(poem => poem.poemId === payload.poemId)
+        if (poem) poem.loadFailure = null
       })
 
     // The list replaces whatever the state held, in the order given: reading order, as the bundle's is until

@@ -14,12 +14,14 @@ default_install_hook_types: [pre-commit, commit-msg, pre-push]
 # The checks run on commit, and in CI by `pre-commit run`. Only the hooks below that name another stage run there:
 # the closing-keyword check on the commit message, the force-push refusal on push.
 default_stages: [pre-commit, manual]
+# The vendored build vendor/midst-format/ is byte-exact (its VENDOR.md): no whitespace fixer, line-ending fixer
+# or formatter may touch it, so each of those hooks excludes it. The vendored-format hook guards it by hash.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^static/|^etc/|^src/components/MidstPlayer/(follow|helpers)\.ts$|^src/__tests__/editor-(follow|followMore|trackingUtils)\.test\.ts$|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^src/components/MidstPlayer/follow\.ts$|^src/__tests__/editor-(follow|followMore)\.test\.ts$|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
@@ -50,6 +52,12 @@ repos:
         entry: node --test tools/test-check-editor-helpers.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-editor-helpers\.mjs$'
+      - id: vendored-format
+        name: vendor/midst-format matches the SHA-256 block in its VENDOR.md
+        language: system
+        entry: node tools/check-vendored-format.mjs
+        pass_filenames: false
+        files: '^vendor/midst-format/|^tools/check-vendored-format\.mjs$'
       - id: import-case
         name: relative imports are spelled exactly as git names the file (macOS hides this; Linux does not)
         language: system
@@ -62,18 +70,36 @@ repos:
         entry: node --test tools/test-check-import-case.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-import-case\.mjs$'
+      - id: frame-budget-report-self-test
+        name: the frame-budget attestation reads the verdict the spec attached, and names why a run failed (#20, #68)
+        language: system
+        entry: node --test tools/test-frame-budget-report.mjs
+        pass_filenames: false
+        files: '^(tools/(test-)?frame-budget-(report|attest)\.mjs|e2e/replay-follow\.spec\.ts)$'
       - id: seed-published-self-test
         name: the published-list seed refuses an inconsistent or unstaged list, and names no poem
         language: system
         entry: node --test tools/test-seed-published.mjs
         pass_filenames: false
-        files: '^(tools/(test-)?seed-published\.mjs|src/poems/key-scheme\.js)$'
+        files: '^(tools/(test-)?(seed-published|publish-date)\.mjs|src/poems/key-scheme\.js)$'
+      - id: publish-date-self-test
+        name: publishDate is written as YYYY-MM-DD, strictly, naming a refused poem by id only (#158)
+        language: system
+        entry: node --test tools/test-publish-date.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?publish-date\.mjs$'
+      - id: still-head-self-test
+        name: a heavy CI job stops when the PR has moved on, and runs in full when it cannot tell (midst-infra #102)
+        language: system
+        entry: node --test tools/test-still-head.mjs
+        pass_filenames: false
+        files: '^(\.gitea/scripts/still_head\.sh|tools/test-still-head\.mjs)$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail
         entry: >-
           Poem timelapses are the poets' work and must not enter git. A public push cannot be
-          withdrawn. Keep them with the archive and point MIDST_CORPUS at it. See DATA.md.
+          withdrawn. Keep them outside this repository, beside the archive. See DATA.md.
         files: '(\.midst$|\.midst\.zip$|(^|/)static/static/assets/poems/)'
       - id: forbid-font-files
         name: font files must never be committed
@@ -125,7 +151,7 @@ repos:
         language: system
         entry: node tools/poem-ids.mjs
         pass_filenames: false
-        files: '^(src/poems/[^/]+\.json|tools/poem-ids\.mjs)$'
+        files: '^(src/poems/[^/]+\.json|tools/poem-ids\.mjs|tools/retired-poem-ids\.json)$'
       - id: poem-ids-self-test
         name: the poem id check passes on sound ids and names each way they can be wrong
         language: system
