@@ -2,7 +2,7 @@
 # deploy_site.sh -- build midst-web at a chosen commit and publish it to the site stack's bucket.
 #
 # Usage:
-#   deploy_site.sh --web-repo PATH --key-scheme legacy|canonical --poem-list bundled|published [--ref REF] [--tag TAG] [--stack NAME | --site BUCKET DISTRIBUTION POEMS_URL SITE_URL] [--dry-run] [--no-smoke]
+#   deploy_site.sh --web-repo PATH --key-scheme legacy|canonical --poem-list bundled|published [--ref REF] [--tag TAG] [--stack NAME | --site BUCKET DISTRIBUTION POEMS_URL SITE_URL] [--fonts-repo PATH] [--dry-run] [--no-smoke]
 #
 #   --web-repo  a clone of midst-web (any remote layout; REF must resolve in it after a fetch)
 #   --key-scheme  which object names the site asks the poems bucket for (midst-web #41). Required, and
@@ -21,6 +21,11 @@
 #   --site      the four values below given directly instead of read from the stack, for an identity
 #               that may write the site but not read CloudFormation (beta/github-deploy.yaml grants
 #               no CloudFormation access). All four or none; with --site, --stack is not used.
+#   --fonts-repo  a clone of the private midst-fonts. The site loads its fonts from /fonts/ at its own origin,
+#               and the files are not in midst-web (midst-web #56). The names are the deployed commit's
+#               src/font-faces.json; each is found by file name in the clone and uploaded to fonts/<name>.
+#               A name that is missing, or found twice, refuses the deploy. Without it, no font is uploaded,
+#               with a warning (the site shows system fonts unless the bucket already has them).
 #   --dry-run   build, then print what would be uploaded and invalidated; write nothing to AWS
 #   --no-smoke  skip the browser check at the end
 #
@@ -51,7 +56,8 @@
 #      content hash (name.<8 hex>.ext, and their .map) go first, every one re-sent, with Cache-Control
 #      "public, max-age=31536000, immutable": a changed file gets a new name (midst-infra #75). Every
 #      other file keeps the bucket's default. A build with no hashed file is refused.
-#   6. upload site-extra/ (robots.txt, .well-known/tdmrep.json: the AI-training opt-out)
+#   6. upload site-extra/ (robots.txt, .well-known/tdmrep.json: the AI-training opt-out). The fonts (--fonts-repo)
+#      go up before everything in step 5; which files is settled before anything is uploaded, on a dry run too
 #   7. upload deployed.json: the midst-web SHA, the tag, the key scheme and the time, so "what is deployed?" has an answer
 #   8. invalidate the distribution and wait for it
 #   9. smoke check: every published poem's page mounts the player with text (smoke_site.cjs);
@@ -70,6 +76,7 @@ SCHEME=""
 POEM_LIST=""
 DRY=0
 SMOKE=1
+FONTS_REPO=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --web-repo) [ $# -ge 2 ] || { echo "--web-repo requires a value" >&2; exit 1; }; WEB="$2"; shift 2 ;;
@@ -84,13 +91,15 @@ while [ $# -gt 0 ]; do
               case "$x" in ""|-*) echo "--site takes four values: BUCKET DISTRIBUTION POEMS_URL SITE_URL; got '$x'" >&2; exit 1 ;; esac
             done
             BUCKET="$2"; DIST="$3"; POEMS_URL="$4"; SITE_URL="$5"; GIVEN=1; shift 5 ;;
+    --fonts-repo) [ $# -ge 2 ] || { echo "--fonts-repo requires a value" >&2; exit 1; }; FONTS_REPO="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --no-smoke) SMOKE=0; shift ;;
-    -h|--help) sed -n '2,53p' "$0"; exit 0 ;;
+    -h|--help) awk 'NR > 1 && /^set -euo pipefail/ { exit } NR > 1' "$0"; exit 0 ;;  # the header, however long
     *) echo "unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 [ -n "$WEB" ] || { echo "--web-repo is required" >&2; exit 1; }
+[ -z "$FONTS_REPO" ] || [ -d "$FONTS_REPO" ] || { echo "--fonts-repo $FONTS_REPO is not a directory" >&2; exit 1; }
 case "$SCHEME" in
   legacy|canonical) ;;
   "") echo "--key-scheme is required: legacy or canonical. There is no default." >&2; exit 1 ;;
@@ -191,6 +200,55 @@ else
 echo "poems reachable under '$SCHEME': $(grep -m1 '^timelapses reachable' "$WT/canary.log" | cut -d' ' -f3)"
 fi
 
+# Fonts (midst-infra #10): settled here, before anything is uploaded, so a missing or doubled file refuses the deploy.
+FONTS=()
+if [ ! -f "$WT/src/font-faces.json" ]; then
+  echo "fonts: midst-web $SHORT has no src/font-faces.json (it predates midst-web #56 and carries its own); none uploaded"
+elif [ -z "$FONTS_REPO" ]; then
+  echo "WARNING: no --fonts-repo, so no fonts are uploaded. The site shows system fonts unless the bucket already has them." >&2
+else
+  python3 - "$WT/src/font-faces.json" "$FONTS_REPO" > "$WT/fonts.plan" <<'FONT_PLAN' || { echo "fonts: nothing uploaded." >&2; exit 1; }
+import json, os, sys
+faces, repo = sys.argv[1:]
+TYPES = {"ttf": "font/ttf", "otf": "font/otf", "woff": "font/woff", "woff2": "font/woff2", "eot": "application/vnd.ms-fontobject"}
+try:
+    with open(faces, encoding="utf-8") as handle:
+        names = sorted({source["file"] for face in json.load(handle) for source in face["sources"]})
+except (OSError, ValueError, KeyError, TypeError) as error:
+    sys.exit(f"fonts: cannot read the font names in src/font-faces.json: {error.__class__.__name__}: {error}")
+found = {}
+for folder, dirs, files in os.walk(repo):
+    dirs[:] = [d for d in dirs if d != ".git"]
+    for name in files:
+        found.setdefault(name, []).append(os.path.join(folder, name))
+problems, plan = [], []
+for name in names:
+    if not isinstance(name, str) or not name or "/" in name or name.startswith(".") or any(c in name for c in "\t\n"):
+        problems.append(f"{name!r} is not a plain file name")
+        continue
+    kind = TYPES.get(name.rsplit(".", 1)[-1].lower())
+    hits = found.get(name, [])
+    if kind is None:
+        problems.append(f"{name} is not a font type this script knows ({', '.join(sorted(TYPES))})")
+    elif not hits:
+        problems.append(f"{name} is not in {repo}")
+    elif len(hits) > 1:
+        problems.append(f"{name} is in {repo} {len(hits)} times: " + ", ".join(sorted(os.path.relpath(h, repo) for h in hits)))
+    else:
+        plan.append(f"{hits[0]}\t{name}\t{kind}")
+if problems:
+    sys.exit("fonts: " + "; ".join(problems))
+if plan:
+    print("\n".join(plan))
+FONT_PLAN
+  # An empty font list is an empty plan, never one blank upload (alden-ec2221c7, review of #118).
+  while IFS=$'\t' read -r path name kind; do
+    [ -n "$path" ] || continue
+    FONTS+=("$path" "$name" "$kind")
+  done < "$WT/fonts.plan"
+  echo "fonts to upload to fonts/: $(( ${#FONTS[@]} / 3 ))"
+fi
+
 python3 -c 'import json,sys,datetime; print(json.dumps({"midst-web": sys.argv[1], "tag": sys.argv[3] or None,
   "key_scheme": sys.argv[2], "poem_list": sys.argv[4], "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")}))' \
   "$SHA" "$SCHEME" "$TAG" "$POEM_LIST" > "$WT/deployed.json"
@@ -221,7 +279,7 @@ echo "content-hashed files, cached a year as immutable: ${#HASHED[@]}"
 if [ $DRY = 1 ]; then
   aws s3 cp "$WT/dist" "s3://$BUCKET/" --recursive "${HASHED_ARGS[@]}" --cache-control "$IMMUTABLE" --dryrun | sed -n '1,20p'
   aws s3 sync "$WT/dist" "s3://$BUCKET/" "${REST_ARGS[@]}" --dryrun | sed -n '1,20p'
-  echo "(dry run) then index.html, site-extra/, deployed.json, and an invalidation of /* on $DIST"
+  echo "(dry run) then index.html, site-extra/, $(( ${#FONTS[@]} / 3 )) fonts, deployed.json, and an invalidation of /* on $DIST"
   exit 0
 fi
 
@@ -236,6 +294,13 @@ if PREV_JSON="$(aws s3 cp "s3://$BUCKET/deployed.json" - --only-show-errors 2>&1
 else
   echo "could not read previous deployed.json: $PREV_JSON" >&2
 fi
+
+# Fonts first (cora-2f1e43dc and alden-ec2221c7, review of #118): the new index.html must never name a face that is
+# not there yet, and an identity that may not write fonts/ (github-deploy.yaml's NeverWriteFonts) must stop the deploy
+# before anything a reader sees has changed.
+for ((i = 0; i < ${#FONTS[@]}; i += 3)); do
+  aws s3 cp "${FONTS[i]}" "s3://$BUCKET/fonts/${FONTS[i+1]}" --content-type "${FONTS[i+2]}" --only-show-errors
+done
 
 # cp, not sync: sync skips a file already in the bucket at the same size and time, which would leave a bundle
 # from an earlier deploy without the header. A hashed name never changes content, so re-sending is safe
