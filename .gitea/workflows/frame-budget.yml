@@ -15,7 +15,8 @@
 #   dispatched ref points at (github.sha, the run's head_sha). A dispatched run writes no commit status on this
 #   Gitea (28.1; run 9837), so the gate reads the run's conclusion from the Actions runs API, matching head_sha.
 #   The job name stays constant: pr_watch alerts on any job name outside its contract.
-# - pull_request touching the follow code or this test.
+# - pull_request touching the follow code or this test, on the PR's turn only, as ci.yml's heavy jobs: the
+#   ci-turn or full-ci label, and only while the commit is still the PR's head (still_head.sh, midst-infra #102).
 # No retries and no re-run: a failure is a failure.
 name: frame-budget
 run-name: frame-budget ${{ inputs.sha || github.sha }}
@@ -26,6 +27,7 @@ on:
         description: full 40-character commit on main
         required: true
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - src/components/MidstPlayer/**
       - e2e/replay-follow.spec.ts
@@ -46,6 +48,7 @@ defaults:
 jobs:
   follow:
     name: replay follows the writing (host profile)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: stuart-m3ultra-canary
     timeout-minutes: 30
     steps:
@@ -64,6 +67,15 @@ jobs:
         with:
           ref: ${{ inputs.sha || github.sha }}
           fetch-depth: 0
+      # Answers true without asking on workflow_dispatch.
+      - name: is this commit still the PR's head?
+        id: head
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}
+          TOKEN: ${{ github.token }}
+        run: bash .gitea/scripts/still_head.sh
       # The run is recorded against the commit the dispatched ref pointed at (github.sha, its head_sha), whatever
       # `sha` says. So the job refuses a sha that is not that commit: a run matched by head_sha then tested it.
       - name: checked out exactly that commit, it is on main, and it is the run's head_sha
@@ -78,21 +90,24 @@ jobs:
           git fetch --quiet origin main
           git merge-base --is-ancestor "$WANT" origin/main || { echo "::error::$WANT is not on main"; exit 1; }
       - name: toolchain guard (Homebrew first, current versions)
+        if: steps.head.outputs.current == 'true'
         run: bash .gitea/scripts/toolchain_guard.sh .nvmrc
-      - run: npm ci --ignore-scripts
-      - run: npx playwright install chromium
+      - if: steps.head.outputs.current == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.head.outputs.current == 'true'
+        run: npx playwright install chromium
       - name: pick a free port
+        if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # The verdict is Playwright's exit status. The summary is written either way, and says which commit.
       - name: follow tests, host profile, no retries
+        if: steps.head.outputs.current == 'true'
         run: |
           out="$RUNNER_TEMP/frame-budget.md"
           { echo "### frame-budget, host profile, $(git rev-parse HEAD)"; echo; } > "$out"
           set +e
           npx playwright test --grep "@frame-budget writing jumps" --retries 0 --reporter line > "$RUNNER_TEMP/run.log" 2>&1
           rc=$?
-          set -e
-          set +e
           node tools/frame-budget-host-summary.mjs "$RUNNER_TEMP/run.log" "$rc" >> "$out"
           summary=$?
           set -e
