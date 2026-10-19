@@ -91,11 +91,15 @@ jobs:
           printf '%s\n' '[gitea-server]:2222 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC/VGpxJRKcHAJCSqYHQ+NZNS7v2pibbUelMYqemnO8DOoAU6fngzVz49QPLvYQXy3Rc1W57+cf1MOrzYVJC3unsyIiMGycgQdKBqHAc8+rmBPvGvS+0U28T2F8idZlzfLIa8kt6K7dUkw2l65h5mHxAQ8YHyLv9kgNRVYMzjZmmX4Y1mYdJegyP8IAZUVgKewzw6FVNnJrN0/iomQSfhwYBIoPN4w9cUrKLuIteZX0Rs1FEZbSMy9GxyiH0fRn0X9P/0QO973UwaxlkSEKZY31+Geex1ynCEuulwQGkhhGhmnnaTCTlS9hwHpJ+pcrb0OnVdJj8cxeq1WLyVnZMEtHbu5+LX8ViicW8exEf9VAcJUExgn+itJXU5NceNcZLotDScJXGV1UI/de5TgjuB3WyFQphYdeiuKxwRywtV8fEFzzZRl+t1gSDvDjSU3/DJM4gZm5lARUnClUOW6uRGx6wuryhBeYoJroBzlnHZp+yOlWYdTwrcZG5+wk60R6ETjqOq/zysAg2fZTA2obvTmYlOojYf+nfvIPT0I0FZNPDaY1qqtR8pgJwZX61yHtDEiqHyje+NQUeIvAt+vm7wQ6coYSlle+5zzWuDZzgo15KkXqAZCdgv8al+WRSZKTdGnNer5cB0uZSBSDr9dg95WLX0o+rUYTX9g0ocmcrOpP0Q==' > "$RUNNER_TEMP/editor_known_hosts"
           export GIT_SSH_COMMAND="ssh -F /dev/null -p 2222 -i $EDITOR_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/editor_known_hosts"
           git clone --quiet --branch main stuartswerdloff@gitea-server:The_Kindled/midst-editor.git "$MIDST_EDITOR_ROOT"
-      - name: pre-commit, in a throwaway virtual environment
+      # Homebrew's pre-commit (the toolchain guard above failed the job if it is missing or not Homebrew's), as in
+      # midst-editor. A fresh virtual environment and a pip install on every job took about 43 s before the first hook
+      # reported (gates, run 10193); the host's install reaches it in about 2 s. Whether the hook cache was already
+      # there is printed, so the log shows it.
+      - name: pre-commit (the host's Homebrew install)
         run: |
-          python3 -m venv "$RUNNER_TEMP/precommit"
-          "$RUNNER_TEMP/precommit/bin/pip" install --quiet 'pre-commit==4.6.2'
-          "$RUNNER_TEMP/precommit/bin/pre-commit" run --all-files --show-diff-on-failure
+          cache="${PRE_COMMIT_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/pre-commit}"
+          if [ -d "$cache" ]; then echo "pre-commit cache: present at $cache"; else echo "pre-commit cache: none yet at $cache"; fi
+          pre-commit run --all-files --show-diff-on-failure
       # The message catalog (midst-infra docs/design/message-catalog.md): does it match the code, is it consistent,
       # how many words are still written into the code, and is Lingui held below 6. Report only, except the pin:
       # each migration PR makes the part it migrates enforcing.
