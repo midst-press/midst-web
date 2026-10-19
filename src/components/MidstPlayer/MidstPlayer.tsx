@@ -220,8 +220,11 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     if (containerWidth > 0) setLabelWidthPct((el.offsetWidth / containerWidth) * 100)
   }, [])
   useLayoutEffect(measureLabel, [labelText, measureLabel])
-  // Observe the timeline, which is always rendered, not the label, which is not: a player mounted with no data
-  // has no label, and an effect that ran once then would never observe a resize after the data arrived (#94).
+  // Observe the timeline, which is always rendered: a player mounted with no data has no label, and an effect
+  // that ran once then would never observe a resize after the data arrived (#94). Observe the label too, while it
+  // is rendered: its width changes without its text or the timeline changing when a web font from FONTS_URL
+  // finishes loading, and a width measured in the fallback font clamps the label past the timeline's ends.
+  const hasLabel = labelText != null
   useEffect(() => {
     const timeline = timelineRef.current
     if (!timeline) return
@@ -230,8 +233,9 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measureLabel)
     observer.observe(timeline)
+    if (timestampRef.current) observer.observe(timestampRef.current)
     return () => observer.disconnect()
-  }, [measureLabel])
+  }, [measureLabel, hasLabel])
   const clampedCentre = clampLabelCentre(playheadPercent, labelWidthPct)
   const playheadLeft = `${clampedCentre}%`
   const playheadTransform = 'translateX(-50%)'

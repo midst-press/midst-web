@@ -8,16 +8,20 @@
     "url": "https://midst.press"
   },
   "scripts": {
-    "build": "node tools/check-key-scheme.mjs && parcel build src/index.html --public-url / --no-autoinstall --no-cache",
+    "build": "node tools/check-key-scheme.mjs && npm run catalog:compile && parcel build src/index.html --public-url / --no-autoinstall --no-cache",
+    "catalog:compile": "lingui compile",
+    "catalog:extract": "lingui extract",
+    "catalog:check": "node tools/check-catalog.mjs",
+    "catalog:report": "lingui extract && (test -z \"$(git status --porcelain -- locales)\" || echo 'catalog: lingui extract changed locales/, so the catalog does not match the code (report only)') && node tools/check-catalog.mjs --report-only && node tools/check-site-strings.mjs --report-only && node tools/check-lingui-pin.mjs",
     "check:deps": "node tools/check-unused-deps.mjs",
-    "coverage": "rm -rf coverage && jest --coverage --collectCoverageFrom='src/**/*.{ts,tsx,js,jsx}' --collectCoverageFrom=e2e/coverage-control.ts --coverageReporters=json --reporters=default --reporters=./scripts/coverage-jest-reporter.cjs && MIDST_COVERAGE=1 playwright test ${MIDST_COVERAGE_TEST_ARGS:-} && node scripts/coverage-merge.mjs",
-    "e2e:build": "MIDST_APP_API_URL=https://api.example.invalid MIDST_APP_AUTH_DOMAIN=https://auth.example.invalid MIDST_APP_CLIENT_ID=zqclient MIDST_BUILD_TAG=v9.9.9-zq MIDST_BUILD_COMMIT=zq12345 MIDST_BUILD_DATE=2001-02-03T04:05:00Z MIDST_POEMS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_MEDIA_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_FONTS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/fonts/ npm run build -- ${MIDST_COVERAGE:+--no-optimize} && parcel build e2e/legacy-harness.html --public-url / --no-autoinstall ${MIDST_COVERAGE:+--no-optimize}",
+    "coverage": "rm -rf coverage && jest --coverage --collectCoverageFrom='src/**/*.{ts,tsx,js,jsx}' --collectCoverageFrom=e2e/coverage-control.ts --coverageReporters=json --reporters=default --reporters=./scripts/coverage-jest-reporter.cjs && MIDST_COVERAGE=1 tools/e2e-split.sh ${MIDST_COVERAGE_TEST_ARGS:-} && node scripts/coverage-merge.mjs",
+    "e2e:build": "env MIDST_APP_API_URL=https://api.example.invalid MIDST_APP_AUTH_DOMAIN=https://auth.example.invalid MIDST_APP_CLIENT_ID=zqclient MIDST_BUILD_TAG=v9.9.9-zq MIDST_BUILD_COMMIT=zq12345 MIDST_BUILD_DATE=2001-02-03T04:05:00Z MIDST_POEMS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_MEDIA_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/ MIDST_FONTS_URL=http://127.0.0.1:${MIDST_E2E_PORT:-8099}/archive/fonts/ sh -c 'npm run build -- ${MIDST_COVERAGE:+--no-optimize} && parcel build e2e/legacy-harness.html --public-url / --no-autoinstall ${MIDST_COVERAGE:+--no-optimize}'",
     "e2e:build:published": "MIDST_POEM_LIST=published MIDST_BUILD_TAG=v9.9.9-zq MIDST_BUILD_COMMIT=zq12345 MIDST_BUILD_DATE=2001-02-03T04:05:00Z MIDST_POEMS_URL=http://127.0.0.1:${MIDST_E2E_PUBLISHED_PORT:-8098}/archive/ MIDST_MEDIA_URL=http://127.0.0.1:${MIDST_E2E_PUBLISHED_PORT:-8098}/archive/ MIDST_FONTS_URL=http://127.0.0.1:${MIDST_E2E_PUBLISHED_PORT:-8098}/archive/fonts/ npm run build -- --dist-dir dist-published",
     "e2e:fixtures": "node tools/make-e2e-fixtures.mjs",
     "e2e:fixtures:published": "MIDST_POEM_LIST=published node tools/make-e2e-fixtures.mjs",
     "e2e:serve": "node tools/serve-local.mjs --root dist --archive e2e/fixtures/poems --port ${MIDST_E2E_PORT:-8099} --host 127.0.0.1 --prepare \"npm run e2e:fixtures && npm run e2e:build\"",
     "e2e:serve:published": "node tools/serve-local.mjs --root dist-published --archive e2e/fixtures/published --port ${MIDST_E2E_PUBLISHED_PORT:-8098} --host 127.0.0.1 --prepare \"npm run e2e:fixtures:published && npm run e2e:build:published\"",
-    "start": "node tools/check-key-scheme.mjs && parcel src/index.html --no-autoinstall",
+    "start": "node tools/check-key-scheme.mjs && npm run catalog:compile && parcel src/index.html --no-autoinstall",
     "test:e2e": "playwright test",
     "test:e2e:published": "MIDST_POEM_LIST=published playwright test --config playwright.published.config.ts",
     "e2e:frame-budget": "playwright test --grep \"@frame-budget|@gui\"",
@@ -29,6 +33,7 @@
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
+    "@lingui/core": ">=5.9.5 <6",
     "@midst-press/midst-format": "file:vendor/midst-format",
     "@rooks/use-window-size": "4.6.1",
     "@tiptap/pm": "2.5.4",
@@ -69,6 +74,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
+    "@lingui/cli": ">=5.9.5 <6",
+    "@lingui/format-po": ">=5.9.5 <6",
+    "@messageformat/parser": "5.2.0",
     "@playwright/test": "^1.64.0",
     "depcheck": "1.4.7",
     "istanbul-lib-coverage": "3.2.2",
@@ -77,10 +85,11 @@
     "monocart-coverage-reports": "2.13.2",
     "parcel": "2.16.4",
     "parcel-reporter-static-files-copy": "1.5.3",
+    "pofile": "1.1.4",
     "prettier": "1.18.2",
     "process": "^0.11.10",
     "ts-jest": "^29.4.14",
-    "typescript": "4.6.3"
+    "typescript": "4.9.5"
   },
   "overrides": {
     "@tiptap/core": "2.5.4",
@@ -116,7 +125,7 @@
   ],
   "jest": {
     "testEnvironment": "node",
-    "globalSetup": "<rootDir>/tools/require-hooks.cjs",
+    "globalSetup": "<rootDir>/tools/jest-global-setup.cjs",
     "testMatch": [
       "<rootDir>/src/**/__tests__/**/*.test.{ts,tsx}",
       "<rootDir>/tools/__tests__/**/*.test.cjs"

@@ -81,7 +81,7 @@ function Poem(): ReactElement {
                   sliding-poems__poem
                   sliding-poems__poem--${poem.loaded ? 'loaded' : ''}
                   ${poem.loadFailure && !poem.loaded ? 'sliding-poems__poem--failed' : ''}
-                  sliding-poems__poem--${poem.poemId}
+                  sliding-poems__poem--${poem.cssId}
                 `}
                 data-trigger={poem.trigger ? 'true' : 'false'}
                 key={poem.poemId}

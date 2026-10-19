@@ -26,6 +26,28 @@ if (poemList.parsePoemList(process.env.MIDST_POEM_LIST) !== 'bundled') {
   throw new Error('This suite tests the bundled poem list: run it with MIDST_POEM_LIST=bundled. The published list is `npm run test:e2e:published`.')
 }
 
+// Specs that never time the player: no timers, frames or elapsed-time checks. They run on several workers in CI
+// (tools/e2e-split.sh). Every other spec, and any spec added later, is in `timing` and runs on one worker, with no other
+// worker of the job beside it, as the whole suite did before (CI task, Stuart, 19 Oct). Add a spec here only once it
+// is read to be free of timing.
+const PARALLEL_SAFE = [
+  'about-build.spec.ts',
+  'app-admin.spec.ts',
+  'app-help.spec.ts',
+  'app-publisher.spec.ts',
+  'app-review.spec.ts',
+  'app-sign-in.spec.ts',
+  'app-submit.spec.ts',
+  'asset-canary.spec.ts',
+  'asset-fetch.spec.ts',
+  'key-scheme.spec.ts',
+  'load-failure.spec.ts',
+  'poem-nav.spec.ts',
+  'process-note.spec.ts',
+  'read-page.spec.ts',
+  'readers-guide.spec.ts',
+]
+
 const PORT = Number(process.env.MIDST_E2E_PORT ?? 8099)
 const BASE = `http://127.0.0.1:${PORT}`
 
@@ -52,11 +74,16 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'parallel-safe', testMatch: PARALLEL_SAFE, use: { ...devices['Desktop Chrome'] } },
+    // A project's testIgnore replaces the top-level one, so published-list.spec.ts is named again here.
+    { name: 'timing', testIgnore: ['published-list.spec.ts', ...PARALLEL_SAFE], use: { ...devices['Desktop Chrome'] } },
+  ],
   webServer: {
     command: `npm run e2e:serve`,
     url: BASE,
-    reuseExistingServer: !process.env.CI,
+    // tools/e2e-split.sh starts one server, built once, and both of its runs use it.
+    reuseExistingServer: !process.env.CI || process.env.MIDST_E2E_REUSE_SERVER === '1',
     timeout: 300_000,
     stdout: 'pipe',
     stderr: 'pipe',

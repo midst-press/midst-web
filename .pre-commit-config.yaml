@@ -94,6 +94,18 @@ repos:
         entry: node --test tools/test-publish-date.mjs
         pass_filenames: false
         files: '^tools/(test-)?publish-date\.mjs$'
+      - id: lingui-pin
+        name: Lingui is held below 6, written ">=5.9.5 <6" (midst-infra #110; Stuart, 19 Oct)
+        language: system
+        entry: bash -c 'node --test tools/test-check-lingui-pin.mjs && node tools/check-lingui-pin.mjs'
+        pass_filenames: false
+        files: '^(package\.json|package-lock\.json|tools/(test-)?check-lingui-pin\.mjs)$'
+      - id: site-strings-self-test
+        name: the site-strings check finds written-out words, and only those (message catalog, report only)
+        language: system
+        entry: node --test tools/test-check-site-strings.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?check-site-strings\.mjs$'
       - id: still-head-self-test
         name: a heavy CI job stops when the PR has moved on, and runs in full when it cannot tell (midst-infra #102)
         language: system
@@ -140,6 +152,12 @@ repos:
         entry: npx --no-install prettier --write
         files: '\.(ts|tsx|js|jsx|json|css|scss|md|ya?ml)$'
         exclude: *vendored
+      - id: catalog-compile
+        name: compile the message catalog (typecheck reads locales/<lang>/messages.ts, which is generated)
+        language: system
+        entry: npx --no-install lingui compile
+        pass_filenames: false
+        files: '\.(ts|tsx|po)$'
       - id: typecheck
         name: tsc --noEmit (the build does NOT typecheck; it sets TS_NODE_TRANSPILE_ONLY)
         language: system
