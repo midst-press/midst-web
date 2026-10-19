@@ -77,6 +77,8 @@ export interface IPoem {
   loaded: boolean
   loadFailure?: PoemLoadFailure | null
   poemId: string
+  /* authorId--titleUrl, for styling one poem by name (index.css); not unique, unlike poemId (#141) */
+  cssId: string
   processNote: string
   slug: string
   tags: string
