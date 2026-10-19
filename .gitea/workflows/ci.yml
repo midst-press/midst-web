@@ -167,11 +167,12 @@ jobs:
         if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
-      # The @frame-budget follow tests never run here, so a green run of this job says nothing about
-      # following. They need a real frame cadence, which this runner's account has never had (#15). They
-      # run in .github/workflows/frame-budget.yml on GitHub, on the push-up after the Gitea merge (PROGRAMME).
-      # The @gui legacy-runtime tests also need a GUI (their sampler precondition, #28); they run in frame-budget.yml.
-      - name: run e2e (not the frame-budget or @gui tests; those run in frame-budget.yml)
+      # The @frame-budget tests don't run in this job, so a green run of it says nothing about following.
+      # On this runner the four follow tests run in .gitea/workflows/frame-budget.yml, under the host profile,
+      # which this runner's stalls allow (midst-infra #102); the @frame-budget recorder test does not run on
+      # Gitea at all. Strict, all of them run in .github/workflows/frame-budget.yml on GitHub, on the push-up.
+      # The @gui legacy-runtime tests need a GUI (their sampler precondition, #28), and run only there too.
+      - name: run e2e (not the frame-budget or @gui tests; see .gitea and .github frame-budget.yml)
         if: steps.head.outputs.current == 'true'
         run: npx playwright test --grep-invert "@frame-budget|@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
