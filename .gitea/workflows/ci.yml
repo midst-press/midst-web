@@ -23,10 +23,13 @@
 # Heavy jobs on a PR's turn (midst-infra #102). gates runs on every event. build, e2e and coverage run on a push
 # to main, and on a PR only while it carries the `ci-turn` label (the merge sweep's: this PR is next to merge)
 # or `full-ci` (an author's: run them now, before the turn). Any labelled run on such a PR runs them, whatever
-# label was added: a narrower condition lets another label post `skipped` over the turn's result. `unlabeled`
-# is not a trigger, since its run would overwrite the results with `skipped` (measured, admin-ops #11).
+# label was added: a narrower condition lets another label post `skipped` over the turn's result.
+# Removing a label is NOT kept out by leaving `unlabeled` out of types: Gitea sends removing one label as the
+# same event as adding one (label_updated, a `labeled` run; only clearing every label is `unlabeled`). So taking
+# ci-turn off starts a run, which cancels a heavy run in progress and posts `skipped` for the heavy jobs (seen
+# on #200, runs 9848 and 9850). The merge sweep must not remove the label while that PR's CI is running.
 # Each heavy job first asks whether its commit is still the PR's head (.gitea/scripts/still_head.sh) and, if
-# the PR has moved on, stops there, since Gitea does not cancel superseded runs.
+# the PR has moved on, stops there: a second guard, for a superseded run that cancel-in-progress misses.
 name: ci
 on:
   pull_request:

@@ -3,8 +3,9 @@
 #
 # The heavy jobs (build, end-to-end, coverage) run only on a PR's turn. A run queued behind others can start
 # after the PR has moved on; it would then spend its time on a commit nothing will merge. So each heavy job
-# asks first, and its remaining steps run only if the answer is yes. This stops the job early rather than
-# cancelling it: Gitea does not honour `concurrency` cancellation (kindled-code-review ci.yml, measured).
+# asks first, and its remaining steps run only if the answer is yes. This is a second guard beside
+# cancel-in-progress, which does cancel a superseded run here (run 9848, cancelled by 9850 on #200): if a
+# superseded run is ever not cancelled, it stops here instead of testing a commit nothing will merge.
 #
 # Env:
 #   GITHUB_OUTPUT  where the answer goes, as current=true or current=false
