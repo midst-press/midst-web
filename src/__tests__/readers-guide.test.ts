@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import guide from '../guide/readers-guide.json'
+import { DEFAULT_LANGUAGE, READERS_GUIDES, readersGuide } from '../i18n'
 import { guideMarkdown } from '../guide/markdown'
 
 // The reader's guide (issue #92) must not drift from the player it describes, and its two forms,
@@ -37,7 +37,7 @@ describe('the control-label reader', () => {
   })
 })
 
-describe("the reader's guide", () => {
+describe.each(Object.entries(READERS_GUIDES))("the reader's guide in %s", (_language, guide) => {
   const documented = new Set(guide.sections.flatMap(section => section.labels))
 
   it('has a section for every control in the player', () => {
@@ -69,10 +69,18 @@ describe("the reader's guide", () => {
       expect(text.split('**').length % 2).toBe(1)
     }
   })
+})
 
-  it('is the same words in docs/readers-guide.md', () => {
+describe("the reader's guide's words", () => {
+  it('are English by default, and a language without a file falls back to English', () => {
+    expect(DEFAULT_LANGUAGE).toBe('en')
+    expect(readersGuide()).toBe(READERS_GUIDES.en)
+    expect(readersGuide('zq')).toBe(READERS_GUIDES.en)
+  })
+
+  it('are the same in docs/readers-guide.md', () => {
     const path = join(root, 'docs/readers-guide.md')
-    const expected = guideMarkdown(guide)
+    const expected = guideMarkdown(READERS_GUIDES.en)
     if (process.env.UPDATE_GUIDE) writeFileSync(path, expected)
     expect(readFileSync(path, 'utf8')).toBe(expected)
   })
