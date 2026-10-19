@@ -7,9 +7,9 @@
 - **The scroll bar beside a poem can be dragged along its whole length** (GitHub #62). The empty space
   around the previous and next arrows used to catch the drag.
 - **Poems no longer show blank lines the old player never drew.** Poems written in the earlier editor are
-  converted with midst-format 0.4.0. A paragraph the old player drew nothing for, and a line break at the
-  end of some text, no longer add an empty line. The poems on the site have been converted again with
-  these fixes.
+  converted with midst-format 0.4.0. A paragraph the old player drew nothing for no longer adds an empty
+  line, and neither does a line ending in coloured or resized text. The poems on the site have been
+  converted again with these fixes.
 - **The player's words come from the message catalog**: the names a screen reader gives its buttons and
   timeline, the speed readout, and "edit time unavailable". The catalog is the file the wording will be
   changed in, without a change to the code. Nothing a reader sees or hears is different.
