@@ -100,6 +100,11 @@ jobs:
           cache="${PRE_COMMIT_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/pre-commit}"
           if [ -d "$cache" ]; then echo "pre-commit cache: present at $cache"; else echo "pre-commit cache: none yet at $cache"; fi
           pre-commit run --all-files --show-diff-on-failure
+      # The message catalog (midst-infra docs/design/message-catalog.md): does it match the code, is it consistent,
+      # how many words are still written into the code, and is Lingui held below 6. Report only, except the pin:
+      # each migration PR makes the part it migrates enforcing.
+      - name: message catalog (report only)
+        run: npm run catalog:report
       - name: vendored midst-format matches its VENDOR.md hashes
         run: node tools/check-vendored-format.mjs
       # Rebuilds the tag VENDOR.md names and byte-compares it with vendor/midst-format/, so the hashes are not

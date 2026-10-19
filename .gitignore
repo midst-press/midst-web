@@ -73,3 +73,6 @@ coverage/
 
 # Font files are served beside the site, never committed (#55). This is where a local copy goes.
 static/fonts/
+
+# Compiled message catalogs: generated from locales/<lang>/messages.po by `npm run catalog:compile`
+locales/*/messages.ts
