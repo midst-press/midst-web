@@ -71,6 +71,10 @@ function createPublishedPoem(entry: any, position: number): IPoem {
   poem.date = storedDate(entry.date)
   poem.publishDate = storedDate(entry.publishDate)
   poem.keys = entry.keys
+  // Two poems may share a title (#141): the address is the list's, and the state's id is the list's own, so a load
+  // for one can never land on the other.
+  poem.url = entry.url
+  poem.poemId = entry.poemId
   return poem
 }
 
