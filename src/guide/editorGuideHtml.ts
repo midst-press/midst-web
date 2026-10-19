@@ -1,7 +1,7 @@
 // The editor's user guide as HTML, for /app#help (midst-editor #105).
 //
-// src/guide/editor-user-guide.md is a byte-identical copy of midst-editor docs/user-guide.md (held so by
-// tools/check-editor-helpers.mjs). This turns it into the HTML the page shows. The result is checked in as
+// src/guide/editor-user-guide.md began as a copy of midst-editor docs/user-guide.md and is now the website's
+// own file (midst-web #194). This turns it into the HTML the page shows. The result is checked in as
 // editor-user-guide.generated.ts, so the site needs no Markdown at run time, and a test fails when the two
 // differ. To regenerate: UPDATE_GUIDE=1 npx jest src/__tests__/editor-user-guide.test.ts
 //

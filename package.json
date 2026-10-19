@@ -167,7 +167,6 @@
       "src/store/reducer.ts",
       "src/store/actions.ts",
       "src/store/midst-file.ts",
-      "src/components/MidstPlayer/follow.ts",
       "src/components/MidstPlayer/timestamp-position.ts",
       "src/components/MidstPlayer/timeline.ts",
       "src/components/MidstPlayer/MidstPlayer.tsx",
@@ -224,12 +223,6 @@
         "statements": 100
       },
       "./src/store/midst-file.ts": {
-        "branches": 100,
-        "functions": 100,
-        "lines": 100,
-        "statements": 100
-      },
-      "./src/components/MidstPlayer/follow.ts": {
         "branches": 100,
         "functions": 100,
         "lines": 100,

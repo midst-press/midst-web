@@ -1,5 +1,5 @@
 // The About page's build line is read from three build inputs (issue #77). Its wording is the
-// editor's and is tested by editor-buildLabel.test.ts.
+// editor's, from midst-format's build-label, and is tested there.
 
 describe('BUILD_DESCRIPTION', () => {
   const KEYS = ['MIDST_BUILD_TAG', 'MIDST_BUILD_COMMIT', 'MIDST_BUILD_DATE'] as const

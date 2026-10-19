@@ -30,6 +30,7 @@ on:
     types: [opened, synchronize, reopened, labeled]
     paths:
       - src/components/MidstPlayer/**
+      - vendor/midst-format/follow/**
       - e2e/replay-follow.spec.ts
       - tools/frame-budget-host-summary.mjs
       - .gitea/workflows/frame-budget.yml

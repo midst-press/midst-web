@@ -25,7 +25,8 @@ export const test = base.extend<{ v8Coverage: void }>({
     await use()
     const entries = await page.coverage.stopJSCoverage()
     mkdirSync(RAW, { recursive: true })
-    const name = `w${testInfo.workerIndex}-r${testInfo.retry}-${process.pid}-${written++}.json`
+    // The project name too: tools/e2e-split.sh runs each project separately, and a worker pid can recur between runs.
+    const name = `${testInfo.project.name}-w${testInfo.workerIndex}-r${testInfo.retry}-${process.pid}-${written++}.json`
     writeFileSync(join(RAW, name), JSON.stringify(entries))
   }, { auto: true }],
 })
