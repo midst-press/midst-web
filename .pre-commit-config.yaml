@@ -21,7 +21,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^src/components/MidstPlayer/follow\.ts$|^src/__tests__/editor-(follow|followMore)\.test\.ts$|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
@@ -38,20 +38,6 @@ repos:
   # ---- local guards. These enforce policy mechanically rather than by discipline. ----
   - repo: local
     hooks:
-      - id: editor-helpers-identical
-        name: copied player helpers and their tests match the pinned midst-editor commit
-        language: system
-        entry: node tools/check-editor-helpers.mjs
-        pass_filenames: false
-        always_run: true
-        # Show the output when it passes too: that is where the warning about copies behind editor main is.
-        verbose: true
-      - id: editor-helpers-check-self-test
-        name: the provenance check passes on faithful copies and fails on anything else
-        language: system
-        entry: node --test tools/test-check-editor-helpers.mjs
-        pass_filenames: false
-        files: '^tools/(test-)?check-editor-helpers\.mjs$'
       - id: vendored-format
         name: vendor/midst-format matches the SHA-256 block in its VENDOR.md
         language: system
@@ -101,11 +87,17 @@ repos:
         pass_filenames: false
         files: '^(package\.json|package-lock\.json|tools/(test-)?check-lingui-pin\.mjs)$'
       - id: site-strings-self-test
-        name: the site-strings check finds written-out words, and only those (message catalog, report only)
+        name: the site-strings check finds written-out words, and only those (message catalog)
         language: system
         entry: node --test tools/test-check-site-strings.mjs
         pass_filenames: false
         files: '^tools/(test-)?check-site-strings\.mjs$'
+      - id: site-strings-player
+        name: the player's words come from the message catalog (enforcing there; the rest of the site is report only)
+        language: system
+        entry: bash -c 'node tools/check-site-strings.mjs src/components/MidstPlayer/*.tsx'
+        pass_filenames: false
+        files: '^(src/components/MidstPlayer/.*\.tsx|tools/check-site-strings\.mjs)$'
       - id: still-head-self-test
         name: a heavy CI job stops when the PR has moved on, and runs in full when it cannot tell (midst-infra #102)
         language: system
@@ -164,6 +156,14 @@ repos:
         entry: npx --no-install tsc --noEmit
         pass_filenames: false
         files: '\.(ts|tsx)$'
+      # The unit tests, which tsconfig.json excludes and ts-jest compiles without checking (#27): a test that
+      # calls a function with the wrong types fails here. tsconfig.test.json compiles them as ts-jest does.
+      - id: typecheck-tests
+        name: tsc --noEmit -p tsconfig.test.json (the unit tests)
+        language: system
+        entry: npx --no-install tsc --noEmit -p tsconfig.test.json
+        pass_filenames: false
+        files: '(\.(ts|tsx)|^tsconfig(\.test)?\.json)$'
       - id: poem-object-names
         name: derived poem object names still match the bucket (snapshot)
         language: system

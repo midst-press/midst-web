@@ -420,7 +420,8 @@ describe('loadPoemData: failures inside the archive read and the body read (#43)
 
   it('asks zip.js to check the CRC, so a mismatch reaches its error callback rather than the parser', async () => {
     mockFetchAsset.mockResolvedValue(okResponse())
-    const getData = jest.fn((_w: any, cb: any) => cb(fakeBlob))
+    // getData(writer, onEnd, onProgress, checkSignature): the fourth argument is the one under test.
+    const getData = jest.fn((_w: any, cb: any, _p?: any, _check?: boolean) => cb(fakeBlob))
     entryWith(getData)
     await loadPoemData(0)(jest.fn(), stateWith([poemB]))
     expect(getData.mock.calls[0][3]).toBe(true)

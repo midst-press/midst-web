@@ -4,7 +4,7 @@ import { editorGuideHtml } from '../guide/editorGuideHtml'
 import generated from '../guide/editor-user-guide.generated'
 
 // /app#help shows the editor's user guide (midst-editor #105). The HTML it shows must be made from the
-// copy of the guide in src/guide, which tools/check-editor-helpers.mjs holds to the editor's own file.
+// guide in src/guide, the website's own file since midst-web #194.
 
 const guideDir = join(__dirname, '../guide')
 const markdown = readFileSync(join(guideDir, 'editor-user-guide.md'), 'utf8')

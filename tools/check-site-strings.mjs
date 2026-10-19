@@ -6,7 +6,7 @@
 //   node tools/check-site-strings.mjs [--root <dir>] [--report-only] [files...]
 //
 // A finding is words a reader sees or hears, written out:
-//   - JSX text (anything between tags but space);
+//   - JSX text, unless it is only symbols and space (a glyph such as ▶ is not words; punctuation is);
 //   - the attributes aria-label, aria-valuetext, aria-description, title, alt and placeholder, as a string, a
 //     template, or an array, conditional, concatenation or fallback holding one.
 // A catalog call is not a finding, and neither is anything computed elsewhere. Report only for now: each PR that
@@ -60,14 +60,21 @@ function siteSources(dir) {
   return out
 }
 
+/** Whether `text` has anything a translator might change: a letter, a digit or punctuation (a `:` or `,` joining
+ *  words is the language's too). Symbols alone (▶, ↑, $, an emoji, with any joiner or variation selector) and space
+ *  are not words; what such a glyph means to a reader is the element's name, which is checked separately. */
+export function hasWords(text) {
+  return /[^\s\p{S}\p{M}\p{Cf}]/u.test(text)
+}
+
 /** Whether `node` is words written out, rather than a call or a reference. */
 export function isWrittenWords(node) {
   if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node)) return isWrittenWords(node.expression)
   // A template made only of substitutions (`${a}`) holds no words of its own.
   if (ts.isTemplateExpression(node)) {
-    return [node.head, ...node.templateSpans.map(span => span.literal)].some(part => part.text.trim() !== '')
+    return [node.head, ...node.templateSpans.map(span => span.literal)].some(part => hasWords(part.text))
   }
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text.trim() !== ''
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return hasWords(node.text)
   if (ts.isArrayLiteralExpression(node)) return node.elements.some(isWrittenWords)
   if (ts.isConditionalExpression(node)) return isWrittenWords(node.whenTrue) || isWrittenWords(node.whenFalse)
   if (ts.isBinaryExpression(node)) {
@@ -86,7 +93,7 @@ export function findings(fileName, text) {
   const found = []
   const at = node => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
   const visit = node => {
-    if (ts.isJsxText(node) && node.text.trim() !== '') found.push({ line: at(node), kind: 'text' })
+    if (ts.isJsxText(node) && hasWords(node.text)) found.push({ line: at(node), kind: 'text' })
     if (ts.isJsxAttribute(node) && WORD_ATTRIBUTES.has(node.name.getText(source)) && node.initializer) {
       const value = ts.isJsxExpression(node.initializer) ? node.initializer.expression : node.initializer
       if (value && isWrittenWords(value)) found.push({ line: at(node), kind: node.name.getText(source) })
