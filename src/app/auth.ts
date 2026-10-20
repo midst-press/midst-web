@@ -17,7 +17,8 @@ export interface AuthDeps {
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   fetch: typeof fetch
   randomBytes: (length: number) => Uint8Array
-  sha256: (data: Uint8Array) => Promise<ArrayBuffer>
+  // An ArrayBuffer-backed array, as crypto.subtle.digest requires (TypeScript 6's DOM types say so).
+  sha256: (data: Uint8Array<ArrayBuffer>) => Promise<ArrayBuffer>
   now: () => number // milliseconds
 }
 

@@ -6,7 +6,7 @@ export const browserDeps = (): AuthDeps => ({
   storage: window.sessionStorage,
   fetch: window.fetch.bind(window),
   randomBytes: (length: number) => window.crypto.getRandomValues(new Uint8Array(length)),
-  sha256: (data: Uint8Array) => window.crypto.subtle.digest('SHA-256', data),
+  sha256: (data: Uint8Array<ArrayBuffer>) => window.crypto.subtle.digest('SHA-256', data),
   now: () => Date.now(),
 })
 
