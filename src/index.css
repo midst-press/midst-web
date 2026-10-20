@@ -1621,6 +1621,24 @@ body.review-player-open .site-footer {
   height: 100%;
 }
 
+.review-player .poem-credit {
+  /* The header a reader sees on the poem page (.site-header .poem-credit), without its links (#289). */
+  position: fixed;
+  top: 35px;
+  left: 170px;
+  right: 170px;
+  margin: 0;
+  z-index: 9;
+  text-align: center;
+  font-size: 24px;
+  font-style: normal;
+  font-family: 'futuralight';
+}
+
+.review-player .poem-credit .author-name {
+  color: rgb(230, 132, 158);
+}
+
 .review-player-close {
   position: fixed;
   top: 12px;

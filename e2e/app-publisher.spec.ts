@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -40,6 +40,11 @@ async function standIn(page: Page, baseURL: string, store: Store) {
           : reply(503, { error: 'unavailable', message: 'Zq is unavailable.' })
       }
       return reply(200, list())
+    }
+    // The count of submissions waiting on the review page (#289): one submission per status given.
+    if (request.method() === 'GET' && url.pathname === '/review/submissions') {
+      if (store.failSubmissions) return reply(503, { error: 'unavailable', message: 'Zq is unavailable.' })
+      return reply(200, { submissions: (store.submissionStatuses ?? []).map((status, i) => ({ submissionId: `s-${i}`, origin: 'upload', title: `Sq ${i}`, author: 'Qz', poet: 'qz@example.invalid', submittedAt: '2026-10-20T00:00:00Z', status, note: null })) })
     }
     // The patrons section loads too (docs/app-api.md, "Patrons"); this spec does not edit it.
     if (request.method() === 'GET' && url.pathname === '/publisher/patrons') return reply(200, { patronsEtag: 'none', patrons: [], closing: null })
@@ -341,6 +346,31 @@ test('Undo changes puts back the saved order, and nothing is written', async ({ 
   await page.getByRole('button', { name: 'Undo changes' }).click()
   await expect(published(page)).toHaveText(['Zq 1', 'Zq 2'])
   expect(store.writes).toEqual([])
+})
+
+test('the page links to Review with the number waiting, and puts the waiting poems before the published list (#289)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2)], writes: [], submissionStatuses: ['received', 'accepted', 'received', 'declined', 'uploading'] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const link = page.getByRole('link', { name: 'Review submissions (2 waiting)' })
+  await expect(link).toBeVisible()
+  const headings = await page.getByRole('heading', { level: 3 }).allTextContents()
+  expect(headings.indexOf('Not published')).toBeLessThan(headings.indexOf('Published, in reading order'))
+  await link.click()
+  await expect(page).toHaveURL(/\/review$/)
+  await expect(page.getByRole('heading', { name: 'Review', level: 2 })).toBeVisible()
+  expect(store.writes).toEqual([])
+})
+
+test('when the submissions cannot be read, the link to Review is still there, without a count (#289)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [], failSubmissions: true }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(page.getByRole('list', { name: 'Published poems' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Review submissions', exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
 test('someone who is not a publisher is told so, and the list is not asked for', async ({ page, baseURL }) => {

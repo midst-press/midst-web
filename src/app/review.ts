@@ -19,6 +19,10 @@ export const timelapseTicket = (call: Call, submissionId: string) =>
 export const decide = (call: Call, submissionId: string, decision: Decision, note: string) =>
   call<Submission>(`/review/submissions/${encodeURIComponent(submissionId)}/decision`, { method: 'POST', body: { decision, note } })
 
+/** How many submissions are waiting to be read: received, and not yet accepted or declined (#289). */
+export const waitingCount = (submissions: Pick<Submission, 'status'>[]): number =>
+  submissions.filter(s => s.status === 'received').length
+
 /** The ids of the publisher's poems, published or not. A poem's id is the id of the submission it was made from. */
 export const poemIdsOf = (list: Pick<PublisherList, 'published' | 'unpublished'>): Set<string> =>
   new Set([...list.published, ...list.unpublished].map(p => p.poemId))
