@@ -1423,6 +1423,35 @@ background-size: contain;
     max-width: 300px;
   }
 
+  /* The newsletter bar (#254): a footer at the end of the page, its fields stacked, instead of a bar fixed over the
+     text that is too narrow for them. */
+  .site-footer,
+  .site-footer .campaign-monitor-form,
+  .site-footer .patreon-logo {
+    position: static;
+  }
+
+  .site-footer .campaign-monitor-form {
+    box-sizing: border-box;
+    width: 100%;
+    height: auto;
+    padding: 10px 20px 16px;
+  }
+
+  .site-footer .campaign-monitor-form label,
+  .site-footer .campaign-monitor-form input,
+  .site-footer .campaign-monitor-form button {
+    float: none;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 8px 0;
+  }
+
+  .site-footer .patreon-logo {
+    margin: 0 auto 10px;
+  }
+
   .poem-credit .author-name,
   .poem-credit .poem-title {
     font-size: 18px;

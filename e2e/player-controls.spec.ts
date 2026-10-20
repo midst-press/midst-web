@@ -442,7 +442,8 @@ test('two mounted players retain independent FPS, popup and playback state', asy
   await expect(second.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
 })
 
-for (const width of [320, 1024]) {
+// 600px is the narrowest with pills: below it a marker is its pointer alone (#254, e2e/phone-layout.spec.ts).
+for (const width of [600, 1024]) {
   test(`right-hand controls and upward popup fit alongside endpoint marker pills at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 720 })
     const data = syntheticData()

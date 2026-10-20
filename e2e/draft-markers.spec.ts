@@ -119,7 +119,8 @@ test('a long name is cut short on the label and kept whole for hover and screen 
   expect(box.full).toBeGreaterThan(box.shown)
 })
 
-for (const width of [320, 1024]) {
+// 600px is the narrowest with labels: below it a marker is its pointer alone (#254, e2e/phone-layout.spec.ts).
+for (const width of [600, 1024]) {
   test(`labels at either end of the timeline stay inside the bar and keep their pointers in place at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 720 })
     const long = 'zq '.repeat(30).trim()
@@ -157,7 +158,7 @@ for (const width of [320, 1024]) {
 }
 
 test('a label pushed back inside the bar is put back when the bar gets wider', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 720 })
+  await page.setViewportSize({ width: 600, height: 720 })
   await mount(page, syntheticData([{ timelineIndex: 2, name: 'zq '.repeat(30).trim() }]))
   const name = page.locator(`${player} .draft-marker-name`)
   await expect.poll(() => name.evaluate(el => (el as HTMLElement).style.transform)).not.toBe('')
