@@ -1,3 +1,8 @@
+# 0.10.0
+
+- **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
+  list, and links to it lead to the new one.
+
 # 0.9.0
 
 - **Each poem's address is the one it was given.** When the published list carries stored addresses, the site uses
@@ -7,8 +12,6 @@
 - **The publisher and review pages link to each other**, and the link to Review says how many submissions are
   waiting. On the publisher page, the poems waiting to be published come first, and the review player shows the
   poem's author and title above it, as the poem page does.
-- **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
-  list, and links to it lead to the new one.
 - **Dependencies are current**: TypeScript 6.0.3, with minor and patch updates to the rest. Nothing a reader sees
   changes.
 
