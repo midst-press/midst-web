@@ -31,7 +31,6 @@ export const WITH_FIXTURE = ['Margaret_Yapp', 'Madeleine_Mori', 'Jared_Harél', 
 /** The path of the current page, decoded, for comparing with route(). */
 export const pathOf = (url: string): string => decodeURIComponent(new URL(url).pathname)
 
-const ZIP_JS = '/midst-press/site/scripts/zip.js'
 
 /**
  * Keep the page off the network, as poem-plays and load-failure do: same-origin requests reach the local
@@ -55,9 +54,6 @@ export async function hermetic(
   await page.route('**/*', async (request) => {
     const url = new URL(request.request().url())
     if (url.origin !== base) {
-      if (url.pathname === ZIP_JS) {
-        return request.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
-      }
       seen.external.push(url.pathname)
       return request.abort()
     }

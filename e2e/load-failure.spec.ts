@@ -9,19 +9,30 @@ import names from '../src/poems/poem-names.js'
 const meta = JSON.parse(readFileSync(join(__dirname, '..', 'src', 'poems', 'Margaret_Yapp.json'), 'utf8'))
 const route = `/poem/${names.poemUrl(meta.title)}/`
 const scope = `.sliding-poems__poem--${names.poemId(meta.author, meta.title)}`
-const ZIP_JS = '/midst-press/site/scripts/zip.js'
+// The zip reader is bundled from static/static/scripts/zip.js (#270) as the page's one classic script: the
+// built index.html's <script src> without type=module. Found there, not guessed, since its name carries a hash.
+function zipScriptPath(): string {
+  const html = readFileSync(join(__dirname, '..', 'dist', 'index.html'), 'utf8')
+  const classic = Array.from(html.matchAll(/<script\b([^>]*)>/g), m => m[1])
+    .filter(attrs => !/type=["']?module/.test(attrs))
+    .map(attrs => /src=["']?([^"' >]+)/.exec(attrs)?.[1])
+    .filter((src): src is string => src !== undefined && src.startsWith('/'))
+  if (classic.length !== 1) throw new Error(`expected one same-origin classic script (the zip reader) in dist/index.html, found ${classic.length}`)
+  return classic[0]
+}
 
-// Same-origin requests reach the local fixture server unless `broken` answers them first. The only
-// external request served is the vendored zip reader; the rest are aborted, as in poem-plays.
+// Same-origin requests reach the local fixture server unless `broken` answers them first, and with `zipJs` false the
+// zip reader's script is refused. Every external request is aborted, as in poem-plays.
 async function serve(page: Page, baseURL: string, broken: (path: string) => { status: number, body: string } | 'abort' | null, zipJs = true) {
+  const zipScript = zipJs ? null : zipScriptPath()
   await page.route('**/*', (request) => {
     const url = new URL(request.request().url())
     const answer = broken(decodeURIComponent(url.pathname))
     if (answer === 'abort') return request.abort()
     if (answer) return request.fulfill(answer)
-    if (url.origin === new URL(baseURL).origin) return request.continue()
-    if (zipJs && url.pathname === ZIP_JS) {
-      return request.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
+    if (url.origin === new URL(baseURL).origin) {
+      if (url.pathname === zipScript) return request.abort()
+      return request.continue()
     }
     return request.abort()
   })

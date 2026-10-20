@@ -50,7 +50,6 @@ test.beforeEach(async ({ page, baseURL }) => {
       if (url.pathname.endsWith('.midst.zip')) return route.fulfill({ body: archive, contentType: 'application/zip' })
       return route.continue()
     }
-    if (url.pathname.endsWith('/zip.js')) return route.fulfill({ path: join(__dirname, '../static/static/scripts/zip.js'), contentType: 'application/javascript' })
     if (url.pathname.includes('/shapes/')) return route.fulfill({ body: '<svg xmlns="http://www.w3.org/2000/svg"/>', contentType: 'image/svg+xml' })
     return route.fulfill({ body: '', contentType: 'application/javascript' })
   })
