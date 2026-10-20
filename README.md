@@ -146,6 +146,7 @@ The site reads these variables at build time. Parcel writes the values into the 
 | `MIDST_APP_API_URL` | none | the beta app's API |
 | `MIDST_APP_AUTH_DOMAIN` | none | the Cognito managed login domain, with or without `https://` |
 | `MIDST_APP_CLIENT_ID` | none | the user pool's app client for this site |
+| `MIDST_GA_MEASUREMENT_ID` | none | the Google Analytics 4 measurement id (`G-...`). Unset or empty, the page loads no analytics; Google signals and ad personalisation are off (`src/analytics.ts`) |
 | `MIDST_BUILD_TAG` | none | the release tag the commit carries, for the About page |
 | `MIDST_BUILD_COMMIT` | none | the short commit id, with `-dirty` if the tree was modified |
 | `MIDST_BUILD_DATE` | none | the commit's date (ISO 8601), not the build time |

@@ -9,7 +9,6 @@ import { test, expect } from './coverage'
 
 const API = 'https://api.example.invalid'
 const FILES = 'https://files.example.invalid'
-const ZIP_JS = 'https://d3nlqr52a31o6y.cloudfront.net/midst-press/site/scripts/zip.js'
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, PUT' }
 const TYPED = 'the quick brown fox'
 
@@ -45,7 +44,6 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     const request = route.request()
     const url = new URL(request.url())
     if (url.origin === new URL(baseURL).origin) return route.continue()
-    if (request.url() === ZIP_JS) return route.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
     if (url.origin === FILES) {
