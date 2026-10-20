@@ -96,30 +96,10 @@ describe('the control-label reader', () => {
 })
 
 describe("the reader's guide", () => {
-  const documented = new Set(guide.sections.flatMap(section => section.labels))
-
-  it('has a section for every control in the player', () => {
-    const missing = controlLabels(player).filter(label => !documented.has(label))
-    expect(missing).toEqual([])
-  })
-
-  it('has no section for a control the player does not have', () => {
-    // The other direction: a control that is removed or renamed must take its words with it.
-    const inPlayer = new Set(controlLabels(player))
-    const gone = Array.from(documented).filter(label => !inPlayer.has(label))
-    expect(gone).toEqual([])
-  })
-
-  it('names a control in bold exactly as the player labels it', () => {
-    // Labels a sighted reader never sees (the poem area, the date under the timeline, the parts of the
-    // speed slider) are tied to their section without being printed.
-    const unprinted = new Set(['Poem replay', 'Jump to', 'frame-edit-time', 'Playback frame rate', 'Playback speed controls'])
-    for (const section of guide.sections) {
-      const text = section.paragraphs.join(' ').toLowerCase()
-      for (const label of section.labels.filter(name => !unprinted.has(name))) {
-        expect(text).toContain(`**${label.toLowerCase()}**`)
-      }
-    }
+  // #99 (Stuart, 21 Oct): the public guide is a placeholder until Annelyse writes it, so the tests of its text
+  // (a section per control, the names in bold) went with that text. The original is in midst-administrative-operations.
+  it('is the Under Construction placeholder', () => {
+    expect(guide.sections.map(section => section.heading)).toEqual(['Under Construction'])
   })
 
   it('uses bold in pairs, so the page never shows a stray marker', () => {
