@@ -1556,9 +1556,45 @@ background-size: contain;
   color: #a00;
 }
 
+body.review-player-open {
+  overflow: hidden;
+}
+
+body.review-player-open .site-footer {
+  display: none;
+}
+
+.review-player {
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: none;
+  max-height: none;
+  height: 100dvh;
+  background: #FFF5EE;
+  color: inherit;
+}
+
+.review-player .sliding-poems__frame {
+  height: 100%;
+}
+
+.review-player .sliding-poems__poem {
+  height: 100%;
+}
+
 .review-player-close {
   position: fixed;
   top: 12px;
   right: 16px;
   z-index: 10;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid currentColor;
+  background: #FFF5EE;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
