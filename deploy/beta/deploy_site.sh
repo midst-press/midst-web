@@ -44,6 +44,9 @@
 #   1. resolve REF to a SHA and check it out in a temporary worktree
 #   2. npm ci --legacy-peer-deps --ignore-scripts   (the same install CI uses)
 #   3. MIDST_POEMS_URL=<PoemsUrl> MIDST_KEY_SCHEME=<scheme> npm run build      (output in dist/)
+#      When the poems URL is on the site's own origin, the build takes only its path (/poems/), so the site
+#      fetches poems from whichever address it was loaded at: the cloudfront.net name or the alternate domain
+#      name (midst-infra #72). The checks below still use the full URL.
 #      with the build inputs the About page shows (midst-web src/build-info.ts, midst-infra #30):
 #      MIDST_BUILD_TAG (the tag, or empty), MIDST_BUILD_COMMIT (short SHA), MIDST_BUILD_DATE (the
 #      commit's own date, %cI). A worktree with changes in it is refused rather than labelled -dirty:
@@ -128,6 +131,12 @@ fi
 for v in DIST POEMS_URL SITE_URL BUCKET; do
   case "${!v}" in ""|None) echo "$SOURCE has no value for $v" >&2; exit 1 ;; esac
 done
+# What the build is given (midst-infra #72): the path alone when the poems are on the site's origin, else the URL.
+origin_of() { [[ "$1" =~ ^(https?://[^/]+)/ ]] && echo "${BASH_REMATCH[1]}"; }
+BUILD_POEMS_URL="$POEMS_URL"
+if [ -n "$(origin_of "$POEMS_URL")" ] && [ "$(origin_of "$POEMS_URL")" = "$(origin_of "$SITE_URL")" ]; then
+  BUILD_POEMS_URL="${POEMS_URL#"$(origin_of "$POEMS_URL")"}"
+fi
 
 git -C "$WEB" fetch -q --all
 SHA="$(git -C "$WEB" rev-parse --verify "$REF^{commit}")"
@@ -178,11 +187,12 @@ fi
     npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund > npm.log 2>&1 ) \
   || { echo "npm ci failed; last lines of its log:" >&2; tail -20 "$WT/npm.log" >&2; exit 1; }
 ( cd "$WT" && env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
-    MIDST_POEMS_URL="$POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" MIDST_POEM_LIST="$POEM_LIST" \
+    MIDST_POEMS_URL="$BUILD_POEMS_URL" MIDST_KEY_SCHEME="$SCHEME" MIDST_POEM_LIST="$POEM_LIST" \
     MIDST_BUILD_TAG="$TAG" MIDST_BUILD_COMMIT="$SHORT" MIDST_BUILD_DATE="$COMMITTED_AT" npm run build > build.log 2>&1 ) \
   || { echo "build failed; last lines of its log:" >&2; tail -20 "$WT/build.log" >&2; exit 1; }
 [ -s "$WT/dist/index.html" ] || { echo "build produced no dist/index.html" >&2; exit 1; }
 echo "built: $(find "$WT/dist" -type f | wc -l | tr -d ' ') files"
+echo "poems: the build fetches them from $BUILD_POEMS_URL"
 
 # The scheme is now inside the bundle. Before it goes anywhere, ask the bucket the same question the
 # site will: is every published poem there under these names? The canary prints poem numbers and

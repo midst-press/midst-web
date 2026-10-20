@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Before a site built with --poem-list published goes out: can it read its list, and reach every poem on it?
 
-Usage: check_published_list.py <poems url>      (the site's POEMS_URL, ending in /poems/)
+Usage: check_published_list.py <poems url> [--listing <listing.json> [--keys-to <path>]]
+       <poems url> is the site's POEMS_URL, ending in /poems/.
 
 The site fetches <poems url>published.json once when it starts, and then fetches each entry's RECORDED keys
 (midst-web #110). This asks the same questions first: the list is there, has version 1 and a list of poems,
@@ -9,8 +10,21 @@ every entry has a poemId, title and author (no poemId twice), any date is YYYY-M
 that is not null) is a key under poems/, and each one answers. One bad entry refuses the list, as the site does.
 A list with no poems is reported, not refused: the publisher may have unpublished everything.
 
+With --listing, it also asks the other direction (midst-web #41): the publishing bucket holds nothing under poems/ that
+the list does not name. <listing.json> is the whole output of
+    aws s3api list-objects-v2 --bucket <publishing bucket> --prefix poems/
+(the CLI follows every page itself). Every key there must be a recorded key or published.json, and every recorded key
+must be there. A copy left behind by a failed delete, or put there by hand, is served to anyone who knows its id, so a
+key present but unlisted fails the check as a missing one does. A listing that says it is truncated is refused: a
+partial listing cannot show that something is absent.
+
+--keys-to <path> writes the keys behind those two counts, one "missing<TAB>key" or "unlisted<TAB>key" per line, to a
+new file created with mode 600. The path must be outside this repository, and an existing file is never overwritten.
+
 Exit 0 when all of that holds, 1 when anything does not. Prints counts only, never a poem id, name or key.
 """
+
+import os
 
 import http.client
 import json
@@ -18,9 +32,24 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 KEY_ROOT = "poems/"
+LIST_KEY = KEY_ROOT + "published.json"
 TIMEOUT = 20
+
+
+def repository_root(start):
+    """The repository this file is in: the nearest folder above it holding .git. midst-web keeps a copy at
+    deploy/beta/, one level deeper than midst-infra's beta/, so a fixed number of parents would be wrong in one of them."""
+    for folder in Path(start).resolve().parents:
+        if (folder / ".git").exists():
+            return folder
+    return Path(start).resolve().parent.parent
+
+
+REPOSITORY = repository_root(__file__)
+USAGE = "usage: check_published_list.py <poems url ending in /poems/> [--listing <listing.json> [--keys-to <path>]]"
 
 
 def is_text(value):
@@ -98,6 +127,56 @@ def recorded_keys(listing):
     return len(listing["poems"]), keys
 
 
+def listed_keys(listing):
+    """The keys under poems/ in a parsed list-objects-v2 result; raises ValueError if it is not one, or is partial."""
+    if not isinstance(listing, dict):
+        raise ValueError("the listing is not a list-objects-v2 result")
+    if listing.get("IsTruncated") is True or listing.get("NextToken") or listing.get("NextContinuationToken"):
+        raise ValueError("the listing is truncated, so it cannot show what is absent")
+    contents = listing.get("Contents", [])
+    if not isinstance(contents, list) or not all(
+        isinstance(o, dict) and isinstance(o.get("Key"), str) for o in contents
+    ):
+        raise ValueError("the listing's Contents is not a list of objects with keys")
+    return [o["Key"] for o in contents if o["Key"].startswith(KEY_ROOT)]
+
+
+def compare_keys(recorded, listed):
+    """(missing, unlisted): recorded keys the bucket does not hold, and keys it holds that the list does not name,
+    published.json itself aside. Both sorted."""
+    present = set(listed) - {LIST_KEY}
+    wanted = set(recorded)
+    return sorted(wanted - present), sorted(present - wanted)
+
+
+def write_keys(path, missing, unlisted):
+    """The keys behind the counts, to a new file with mode 600, outside this repository; never to stdout."""
+    target = Path(path).expanduser().resolve()
+    if target == REPOSITORY or REPOSITORY in target.parents:
+        raise ValueError("--keys-to must be outside this repository")
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as out:
+        for state, keys in (("missing", missing), ("unlisted", unlisted)):
+            for key in keys:
+                out.write(f"{state}\t{key}\n")
+
+
+def parse_args(argv):
+    """(url, listing path or None, keys-to path or None), or None when the arguments are wrong."""
+    if len(argv) < 2 or not argv[1].endswith("/" + KEY_ROOT):
+        return None
+    options = {}
+    rest = argv[2:]
+    while rest:
+        if len(rest) < 2 or rest[0] not in ("--listing", "--keys-to") or rest[0] in options:
+            return None
+        options[rest[0]] = rest[1]
+        rest = rest[2:]
+    if "--keys-to" in options and "--listing" not in options:
+        return None
+    return argv[1], options.get("--listing"), options.get("--keys-to")
+
+
 def answers(url):
     request = urllib.request.Request(url, method="HEAD")
     try:
@@ -108,10 +187,18 @@ def answers(url):
 
 
 def main(argv):
-    if len(argv) != 2 or not argv[1].endswith("/" + KEY_ROOT):
-        print("usage: check_published_list.py <poems url ending in /poems/>", file=sys.stderr)
+    args = parse_args(argv)
+    if args is None:
+        print(USAGE, file=sys.stderr)
         return 1
-    base = argv[1]
+    base, listing_path, keys_to = args
+    listed = None
+    if listing_path is not None:
+        try:
+            listed = listed_keys(json.loads(Path(listing_path).read_text(encoding="utf-8")))
+        except (OSError, ValueError) as problem:
+            print(f"the listing could not be read: {problem}", file=sys.stderr)
+            return 1
     try:
         with urllib.request.urlopen(base + "published.json", timeout=TIMEOUT) as response:
             listing = read_listing(response.read())
@@ -125,7 +212,19 @@ def main(argv):
         return 1
     missing = sum(1 for key in keys if not answers(base + key[len(KEY_ROOT) :]))
     print(f"published list: {poems} poems, {len(keys) - missing}/{len(keys)} recorded objects reachable")
-    return 1 if missing else 0
+    if listed is None:
+        return 1 if missing else 0
+    absent, unlisted = compare_keys(keys, listed)
+    print(
+        f"bucket listing: {len(listed)} poem objects, {len(absent)} listed but absent, {len(unlisted)} present but unlisted"
+    )
+    if keys_to is not None:
+        try:
+            write_keys(keys_to, absent, unlisted)
+        except (OSError, ValueError) as problem:
+            print(f"the keys could not be written: {problem}", file=sys.stderr)
+            return 1
+    return 1 if missing or absent or unlisted else 0
 
 
 if __name__ == "__main__":
