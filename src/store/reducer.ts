@@ -18,7 +18,9 @@ import {
   IState,
 } from './types'
 import moment from 'moment'
-import { slugify } from 'voca'
+// voca 1.4.1's ES build has a default export only, so the named import works under jest (CommonJS) and fails in
+// Parcel's build.
+import voca from 'voca'
 import poemData from '../poems'
 import * as poemNames from '../poems/poem-names'
 import { POEM_LIST } from '../config'
@@ -51,7 +53,7 @@ function createPoem(data: any, position: number = 0) {
     loaded: false,
     processNote: '',
     url,
-    slug: slugify(data.title),
+    slug: voca.slugify(data.title),
     tags: '',
     title: data.title,
     badge: data.badge,
