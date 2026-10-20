@@ -63,33 +63,41 @@ function Site() {
   )
 }
 
-const select = () => container.querySelector('select') as HTMLSelectElement
+const button = (name: string) =>
+  [...container.querySelectorAll('.language-selector button')].find(b => b.textContent === name) as HTMLButtonElement
 const word = () => container.querySelector('.word')?.textContent
-
+const pressed = () => [...container.querySelectorAll('.language-selector button[aria-pressed="true"]')].map(b => b.getAttribute('lang'))
 const choose = (tag: string) =>
   act(() => {
-    select().value = tag
-    select().dispatchEvent(new Event('change', { bubbles: true }))
+    ;(container.querySelector(`.language-selector button[lang="${tag}"]`) as HTMLButtonElement).click()
   })
 
-it('lists English first, each language by its own name, with English chosen until the reader chooses', () => {
+it('lists English first, each language by its own name as a button, with English in use until the reader chooses', () => {
   act(() => root.render(<Site />))
-  expect([...select().options].map(o => [o.value, o.lang])).toEqual([
-    ['en', 'en'],
+  const group = container.querySelector('.language-selector')
+  expect(group?.getAttribute('role')).toBe('group')
+  expect(group?.getAttribute('aria-label')).toBe('Language')
+  expect([...container.querySelectorAll('.language-selector button')].map(b => [b.textContent, b.getAttribute('lang')])).toEqual([
+    ['English', 'en'],
     ['zq', 'zq'],
   ])
-  expect(select().options[0].textContent).toBe('English')
-  expect(select().value).toBe('en')
-  expect(container.querySelector('.language-selector-label')?.textContent).toBe('Language')
+  expect(pressed()).toEqual(['en'])
   expect(document.documentElement.lang).toBe('en')
+})
+
+it('puts the American flag beside English only, hidden from a screen reader', () => {
+  act(() => root.render(<Site />))
+  const flag = button('English').querySelector('svg.language-flag')
+  expect(flag?.getAttribute('aria-hidden')).toBe('true')
+  expect(button('zq').querySelector('svg')).toBeNull()
 })
 
 it('choosing a language re-renders the words in place, keeps it in this browser, and sets the page language', () => {
   act(() => root.render(<Site />))
   choose('zq')
   expect(word()).toBe('ZQ-TIMELINE')
-  expect(container.querySelector('.language-selector-label')?.textContent).toBe('ZQ-LANGUAGE')
-  expect(select().value).toBe('zq')
+  expect(container.querySelector('.language-selector')?.getAttribute('aria-label')).toBe('ZQ-LANGUAGE')
+  expect(pressed()).toEqual(['zq'])
   expect(localStorage.getItem(LANGUAGE_KEY)).toBe('zq')
   expect(document.documentElement.lang).toBe('zq')
   choose('en')
@@ -101,7 +109,7 @@ it('starts in the language kept in this browser', () => {
   localStorage.setItem(LANGUAGE_KEY, 'zq')
   i18n.loadAndActivate({ locale: '', messages: {} })
   act(() => root.render(<Site />))
-  expect(select().value).toBe('zq')
+  expect(pressed()).toEqual(['zq'])
   expect(word()).toBe('ZQ-TIMELINE')
 })
 

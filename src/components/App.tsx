@@ -118,6 +118,8 @@ function App(): ReactElement {
               >?</NavLink>
             </Hide>
           </nav>
+
+          <LanguageSelector />
         </header>
         <main>
           <Routes>
@@ -141,7 +143,6 @@ function App(): ReactElement {
           </Routes>
         </main>
         <footer className="site-footer">
-          <LanguageSelector />
           <Hide from="poem">
             <>
               <CampaignMonitorForm

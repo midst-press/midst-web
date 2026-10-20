@@ -1,9 +1,9 @@
 # 0.4.0
 
-- **Choose the language the site speaks.** A **Language** list at the foot of every page names
-  each language the site has in that language; for now that is English. The site starts in English until you
-  choose, whatever your browser's language, and the words change at once. Your choice is kept in your browser
-  only: it is not in the page's address, not in a cookie, and not sent to us.
+- **Choose the language the site speaks.** The languages the site has are at the top of every page, each
+  by its own name, with the American flag beside English; for now that is English. The site starts in
+  English until you choose, whatever your browser's language, and the words change at once. Your choice is
+  kept in your browser only: it is not in the page's address, not in a cookie, and not sent to us.
 
 # 0.3.0
 

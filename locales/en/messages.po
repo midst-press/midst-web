@@ -112,7 +112,7 @@ msgstr "Skip to start"
 msgid "player.timeline"
 msgstr "Timeline"
 
-# The label of the language selector in the site footer, beside the list of languages.
+# What a screen reader calls the row of languages at the top of every page.
 #. js-lingui-explicit-id
 #: src/components/LanguageSelector.tsx
 #, fuzzy

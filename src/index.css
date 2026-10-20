@@ -333,6 +333,39 @@ body {
   font-size: 30px;
 }
 
+/* The languages (#234): top right, above the navigation, on every page. */
+.site-header .language-selector {
+  position: absolute;
+  top: 6px;
+  right: 80px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.site-header .language-selector button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: #000000;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.site-header .language-selector button[aria-pressed='true'] {
+  border-color: currentColor;
+}
+
+.language-flag {
+  display: block;
+  outline: 1px solid rgba(0, 0, 0, 0.15);
+}
+
 .site-header nav a {
   color: #000000;
   text-align: center;
@@ -700,17 +733,6 @@ body {
 .site-footer a {
   color: #000;
   text-decoration: none;
-}
-
-/* The language selector (#234): bottom right, above the newsletter bar. */
-.site-footer .language-selector {
-  position: fixed;
-  right: 30px;
-  bottom: 44px;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  font-size: 14px;
 }
 
 .site-footer .campaign-monitor-form {
