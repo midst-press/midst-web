@@ -12,6 +12,7 @@
 // A message here can end up in a public log, so none of them says which poem or quotes the list.
 
 const { isCanonicalDate } = require('./canonical-date.js')
+const { authorId, poemUrl } = require('./poem-names.js')
 
 const LISTS = ['bundled', 'published']
 
@@ -30,6 +31,7 @@ function parsePoemList(value) {
 
 const isText = value => typeof value === 'string' && value.length > 0
 const isAbsentOrDate = value => value === null || value === undefined || isCanonicalDate(value)
+const isAbsentOrText = value => value === null || value === undefined || isText(value)
 
 // "poems/<something>", with nothing that climbs out of it.
 function isKey(value) {
@@ -45,17 +47,19 @@ const malformed = () => new Error('The published poem list is not well formed.')
  * Check a parsed published.json as a whole: one bad entry refuses the list, because a list with a hole in it
  * is not the list the publisher meant.
  * @param {unknown} json
- * @returns {Array<{poemId: string, title: string, author: string, keys: {timelapse: string, processNote: string | null},
- *   publishDate: string | null, highlighted: boolean, date: string | null}>}
+ * @returns {Array<{poemId: string, title: string, author: string, url: string,
+ *   keys: {timelapse: string, processNote: string | null}, publishDate: string | null, highlighted: boolean,
+ *   date: string | null}>}
  */
 function parsePublishedList(json) {
   if (!json || typeof json !== 'object' || json.version !== 1 || !Array.isArray(json.poems)) throw malformed()
   const seen = new Set()
-  return json.poems.map(entry => {
+  return withAddresses(json.poems.map(entry => {
     if (!entry || typeof entry !== 'object') throw malformed()
-    const { poemId, title, author, timelapse, processNote, publishDate, highlighted, date } = entry
+    const { poemId, title, author, timelapse, processNote, publishDate, highlighted, date, firstPublishedAt } = entry
     if (!isText(poemId) || !isText(title) || !isText(author) || !isKey(timelapse) || seen.has(poemId)) throw malformed()
     if (processNote !== null && processNote !== undefined && !isKey(processNote)) throw malformed()
+    if (!isAbsentOrText(firstPublishedAt)) throw malformed()
     // A stored date is YYYY-MM-DD or absent (midst-infra #81). Any other form is refused, not guessed at.
     if (!isAbsentOrDate(publishDate) || !isAbsentOrDate(date)) throw malformed()
     seen.add(poemId)
@@ -70,8 +74,48 @@ function parsePublishedList(json) {
       publishDate: publishDate ?? null,
       highlighted: highlighted === true,
       date: date ?? null,
+      firstPublishedAt: firstPublishedAt ?? null,
     }
-  })
+  }))
+}
+
+/**
+ * Give every poem its own address, /poem/<url> (#141). Different poets may give poems the same title (Stuart,
+ * 19 Oct), and the publisher makes one poet's revision replace its earlier version, so two entries can share a
+ * title's address. Of those, the first published keeps the title's address, so publishing a second never moves
+ * the first; each later one adds its author (`<title>--<author>`), and a number if that is taken too. Poems from
+ * before first publication was recorded count as first, in id order. Reading order plays no part: reordering
+ * the list must not move an address. The addresses are derived from the poems listed now, so unpublishing one can
+ * move a later poem of the same title onto its address, and republishing a poem from before first publication was
+ * recorded takes the title's address back: it was there first.
+ * @template {{poemId: string, title: string, author: string, firstPublishedAt: string | null}} E
+ * @param {E[]} entries
+ * @returns {Array<E & {url: string}>}
+ */
+// By code unit, never by the reader's collation: in Danish "aa" sorts after "z", and an address must be the same in
+// every browser (vivian-1a61bc9a, review of #216).
+const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+
+function withAddresses(entries) {
+  const byAddress = new Map()
+  for (const entry of entries) {
+    const base = poemUrl(entry.title)
+    byAddress.set(base, [...(byAddress.get(base) ?? []), entry])
+  }
+  const taken = new Set(byAddress.keys())
+  const urls = new Map()
+  for (const [base, group] of byAddress) {
+    const ordered = [...group].sort((a, b) => byCodeUnit(a.firstPublishedAt ?? '', b.firstPublishedAt ?? '')
+      || byCodeUnit(a.poemId, b.poemId))
+    ordered.forEach((entry, i) => {
+      if (i === 0) return urls.set(entry.poemId, base)
+      let url = `${base}--${authorId(entry.author)}`
+      for (let n = 2; taken.has(url); n += 1) url = `${base}--${authorId(entry.author)}-${n}`
+      taken.add(url)
+      urls.set(entry.poemId, url)
+    })
+  }
+  return entries.map(entry => ({ ...entry, url: urls.get(entry.poemId) }))
 }
 
 /**

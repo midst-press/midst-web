@@ -82,6 +82,19 @@ A 429 means wait and try again.
 `poemId` is the opaque id minted when a submission arrives (#41). Names never appear in a key; keys are
 recorded, not derived. `publishDate` and `highlighted` are `null` / `false` until the publisher sets them.
 
+A list entry also carries `firstPublishedAt`, the ISO time of the poem's first publication. It is kept across an
+unpublish and a republish, and a revision takes it over from the version it replaces (midst-infra #83). Entries
+from before it was recorded have none. The site derives each poem's address from the list (#141):
+- the title's address (`/poem/<title>`) goes to whichever poem with that title was published first, so publishing
+  a second never moves the first;
+- each later one is `<title>--<author>`, numbered if that is taken too;
+- a poem with no first publication time counts as first, and a tie goes by `poemId`.
+
+Reordering the list never moves an address. Because addresses come from the poems listed now, two things do move
+one: unpublishing a poem can move a later poem of the same title onto its address, and republishing a poem from
+before `firstPublishedAt` was recorded takes the title's address back. Ids are compared by code unit, so every
+browser gives the same addresses.
+
 **Submission:**
 
 ```json
@@ -132,10 +145,14 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
-- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
-  Copies the poem into the publishing bucket and adds it at the end of the list.
-- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
-  Removes it from the list and deletes the publishing copy. The draft stays.
+- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared"? }`
+  Copies the poem into the publishing bucket and adds it at the end of the list. A revision replaces the version
+  it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
+  CloudFront took the request.
+- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
+  Removes it from the list and deletes the publishing copy. The draft stays. The copy is cleared from CloudFront's
+  cache too. `edgeCleared` is false when CloudFront did not take that request; the copy may then be served for up
+  to a day (`max-age=86400`), and the publisher's page says so (midst-infra #117).
 - `PUT /publisher/order` `{ "poemIds": [...], "listEtag" }` → `{ "listEtag", "published" }`
   400 `invalid` unless `poemIds` is exactly the published set, each once.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`

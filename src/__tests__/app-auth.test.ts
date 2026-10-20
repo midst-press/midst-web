@@ -1,5 +1,5 @@
 import { webcrypto } from 'crypto'
-import { AuthDeps, AuthSettings, SignInError, base64url, challengeFor, claimsOf, completeSignIn, currentSession, forgetSession, signInUrl, signOut } from '../app/auth'
+import { AuthDeps, AuthSettings, SignInError, base64url, challengeFor, claimsOf, completeSignIn, currentSession, forgetSession, forgotPasswordUrl, signInUrl, signOut } from '../app/auth'
 
 // The beta app's sign-in (docs/app-api.md): authorisation code with PKCE against Cognito's managed login.
 
@@ -66,6 +66,30 @@ describe('signInUrl', () => {
     expect(q.get('code_challenge_method')).toBe('S256')
     expect(q.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(q.get('state')).toMatch(/^[A-Za-z0-9_-]+$/)
+  })
+})
+
+// #243: the reset page takes the authorize endpoint's parameters, so the sign-in after a reset comes back here.
+describe('forgotPasswordUrl', () => {
+  it('asks the managed login\'s reset page for the same code as signing in', async () => {
+    const { d } = deps()
+    const reset = new URL(await forgotPasswordUrl(settings, d, '/me'))
+    const signIn = new URL(await signInUrl(settings, deps().d, '/me'))
+    expect(reset.origin + reset.pathname).toBe('https://auth.example.invalid/forgotPassword')
+    const keys = (url: URL) => [...url.searchParams.keys()].sort()
+    expect(keys(reset)).toEqual(keys(signIn))
+    for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'code_challenge_method']) {
+      expect([key, reset.searchParams.get(key)]).toEqual([key, signIn.searchParams.get(key)])
+    }
+  })
+
+  it('remembers its state and verifier, so the sign-in after the reset completes', async () => {
+    const { d, fetchFn } = deps()
+    const reset = new URL(await forgotPasswordUrl(settings, d, '/me'))
+    const state = reset.searchParams.get('state')!
+    expect(await completeSignIn(settings, d, `?code=zqcode&state=${state}`)).toBe('/me')
+    const sent = new URLSearchParams((fetchFn.mock.calls[0] as unknown as [string, { body: string }])[1].body)
+    expect(await challengeFor(sent.get('code_verifier')!, { sha256 })).toBe(reset.searchParams.get('code_challenge'))
   })
 })
 

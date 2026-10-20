@@ -77,25 +77,20 @@ jobs:
       # No dependencies: node's own test runner.
       - name: e2e server holds its port
         run: node --test tools/test-serve-local.mjs
-      - name: read-only checkout of editor main for helper provenance
-        env:
-          DEPLOY_KEY: ${{ secrets.MIDST_EDITOR_DEPLOY_KEY }}
+      # Homebrew's pre-commit (the toolchain guard above failed the job if it is missing or not Homebrew's), as in
+      # midst-editor. A fresh virtual environment and a pip install on every job took about 43 s before the first hook
+      # reported (gates, run 10193); the host's install reaches it in about 2 s. Whether the hook cache was already
+      # there is printed, so the log shows it.
+      - name: pre-commit (the host's Homebrew install)
         run: |
-          test -n "$DEPLOY_KEY"
-          umask 077
-          MIDST_EDITOR_ROOT="$(mktemp -d "$RUNNER_TEMP/midst-editor-provenance.XXXXXX")"
-          printf 'MIDST_EDITOR_ROOT=%s\n' "$MIDST_EDITOR_ROOT" >> "$GITHUB_ENV"
-          EDITOR_KEY="$(mktemp "$RUNNER_TEMP/midst-editor-key.XXXXXX")"
-          trap 'rm -f "$EDITOR_KEY"' EXIT
-          printf '%s\n' "$DEPLOY_KEY" > "$EDITOR_KEY"
-          printf '%s\n' '[gitea-server]:2222 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC/VGpxJRKcHAJCSqYHQ+NZNS7v2pibbUelMYqemnO8DOoAU6fngzVz49QPLvYQXy3Rc1W57+cf1MOrzYVJC3unsyIiMGycgQdKBqHAc8+rmBPvGvS+0U28T2F8idZlzfLIa8kt6K7dUkw2l65h5mHxAQ8YHyLv9kgNRVYMzjZmmX4Y1mYdJegyP8IAZUVgKewzw6FVNnJrN0/iomQSfhwYBIoPN4w9cUrKLuIteZX0Rs1FEZbSMy9GxyiH0fRn0X9P/0QO973UwaxlkSEKZY31+Geex1ynCEuulwQGkhhGhmnnaTCTlS9hwHpJ+pcrb0OnVdJj8cxeq1WLyVnZMEtHbu5+LX8ViicW8exEf9VAcJUExgn+itJXU5NceNcZLotDScJXGV1UI/de5TgjuB3WyFQphYdeiuKxwRywtV8fEFzzZRl+t1gSDvDjSU3/DJM4gZm5lARUnClUOW6uRGx6wuryhBeYoJroBzlnHZp+yOlWYdTwrcZG5+wk60R6ETjqOq/zysAg2fZTA2obvTmYlOojYf+nfvIPT0I0FZNPDaY1qqtR8pgJwZX61yHtDEiqHyje+NQUeIvAt+vm7wQ6coYSlle+5zzWuDZzgo15KkXqAZCdgv8al+WRSZKTdGnNer5cB0uZSBSDr9dg95WLX0o+rUYTX9g0ocmcrOpP0Q==' > "$RUNNER_TEMP/editor_known_hosts"
-          export GIT_SSH_COMMAND="ssh -F /dev/null -p 2222 -i $EDITOR_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/editor_known_hosts"
-          git clone --quiet --branch main stuartswerdloff@gitea-server:The_Kindled/midst-editor.git "$MIDST_EDITOR_ROOT"
-      - name: pre-commit, in a throwaway virtual environment
-        run: |
-          python3 -m venv "$RUNNER_TEMP/precommit"
-          "$RUNNER_TEMP/precommit/bin/pip" install --quiet 'pre-commit==4.6.2'
-          "$RUNNER_TEMP/precommit/bin/pre-commit" run --all-files --show-diff-on-failure
+          cache="${PRE_COMMIT_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/pre-commit}"
+          if [ -d "$cache" ]; then echo "pre-commit cache: present at $cache"; else echo "pre-commit cache: none yet at $cache"; fi
+          pre-commit run --all-files --show-diff-on-failure
+      # The message catalog (midst-infra docs/design/message-catalog.md): does it match the code, is it consistent,
+      # how many words are still written into the code, and is Lingui held below 6. Report only, except the pin:
+      # each migration PR makes the part it migrates enforcing.
+      - name: message catalog (report only)
+        run: npm run catalog:report
       - name: vendored midst-format matches its VENDOR.md hashes
         run: node tools/check-vendored-format.mjs
       # Rebuilds the tag VENDOR.md names and byte-compares it with vendor/midst-format/, so the hashes are not
@@ -167,13 +162,16 @@ jobs:
         if: steps.head.outputs.current == 'true'
         run: echo "MIDST_E2E_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')" >> "$GITHUB_ENV"
       # Fixtures are generated, never committed: invented content under real published names.
-      # The @frame-budget follow tests never run here, so a green run of this job says nothing about
-      # following. They need a real frame cadence, which this runner's account has never had (#15). They
-      # run in .github/workflows/frame-budget.yml on GitHub, on the push-up after the Gitea merge (PROGRAMME).
-      # The @gui legacy-runtime tests also need a GUI (their sampler precondition, #28); they run in frame-budget.yml.
-      - name: run e2e (not the frame-budget or @gui tests; those run in frame-budget.yml)
+      # The @frame-budget tests don't run in this job, so a green run of it says nothing about following.
+      # On this runner the four follow tests run in .gitea/workflows/frame-budget.yml, under the host profile,
+      # which this runner's stalls allow (midst-infra #102); the @frame-budget recorder test does not run on
+      # Gitea at all. Strict, all of them run in .github/workflows/frame-budget.yml on GitHub, on the push-up.
+      # The @gui legacy-runtime tests need a GUI (their sampler precondition, #28), and run only there too.
+      - name: run e2e (not the frame-budget or @gui tests; see .gitea and .github frame-budget.yml)
         if: steps.head.outputs.current == 'true'
-        run: npx playwright test --grep-invert "@frame-budget|@gui"
+        # One server, built once; the specs that never time the player on 4 workers, then the timing specs alone on 1
+        # (playwright.config.ts PARALLEL_SAFE; CI task, Stuart, 19 Oct). The same 146 tests as one serial run.
+        run: tools/e2e-split.sh --grep-invert "@frame-budget|@gui"
       # CI is set, so the web server rebuilds the site and its fixtures under this scheme. These are
       # the specs that touch object names; none of them is a frame-budget test.
       - name: the same site under canonical keys

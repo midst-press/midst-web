@@ -1,4 +1,4 @@
-import { buildLabel } from './buildLabel'
+import { buildLabel } from '@midst-press/midst-format/build-label'
 
 /*
  * Which build is this? Shown at the foot of the About page, so someone checking an issue against a
@@ -14,8 +14,8 @@ import { buildLabel } from './buildLabel'
  *
  * A build with none of them set says "Development build" and does not invent a version.
  *
- * The wording is the editor's (buildLabel.ts, a byte-identical copy of midst-editor's
- * src/shared/buildLabel.ts), so the site and the editor describe a build the same way.
+ * The wording is the editor's: buildLabel comes from midst-format's build-label, which the editor
+ * imports too (midst-web #194), so the site and the editor describe a build the same way.
  */
 export const BUILD_DESCRIPTION: string = buildLabel({
   tag: process.env.MIDST_BUILD_TAG,
