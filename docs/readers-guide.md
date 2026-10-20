@@ -3,5 +3,3 @@
 # How to watch a poem
 
 ## Under Construction
-
-The guide to watching a poem is being written, and will be here closer to the public release.

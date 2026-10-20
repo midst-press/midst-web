@@ -1,8 +1,11 @@
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import guide from '../guide/readers-guide.json'
+import guideJson from '../guide/readers-guide.json'
 import { activateLocale, catalogs, i18n } from '../i18n'
-import { guideMarkdown } from '../guide/markdown'
+import { Guide, guideMarkdown } from '../guide/markdown'
+
+// Typed, so an empty placeholder list is still a list of strings.
+const guide: Guide = guideJson
 
 // The reader's guide (issue #92) must not drift from the player it describes, and its two forms,
 // the site's page and docs/readers-guide.md, must say the same words.
@@ -98,8 +101,10 @@ describe('the control-label reader', () => {
 describe("the reader's guide", () => {
   // #99 (Stuart, 21 Oct): the public guide is a placeholder until Annelyse writes it, so the tests of its text
   // (a section per control, the names in bold) went with that text. The original is in midst-administrative-operations.
-  it('is the Under Construction placeholder', () => {
-    expect(guide.sections.map(section => section.heading)).toEqual(['Under Construction'])
+  it('is the Under Construction placeholder and nothing more', () => {
+    // Stuart, 21 Oct: Annelyse wants all user-facing text other than buttons and labels written by people.
+    expect(guide.intro).toEqual([])
+    expect(guide.sections).toEqual([{ heading: 'Under Construction', labels: [], paragraphs: [] }])
   })
 
   it('uses bold in pairs, so the page never shows a stray marker', () => {
