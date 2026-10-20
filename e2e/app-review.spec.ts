@@ -201,18 +201,63 @@ test('a 401 forgets the session and offers Sign in', async ({ page, baseURL }) =
   await expect(page.getByRole('alert')).toContainText('Please sign in again.')
 })
 
-test('Play fetches the review copy and shows the player; Close removes it', async ({ page, baseURL }) => {
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport.width}px`, async ({ page, baseURL }) => {
+  await page.setViewportSize(viewport)
   const store: Store = { submissions: [submission(1)], decisions: [], listReads: 0 }
   await signedInAs(page, ['publisher'])
   await standIn(page, baseURL!, store)
   await page.goto('/review')
-  await page.getByRole('button', { name: 'Play Zq 1' }).click()
-  const editor = page.getByRole('dialog', { name: 'Playing Zq 1' }).locator('.editor')
+  if (viewport.width < 600) await page.locator('.window-size-popup').click()
+  const footer = page.locator('.site-footer')
+  await expect(footer).toBeVisible()
+  const play = page.getByRole('button', { name: 'Play Zq 1' })
+  await play.focus()
+  await page.keyboard.press('Enter')
+  const dialog = page.getByRole('dialog', { name: 'Playing Zq 1' })
+  const editor = dialog.locator('.editor')
   await expect(editor).toBeVisible()
   await expect(editor).toContainText(TYPED)
-  await page.getByRole('button', { name: 'Close' }).click()
-  await expect(editor).toHaveCount(0)
+  await expect(dialog).toHaveCSS('background-color', 'rgb(255, 245, 238)')
+  await expect(footer).toBeHidden()
+  const close = dialog.getByRole('button', { name: 'Close' })
+  await expect(close).toBeFocused()
+  const box = await close.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.width).toBeGreaterThanOrEqual(44)
+  expect(box!.height).toBeGreaterThanOrEqual(44)
+  expect(await close.evaluate(button => {
+    const r = button.getBoundingClientRect()
+    return button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))
+  })).toBe(true)
+  const timestamp = dialog.locator('.frame-timestamp')
+  await expect(timestamp).toBeVisible()
+  expect(await timestamp.evaluate(label => {
+    const r = label.getBoundingClientRect()
+    // The label is deliberately noninteractive. Enable only hit-testing, without changing its paint or geometry.
+    const previous = label.style.pointerEvents
+    label.style.pointerEvents = 'auto'
+    try {
+      const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+      return r.top >= 0 && r.bottom <= window.innerHeight && label.contains(top)
+    } finally {
+      label.style.pointerEvents = previous
+    }
+  })).toBe(true)
+  await page.keyboard.press('Shift+Tab')
+  expect(await dialog.evaluate(modal => modal.contains(document.activeElement))).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(footer).toBeVisible()
+  await expect(play).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(close).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(dialog).toHaveCount(0)
+  await expect(footer).toBeVisible()
+  await expect(play).toBeFocused()
 })
+}
 
 test('Play with an expired link says so in words, and shows no player', async ({ page, baseURL }) => {
   const store: Store = { submissions: [submission(1)], decisions: [], expired: true, listReads: 0 }

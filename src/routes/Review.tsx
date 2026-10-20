@@ -1,4 +1,4 @@
-import React, { ReactElement, useEffect, useState } from 'react'
+import React, { ReactElement, useEffect, useRef, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
@@ -30,6 +30,22 @@ function Review(): ReactElement {
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [playing, setPlaying] = useState<{ title: string, data: IMidstFile } | null>(null)
+  const playerDialog = useRef<HTMLDialogElement>(null)
+  const playButton = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!playing) return
+    const modal = playerDialog.current!
+    const returnFocus = playButton.current
+    // The top layer keeps even the site's fixed newsletter bar below the player, and contains keyboard focus.
+    modal.showModal()
+    document.body.classList.add('review-player-open')
+    return () => {
+      modal.close()
+      document.body.classList.remove('review-player-open')
+      if (returnFocus?.isConnected) returnFocus.focus()
+    }
+  }, [playing])
 
   // Only a publisher's page asks for the list; the API would refuse anyone else anyway.
   const call: Call | null = session && session.groups.includes('publisher') ? callerFor(APP_API_URL, session.idToken) : null
@@ -55,8 +71,10 @@ function Review(): ReactElement {
     // Loaded once per visit, and again after each decision.
   }, [])
 
-  const play = async (submission: Submission) => {
+  const play = async (submission: Submission, trigger: HTMLButtonElement) => {
     if (!call) return
+    // Disabling the busy button may blur it before the file arrives, so remember the actual trigger now.
+    playButton.current = trigger
     setBusy(true)
     setNotice(null)
     setProblem(null)
@@ -138,7 +156,7 @@ function Review(): ReactElement {
                 </span>
                 <span className="publisher-actions">
                   {/* An upload that never completed has no review copy to play, and nor does an archive record. */}
-                  {canPlay(s) && <button type="button" disabled={busy} onClick={() => play(s)} aria-label={`Play ${s.title}`}>Play</button>}
+                  {canPlay(s) && <button type="button" disabled={busy} onClick={event => play(s, event.currentTarget)} aria-label={`Play ${s.title}`}>Play</button>}
                   {/* Only a submission still waiting to be read is decided here; a decided one shows its status. */}
                   {s.status === 'received' && <>
                   <label>
@@ -178,15 +196,16 @@ function Review(): ReactElement {
         {content}
       </section>
       {playing && (
-        <div className="sliding-poems" role="dialog" aria-label={`Playing ${playing.title}`}>
-          <button type="button" className="app-button review-player-close" onClick={() => setPlaying(null)}>Close</button>
+        <dialog ref={playerDialog} className="sliding-poems review-player" aria-label={`Playing ${playing.title}`}
+          onCancel={event => { event.preventDefault(); setPlaying(null) }}>
+          <button type="button" className="app-button review-player-close" autoFocus onClick={() => setPlaying(null)}>Close</button>
           <div className="sliding-poems__frame" style={{ width: '200%' }}>
             <div className="sliding-poems__poem sliding-poems__poem--loaded" data-trigger="false">
               <div className="scrolling-area-border" />
               <MidstPlayer activePlayer={true} cursorFollowing={true} hasScrollbar={true} data={playing.data} />
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   )
