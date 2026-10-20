@@ -37,8 +37,9 @@ export interface ListChange {
   edgeCleared?: boolean
 }
 
-export const publish = (call: Call, poemId: string, listEtag: string) =>
-  call<ListChange>('/publisher/publish', { method: 'POST', body: { poemId, listEtag } })
+/** `replaces` names the published poem this one replaces (midst-infra #190); the key is sent only when there is one. */
+export const publish = (call: Call, poemId: string, listEtag: string, replaces?: string) =>
+  call<ListChange>('/publisher/publish', { method: 'POST', body: replaces ? { poemId, listEtag, replaces } : { poemId, listEtag } })
 
 export const unpublish = (call: Call, poemId: string, listEtag: string) =>
   call<ListChange>('/publisher/unpublish', { method: 'POST', body: { poemId, listEtag } })
