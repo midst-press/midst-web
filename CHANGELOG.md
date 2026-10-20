@@ -1,3 +1,8 @@
+# 0.10.0
+
+- **Space plays and pauses after dragging the timeline.** Scrubbing no longer swallows the spacebar; the playhead
+  keeps focus and Space toggles playback as it does everywhere else.
+
 # 0.9.0
 
 - **Each poem's address is the one it was given.** When the published list carries stored addresses, the site uses
