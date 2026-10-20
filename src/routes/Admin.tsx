@@ -12,6 +12,14 @@ import { GROUPS, Person, disable, enable, invite, loadPeople, resendInvitation, 
 // enable.
 // A prototype for Annelyse to react to.
 
+// What a failed change says. An answer not in the API's error shape (a gateway's own, such as the 404 of a route the
+// deployed API does not have yet) only says something went wrong, so its status is added: it is what tells an admin
+// why (#241).
+const problemOf = (error: unknown): string => {
+  if (!(error instanceof ApiError)) return 'That did not work. Please try again.'
+  return error.code === 'server' ? `${error.message} (HTTP ${error.status})` : error.message
+}
+
 const sameGroups = (a: string[], b: string[]) => a.length === b.length && a.every(group => b.includes(group))
 
 function GroupBoxes({ label, chosen, disabled, onChange }: {
@@ -40,6 +48,9 @@ function Admin(): ReactElement {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  // Whose row a change was made from, so its result is shown there, beside the button, and not above the invite form
+  // where it may be out of view (#241). null: the invite form, or the page.
+  const [about, setAbout] = useState<string | null>(null)
 
   // Only an admin's page asks for anything; the API would refuse anyone else anyway.
   const call: Call | null = session && session.groups.includes('admin') ? callerFor(APP_API_URL, session.idToken) : null
@@ -60,11 +71,12 @@ function Admin(): ReactElement {
   }, [])
 
   // Every change: run it, then reload, so the page always shows what the server now holds.
-  const change = async (action: (c: Call) => Promise<unknown>, done: string): Promise<boolean> => {
+  const change = async (action: (c: Call) => Promise<unknown>, done: string, username: string | null = null): Promise<boolean> => {
     if (!call) return false
     setBusy(true)
     setNotice(null)
     setProblem(null)
+    setAbout(username)
     try {
       await action(call)
       await reload(call)
@@ -73,7 +85,7 @@ function Admin(): ReactElement {
     } catch (error) {
       expired(error)
       await reload(call).catch(() => undefined)
-      setProblem(error instanceof ApiError ? error.message : 'That did not work. Please try again.')
+      setProblem(problemOf(error))
       return false
     } finally {
       setBusy(false)
@@ -92,6 +104,13 @@ function Admin(): ReactElement {
 
   const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/admin'))
 
+  const result = (
+    <>
+      {notice && <p role="status" className="publisher-notice">{notice}</p>}
+      {problem && <p role="alert" className="publisher-problem">{problem}</p>}
+    </>
+  )
+
   let content: ReactElement
   if (!APP_AVAILABLE) {
     content = <p>Administration is not available on this site.</p>
@@ -109,8 +128,7 @@ function Admin(): ReactElement {
   } else {
     content = (
       <>
-        {notice && <p role="status" className="publisher-notice">{notice}</p>}
-        {problem && <p role="alert" className="publisher-problem">{problem}</p>}
+        {about === null && result}
 
         <h3>Invite someone</h3>
         <form onSubmit={sendInvite} aria-label="Invite someone">
@@ -141,25 +159,26 @@ function Admin(): ReactElement {
                     <GroupBoxes label={`Groups of ${person.name}`} chosen={chosen} disabled={busy}
                       onChange={groups => setEdits(current => ({ ...current, [person.username]: groups }))} />
                     <button type="button" disabled={busy || !edited}
-                      onClick={() => change(c => setGroups(c, person.username, chosen), `Saved the groups of ${person.name}.`)}>
+                      onClick={() => change(c => setGroups(c, person.username, chosen), `Saved the groups of ${person.name}.`, person.username)}>
                       Save groups
                     </button>
                     {person.status === 'invited' && (
                       <button type="button" disabled={busy}
-                        onClick={() => change(c => resendInvitation(c, person.username), `Sent the invitation to ${person.name} again.`)}>
+                        onClick={() => change(c => resendInvitation(c, person.username), `Sent the invitation to ${person.name} again.`, person.username)}>
                         Resend invitation
                       </button>
                     )}
                     {person.status === 'disabled' ? (
-                      <button type="button" disabled={busy} onClick={() => change(c => enable(c, person.username), `Enabled ${person.name}.`)}>
+                      <button type="button" disabled={busy} onClick={() => change(c => enable(c, person.username), `Enabled ${person.name}.`, person.username)}>
                         Enable
                       </button>
                     ) : (
-                      <button type="button" disabled={busy} onClick={() => change(c => disable(c, person.username), `Disabled ${person.name}.`)}>
+                      <button type="button" disabled={busy} onClick={() => change(c => disable(c, person.username), `Disabled ${person.name}.`, person.username)}>
                         Disable
                       </button>
                     )}
                   </span>
+                  {about === person.username && result}
                 </li>
               )
             })}

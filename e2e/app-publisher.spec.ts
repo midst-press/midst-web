@@ -264,6 +264,14 @@ test('the publisher registers a poet, resends the invitation and disables them; 
 
   await poets.getByRole('button', { name: 'Resend invitation' }).click()
   await expect(page.getByRole('status')).toHaveText('Sent the invitation to Qz Vb again.')
+  // Disable asks first (#122): declined, nothing is sent; accepted, the poet is disabled.
+  const asked: string[] = []
+  page.once('dialog', dialog => { asked.push(dialog.message()); return dialog.dismiss() })
+  await poets.getByRole('button', { name: 'Disable' }).click()
+  await expect.poll(() => asked).toEqual(['Disable Qz Vb\'s account? They won\'t be able to sign in until an admin turns it back on.'])
+  await expect(poets.getByRole('button', { name: 'Disable' })).toBeEnabled()
+  expect(store.writes).toEqual(['POST /publisher/poets', 'POST /publisher/poets/u-1/resend'])
+  page.once('dialog', dialog => dialog.accept())
   await poets.getByRole('button', { name: 'Disable' }).click()
   await expect(poets).toContainText('Disabled')
   await expect(poets.getByRole('button')).toHaveCount(0)
