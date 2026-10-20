@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -61,8 +61,13 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       if (action === 'disable') person.status = 'disabled'
       return reply(200, person)
     }
-    const body = request.postDataJSON() as { poemId?: string, poemIds?: string[], listEtag: string, publishDate?: string | null, highlighted?: boolean }
+    const body = request.postDataJSON() as { poemId?: string, poemIds?: string[], listEtag: string, publishDate?: string | null, highlighted?: boolean, replaces?: string }
     store.writes.push(`${request.method()} ${url.pathname}`)
+    store.bodies?.push(body)
+    // #101, midst-infra #190: a replacement the server refuses (another poet's, say) is a 400 with a brief message.
+    if (store.refuseReplaces && url.pathname === '/publisher/publish' && body.replaces) {
+      return reply(400, { error: 'invalid', message: store.refuseReplaces })
+    }
     if (store.failNext) {
       store.failNext = false
       return reply(500, { error: 'server', message: 'Zq went wrong.' })
@@ -71,7 +76,12 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       return reply(409, { error: 'conflict', message: 'The published list changed since you loaded it.', listEtag: `e${store.etag}` })
     }
     store.etag += 1
-    if (url.pathname === '/publisher/publish') {
+    if (url.pathname === '/publisher/publish' && body.replaces) {
+      // The new poem takes the replaced one's place in the list (midst-infra #190).
+      const at = store.published.findIndex(p => p.poemId === body.replaces)
+      store.published[at] = store.unpublished.find(p => p.poemId === body.poemId)!
+      store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
+    } else if (url.pathname === '/publisher/publish') {
       store.published.push(store.unpublished.find(p => p.poemId === body.poemId)!)
       store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
     } else if (url.pathname === '/publisher/unpublish') {
@@ -352,4 +362,54 @@ test('someone who is not a publisher is told so, and the list is not asked for',
   await page.goto('/publisher')
   await expect(page.getByText('Your account cannot publish.')).toBeVisible()
   expect(asked).toBe(false)
+})
+
+// #101 (Stuart, 21 Oct): a poem can be published as the replacement for a published poem by the same poet.
+const byPoet = (n: number, author: string) => ({ ...poem(n), author })
+const notPublished = (page: Page) => page.getByRole('list', { name: 'Poems not published' })
+
+test('a chosen replacement is sent, and the new poem takes the old one\'s place', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [byPoet(1, 'Qz Vel'), poem(2), byPoet(3, 'Qz Vel')], unpublished: [byPoet(4, 'Qz Vel')], writes: [], bodies: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await notPublished(page).getByLabel('Replaces, for Zq 4').selectOption('id-3')
+  await notPublished(page).getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByRole('status')).toHaveText('Published Zq 4.')
+  expect(store.bodies).toEqual([{ poemId: 'id-4', listEtag: 'e1', replaces: 'id-3' }])
+  await expect(published(page)).toHaveText(['Zq 1', 'Zq 2', 'Zq 4'])
+})
+
+test('with None, publish sends no replaces key', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [byPoet(1, 'Qz Vel')], unpublished: [byPoet(2, 'Qz Vel')], writes: [], bodies: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(notPublished(page).getByLabel('Replaces, for Zq 2')).toHaveValue('')
+  await notPublished(page).getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
+  expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1' }])
+  await expect(published(page)).toHaveText(['Zq 1', 'Zq 2'])
+})
+
+test('a refused replacement shows the server\'s message, keeps the choice, and changes nothing', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [byPoet(1, 'Qz Vel')], unpublished: [byPoet(2, 'Qz Vel')], writes: [], bodies: [], refuseReplaces: 'Zq cannot be replaced by that poem.' }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await notPublished(page).getByLabel('Replaces, for Zq 2').selectOption('id-1')
+  await notPublished(page).getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Zq cannot be replaced by that poem.')
+  await expect(notPublished(page).getByLabel('Replaces, for Zq 2')).toHaveValue('id-1')
+  await expect(published(page)).toHaveText(['Zq 1'])
+  expect(store.etag).toBe(1)
+})
+
+test('a poem with nothing it could replace shows no Replaces choice', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2)], writes: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(notPublished(page).getByRole('button', { name: 'Publish' })).toBeVisible()
+  await expect(page.getByLabel(/^Replaces/)).toHaveCount(0)
 })
