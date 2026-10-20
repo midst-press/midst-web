@@ -116,7 +116,7 @@ test('a decided submission offers no decision, and an unfinished upload offers n
   await expect(row(page, 'Zq 3').getByRole('button')).toHaveCount(0)
 })
 
-test('an archive record shows its file\'s date, or "from the archive" without one, with no stray comma, and nothing to play or decide', async ({ page, baseURL }) => {
+test('an archive record shows its file\'s last edit as one, or "from the archive" without one, with no stray comma, and nothing to play or decide', async ({ page, baseURL }) => {
   const archive = submission(2, { origin: 'archive', poet: null, submittedAt: null, status: 'accepted' })
   // An archive record whose own file gave a last edit shows that date, and still nothing to play.
   const dated = submission(3, { origin: 'archive', submittedAt: '2021-01-06T21:14:03.512Z', status: 'accepted' })
@@ -124,8 +124,8 @@ test('an archive record shows its file\'s date, or "from the archive" without on
   await signedInAs(page, ['publisher'])
   await standIn(page, baseURL!, store)
   await page.goto('/review')
-  await expect(row(page, 'Zq 3')).toContainText(/2021/)
-  await expect(row(page, 'Zq 3')).not.toContainText('from the archive')
+  // The date is the last edit, and says so (#159): never shown as if it were when the poem was submitted.
+  await expect(row(page, 'Zq 3')).toContainText(/from the archive, last edited \S*2021/)
   await expect(row(page, 'Zq 3').getByRole('button')).toHaveCount(0)
   const archived = row(page, 'Zq 2')
   await expect(archived).toContainText('from the archive')
