@@ -1,3 +1,8 @@
+# 0.5.0
+
+- **The guides are under construction.** The reader's guide ("How to watch a poem") and the editor's guide on the
+  About the App page say so for now. The links to them stay; the guides will come closer to the public release.
+
 # 0.4.0
 
 - **Choose the language the site speaks.** The languages the site has are at the top of every page, each

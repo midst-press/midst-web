@@ -22,12 +22,11 @@ describe("the editor's user guide on /app", () => {
     expect(readFileSync(path, 'utf8')).toBe(expected)
   })
 
-  it('has the guide’s headings, its shortcut table and its bold names', () => {
+  // #99 (Stuart, 21 Oct): the public guide is a placeholder until Annelyse writes it.
+  it('is the Under Construction placeholder', () => {
     expect(generated).toContain('<h1>Writing in Midst</h1>')
-    expect(generated).toContain('<h2>Keyboard shortcuts</h2>')
-    expect(generated).toContain('<table>')
-    expect((generated.match(/<tr>/g) ?? []).length).toBeGreaterThan(15)
-    expect(generated).toContain('<strong>Mark this moment as a draft</strong>')
+    expect(generated).toContain('Under Construction.')
+    expect(generated).not.toContain('<table>')
   })
 
   it('keeps no Markdown, comment or anchor of its own', () => {

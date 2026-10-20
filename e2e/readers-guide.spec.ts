@@ -10,12 +10,12 @@ test.beforeEach(async ({ page, baseURL }) => {
   })
 })
 
-test('the guide page shows its sections and names the controls in bold', async ({ page }) => {
+test('the guide page shows its title and the Under Construction placeholder', async ({ page }) => {
   await page.goto('/guide')
   const guide = page.locator('.guide-page')
   await expect(guide.getByRole('heading', { name: 'How to watch a poem' })).toBeVisible()
-  await expect(guide.getByRole('heading', { name: 'Draft markers' })).toBeVisible()
-  await expect(guide.locator('strong', { hasText: 'Play' }).first()).toBeVisible()
+  // A placeholder until Annelyse writes the guide (#99, Stuart, 21 Oct).
+  await expect(guide.getByRole('heading', { name: 'Under Construction' })).toBeVisible()
   await expect(guide).not.toContainText('**')
 })
 
