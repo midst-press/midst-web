@@ -10,6 +10,7 @@ import './player.css'
 import { installFonts } from '../../fonts'
 import { ensureLocale, i18n } from '../../i18n'
 import { LocaleContext } from '../../locale'
+import { setShowDraftMarkers, useShowDraftMarkers } from '../../draft-markers-preference'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
@@ -38,6 +39,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   const maxStep = Math.max(0, frames.length - 1)
   const canPlay = activePlayer && frames.length >= 2
   const markers = useMemo(() => draftMarkers(data, frames.length), [data, frames.length])
+  // The reader's show-or-hide choice, shared by every player on the page (#296).
+  const showMarkers = useShowDraftMarkers()
   // A label is centred over its marker, which would push one near either end of the timeline past
   // the end of the control bar. Slide only the label back inside; its pointer stays on the marker.
   const markerRow = useRef<HTMLDivElement | null>(null)
@@ -72,7 +75,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const observer = new ResizeObserver(fit)
     observer.observe(bar)
     return () => observer.disconnect()
-  }, [markers, maxStep])
+    // A hidden row measures nothing, so the labels and tap boxes are fitted again when it is shown (#296).
+  }, [markers, maxStep, showMarkers])
   const { family, size } = playerFont(data)
   const [step, setStep] = useState(maxStep)
   const [playing, setPlaying] = useState(false)
@@ -300,7 +304,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
             onChange={event => seekTo(Number(event.target.value))} />
-            <div className="draft-markers" ref={markerRow}>
+            <div className="draft-markers" ref={markerRow} hidden={!showMarkers}>
               {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
                 style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
                 title={marker.label} aria-label={i18n._('player.jumpTo', { draft: marker.label })} disabled={!activePlayer}
@@ -365,6 +369,16 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
                 </div>
               )}
             </div>
+            {markers.length > 0 && (
+              // Shows or hides the draft markers in every poem, remembered in this browser (#296).
+              <button type="button" role="switch" aria-checked={showMarkers} className="control-button draft-markers-switch"
+                aria-label={i18n._('player.showDraftMarkers')} title={i18n._('player.showDraftMarkers')}
+                onClick={() => setShowDraftMarkers(!showMarkers)}>
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M3 18h18M7 18V9M12 18V6M17 18v-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
