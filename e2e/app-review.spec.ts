@@ -209,7 +209,8 @@ test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport
   await standIn(page, baseURL!, store)
   await page.goto('/review')
   if (viewport.width < 600) await page.locator('.window-size-popup').click()
-  const footer = page.locator('.site-footer')
+  // The newsletter bar a reader sees. The <footer> itself has no box: everything in it is fixed on its own.
+  const footer = page.locator('.site-footer .campaign-monitor-form')
   await expect(footer).toBeVisible()
   const play = page.getByRole('button', { name: 'Play Zq 1' })
   await play.focus()
@@ -244,8 +245,17 @@ test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport
       label.style.pointerEvents = previous
     }
   })).toBe(true)
-  await page.keyboard.press('Shift+Tab')
-  expect(await dialog.evaluate(modal => modal.contains(document.activeElement))).toBe(true)
+  // The page behind the modal takes no keyboard focus. Tabbing past the dialog's own controls may leave the page
+  // for the browser (activeElement is then the body), as a native modal dialog does, but never lands behind it.
+  const behind = () => dialog.evaluate(modal => {
+    const active = document.activeElement
+    return active !== null && active !== document.body && !modal.contains(active)
+  })
+  for (const key of ['Tab', 'Tab', 'Tab', 'Shift+Tab', 'Shift+Tab', 'Shift+Tab', 'Shift+Tab']) {
+    await page.keyboard.press(key)
+    expect(await behind(), `focus went behind the player after ${key}`).toBe(false)
+  }
+  await close.focus()
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   await expect(footer).toBeVisible()
