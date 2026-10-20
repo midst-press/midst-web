@@ -106,7 +106,6 @@ test.describe('on a phone, 390 by 844', () => {
       for (let j = i + 1; j < boxes.length; j++) expect(overlaps(boxes[i], boxes[j]), `markers ${i} and ${j} overlap`).toBe(false)
     }
     for (const box of boxes) {
-      expect(box.right - box.left, 'a tick, not a label').toBeLessThanOrEqual(12)
       expect(box.left).toBeGreaterThanOrEqual(0)
       expect(box.right).toBeLessThanOrEqual(PHONE.width)
     }
@@ -115,6 +114,42 @@ test.describe('on a phone, 390 by 844', () => {
     await expect(markers.first()).toHaveAttribute('aria-label', 'Jump to zq marker 0')
     await markers.nth(1).click()
     await expect(player.getByRole('slider', { name: 'Timeline' })).toHaveValue(String(MARKERS[1]))
+  })
+
+  // #256: each tick is tapped through a box around it, 24 by 24 unless a neighbouring tick is nearer than 24px.
+  test('a tick is the size it was, on its marker, inside a 24px box a tap can reach', async ({ page }) => {
+    const player = await openPoem(page, PHONE)
+    const slider = player.getByRole('slider', { name: 'Timeline' })
+    const ticks = await player.locator('.draft-marker').evaluateAll((els, steps) => {
+      const row = els[0].parentElement!.getBoundingClientRect()
+      return els.map((el, i) => {
+        const r = el.getBoundingClientRect(), after = getComputedStyle(el, '::after')
+        return {
+          left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+          tick: r.left + parseFloat(after.left), place: row.left + steps[i] / 40 * row.width,
+          size: [after.borderLeftWidth, after.borderRightWidth, after.borderTopWidth, after.height].join(' '),
+        }
+      })
+    }, MARKERS)
+    for (const t of ticks) {
+      expect(t.size, 'the tick is drawn as before').toBe('5px 5px 5px 0px')
+      expect(Math.abs(t.tick - t.place), 'the tick is on its marker').toBeLessThan(0.5)
+      expect(t.bottom - t.top).toBeCloseTo(24, 0)
+    }
+    // Markers 8, 12 and 16 are about 18.6px apart, so their boxes meet halfway; marker 30 has room for a whole box.
+    expect(ticks[3].right - ticks[3].left).toBeCloseTo(24, 0)
+    expect(ticks[1].right - ticks[1].left).toBeLessThan(24)
+    expect(Math.abs(ticks[1].right - ticks[2].left), 'neighbouring boxes meet').toBeLessThan(0.5)
+    expect(Math.abs(ticks[1].right - (ticks[1].tick + ticks[2].tick) / 2), 'halfway between the ticks').toBeLessThan(0.5)
+    // A tap off the tick reaches it: 11px left of marker 30 and near the box's top edge.
+    await page.mouse.click(ticks[3].tick - 11, ticks[3].top + 2)
+    await expect(slider).toHaveValue('30')
+    // Between two close ticks, a tap goes to the nearer one. 3px from where the boxes meet: the browser hit-tests at
+    // whole pixels, so a point within 1px of a boundary that falls between pixels may reach either box.
+    await page.mouse.click(ticks[1].right - 3, ticks[1].bottom - 8)
+    await expect(slider).toHaveValue('12')
+    await page.mouse.click(ticks[2].left + 3, ticks[2].bottom - 8)
+    await expect(slider).toHaveValue('16')
   })
 
   test('the newsletter bar is a footer at the end of the page, its fields stacked inside the screen', async ({ page }) => {
