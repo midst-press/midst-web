@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
@@ -9,6 +9,7 @@ import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from '@midst-p
 import './player.css'
 import { installFonts } from '../../fonts'
 import { ensureLocale, i18n } from '../../i18n'
+import { LocaleContext } from '../../locale'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
@@ -80,6 +81,12 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     parseOptions: { preserveWhitespace: true },
     editorProps: { attributes: { class: 'editable', 'aria-label': i18n._('player.poemReplay') } },
   })
+
+  // The editor's attributes are set when it is made, so a language chosen afterwards reaches its label here.
+  const { locale } = useContext(LocaleContext)
+  useEffect(() => {
+    editor?.setOptions({ editorProps: { attributes: { class: 'editable', 'aria-label': i18n._('player.poemReplay') } } })
+  }, [editor, locale])
 
   function cancelGlide() {
     if (glide.current) cancelAnimationFrame(glide.current.frame)
