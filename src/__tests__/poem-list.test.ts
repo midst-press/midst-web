@@ -180,6 +180,52 @@ describe('addresses (#141)', () => {
   })
 })
 
+describe('stored addresses (#101)', () => {
+  const ID_C = '11111111-2222-4333-8444-555555555555'
+  const at = (poemId: string, over: Record<string, unknown> = {}) =>
+    entry({ poemId, timelapse: `poems/${poemId}/t.zip`, processNote: null, ...over })
+  const urls = (...poems: unknown[]) => parsePublishedList(list(...poems)).map(p => [p.poemId, p.url])
+
+  it('uses each stored address as stored, even where derivation would give another', () => {
+    // Derived, these would be aa-title and aa-title--zq-xv: the publisher's choice stands.
+    expect(urls(at(ID_A, { url: 'aa-title--kj-wm' }), at(ID_B, { url: 'kept-from-before' }))).toEqual([
+      [ID_A, 'aa-title--kj-wm'], [ID_B, 'kept-from-before'],
+    ])
+  })
+
+  it('takes any character derivation can produce, an accented one or a question mark included', () => {
+    expect(urls(at(ID_A, { url: 'caf\u00e9-zq?' }))).toEqual([[ID_A, 'caf\u00e9-zq?']])
+  })
+
+  it('refuses a list where some entries have an address and some do not', () => {
+    expect(() => parsePublishedList(list(at(ID_A, { url: 'aa-title' }), at(ID_B)))).toThrow('not well formed')
+    expect(() => parsePublishedList(list(at(ID_A), at(ID_B, { url: 'aa-title' })))).toThrow('not well formed')
+  })
+
+  it('refuses an address used twice', () => {
+    expect(() => parsePublishedList(list(at(ID_A, { url: 'aa-title' }), at(ID_B, { url: 'aa-title' }), at(ID_C, { url: 'x' }))))
+      .toThrow('not well formed')
+  })
+
+  it('refuses two addresses that differ only in Unicode normalisation', () => {
+    const composed = 'caf\u00e9-tide'
+    const decomposed = 'cafe\u0301-tide'
+    expect(composed).not.toBe(decomposed)
+    expect(() => parsePublishedList(list(at(ID_A, { url: composed }), at(ID_B, { url: decomposed })))).toThrow('not well formed')
+    expect(() => parsePublishedList(list(at(ID_A, { url: decomposed }), at(ID_B, { url: composed })))).toThrow('not well formed')
+  })
+
+  it('refuses an address that is not one path segment of text', () => {
+    for (const url of ['', 'a/b', '/a', 'a\nb', 'a\u0000b', 'a\u007fb', null, 7, ['aa-title']]) {
+      expect(() => parsePublishedList(list(at(ID_A, { url })))).toThrow('not well formed')
+    }
+  })
+
+  it('names no poem in what it throws', () => {
+    expect(() => parsePublishedList(list(at(ID_A, { url: 'aa-title' }), at(ID_B)))).toThrow(/^The published poem list is not well formed\.$/)
+  })
+})
+
 describe('fetchRecordedKey', () => {
   it('requests base + key once, as written, with the options given', async () => {
     const request = jest.fn().mockResolvedValue({ ok: true })
