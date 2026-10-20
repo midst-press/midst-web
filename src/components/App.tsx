@@ -118,8 +118,6 @@ function App(): ReactElement {
               >?</NavLink>
             </Hide>
           </nav>
-
-          <LanguageSelector />
         </header>
         <main>
           <Routes>
@@ -168,6 +166,8 @@ function App(): ReactElement {
             <p>💖,<br />Team Midst</p>
           </div>
         )}
+        {/* Last, so it is above everything else at the top of the page, the small-screen notice included. */}
+        <LanguageSelector />
       </div>
     </LocaleContext.Provider>
   )
