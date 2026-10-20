@@ -217,6 +217,11 @@ test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport
   const editor = dialog.locator('.editor')
   await expect(editor).toBeVisible()
   await expect(editor).toContainText(TYPED)
+  // The header a reader sees on the poem page: author, then title (#289).
+  const credit = dialog.locator('.poem-credit')
+  await expect(credit.locator('.author-name')).toHaveText('Qz 1')
+  await expect(credit.locator('.poem-title')).toHaveText('Zq 1')
+  await expect(credit).toBeVisible()
   await expect(dialog).toHaveCSS('background-color', 'rgb(255, 245, 238)')
   await expect(footer).toBeHidden()
   const close = dialog.getByRole('button', { name: 'Close' })
@@ -268,6 +273,26 @@ test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport
   await expect(play).toBeFocused()
 })
 }
+
+test('the player shows a title as text, never as markup (#289)', async ({ page, baseURL }) => {
+  const title = 'Zq <b>bold</b> &amp; xv'
+  const store: Store = { submissions: [submission(1, { title })], decisions: [], listReads: 0 }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await page.getByRole('button', { name: `Play ${title}` }).click()
+  const credit = page.getByRole('dialog').locator('.poem-credit')
+  await expect(credit.locator('.poem-title')).toHaveText(title)
+  await expect(credit.locator('b')).toHaveCount(0)
+})
+
+test('the review page links back to the publisher page (#289)', async ({ page, baseURL }) => {
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, { submissions: [], decisions: [], listReads: 0 })
+  await page.goto('/review')
+  await page.getByRole('link', { name: 'Publish poems' }).click()
+  await expect(page).toHaveURL(/\/publisher$/)
+})
 
 test('Play with an expired link says so in words, and shows no player', async ({ page, baseURL }) => {
   const store: Store = { submissions: [submission(1)], decisions: [], expired: true, listReads: 0 }

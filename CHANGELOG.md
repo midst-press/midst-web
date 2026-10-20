@@ -1,3 +1,15 @@
+# 0.9.0
+
+- **Each poem's address is the one it was given.** When the published list carries stored addresses, the site uses
+  them as they are and no longer works them out from titles, so publishing or withdrawing another poem cannot move
+  a poem's address. The list is refused if an address is missing, invalid or used twice. Until the list carries
+  them, addresses are worked out exactly as before, so nothing changes for readers yet.
+- **The publisher and review pages link to each other**, and the link to Review says how many submissions are
+  waiting. On the publisher page, the poems waiting to be published come first, and the review player shows the
+  poem's author and title above it, as the poem page does.
+- **Dependencies are current**: TypeScript 6.0.3, with minor and patch updates to the rest. Nothing a reader sees
+  changes.
+
 # 0.8.0
 
 - **About the App's help is two dropdowns**, Installation and Using Midst, each under construction until the help
