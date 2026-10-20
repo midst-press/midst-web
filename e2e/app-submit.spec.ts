@@ -117,6 +117,70 @@ test('an upload that fails is said, and the submission is not completed', async 
   expect(store.submissions[0].status).toBe('uploading')
 })
 
+// #253: the portal forms, at a desktop and a phone size.
+const SIZES = [{ name: 'desktop', width: 1280, height: 900 }, { name: 'phone', width: 390, height: 844 }]
+const contrast = (fg: string, bg: string) => {
+  const lum = (css: string) => {
+    const [r, g, b] = (css.match(/\d+/g) ?? []).slice(0, 3).map(Number).map(v => v / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x)
+  return (a + 0.05) / (b + 0.05)
+}
+
+for (const size of SIZES) {
+  test(`the submit form has its labels above the fields, and one button style with a legible disabled state (${size.name}, #253)`, async ({ page, baseURL }) => {
+    await page.setViewportSize(size)
+    await signedInAs(page, ['poet'])
+    await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+    await page.goto('/submit')
+    if (size.width < 600) await page.locator('.window-size-popup').click()
+    for (const name of ['Title', 'Your name as it should appear', 'The poem, as a Midst file (.midst)']) {
+      const field = page.getByLabel(name)
+      const label = page.locator('label', { has: field })
+      const [f, l] = [(await field.boundingBox())!, (await label.boundingBox())!]
+      // The field starts on its own line under the label's words, at the label's left edge.
+      expect([name, f.y > l.y + 10, Math.abs(f.x - l.x) < 2]).toEqual([name, true, true])
+    }
+    const button = page.getByRole('button', { name: 'Submit poem' })
+    await expect(button).toBeDisabled()
+    const look = await button.evaluate(b => { const c = getComputedStyle(b); return { color: c.color, background: c.backgroundColor } })
+    expect(look.background).toBe('rgb(255, 211, 223)')
+    expect(contrast(look.color, look.background)).toBeGreaterThanOrEqual(3)
+    await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
+    await expect(button).toHaveCSS('background-color', 'rgb(255, 145, 175)')
+  })
+
+  test(`a file problem is shown beside the file field, and a failed send beside the button (${size.name}, #253)`, async ({ page, baseURL }) => {
+    await page.setViewportSize(size)
+    const store: Store = { submissions: [], uploaded: [], uploadFails: true }
+    await signedInAs(page, ['poet'])
+    await standIn(page, baseURL!, store)
+    await page.goto('/submit')
+    if (size.width < 600) await page.locator('.window-size-popup').click()
+    await page.getByLabel('Title').fill('Zq')
+    await page.getByLabel('Your name as it should appear').fill('Qz')
+    const file = page.getByLabel('The poem, as a Midst file (.midst)')
+    const button = page.getByRole('button', { name: 'Submit poem' })
+    const between = async (above: number, below: number) => {
+      const a = (await page.getByRole('alert').boundingBox())!
+      return a.y >= above && a.y + a.height <= below
+    }
+    await file.setInputFiles({ ...midstFile, name: 'zq.txt' })
+    await button.click()
+    await expect(page.getByRole('alert')).toContainText('ends in .midst')
+    let [f, b] = [(await file.boundingBox())!, (await button.boundingBox())!]
+    expect(await between(f.y + f.height, b.y)).toBe(true)
+    await file.setInputFiles(midstFile)
+    await button.click()
+    await expect(page.getByRole('alert')).toContainText('could not be uploaded')
+    ;[f, b] = [(await file.boundingBox())!, (await button.boundingBox())!]
+    expect(await between(b.y + b.height, Infinity)).toBe(true)
+    await expect(page.getByRole('alert')).toHaveCount(1)
+  })
+}
+
 test('someone who is not a poet is told so, and nothing is asked for', async ({ page, baseURL }) => {
   let asked = false
   await signedInAs(page, ['publisher'])
