@@ -214,6 +214,15 @@ repos:
         entry: shasum -a 256 -c tools/midst-infra-copies.sha256
         pass_filenames: false
         files: '^(tools/(closing_refs\.py|issue_flow\.py|refuse_force_push\.py|install-hooks\.cjs|require-hooks\.cjs|test-install-hooks\.cjs|midst-infra-copies\.sha256)|deploy/beta/.*)$'
+      # The other direction: midst-infra's old-links table (#101) computes poem addresses with copies of these
+      # files, so an address it plans is the address the site serves. Change them here, then copy them to
+      # midst-infra beta/app/src/midst-web/ with its tools/midst-web-copies.sha256, then update the checksums here.
+      - id: copied-to-midst-infra
+        name: src/poems/{canonical-date,poem-list,poem-names}.js are copied into midst-infra (copy them there, then update tools/copied-to-midst-infra.sha256)
+        language: system
+        entry: shasum -a 256 -c tools/copied-to-midst-infra.sha256
+        pass_filenames: false
+        files: '^(src/poems/(canonical-date|poem-list|poem-names)\.js|tools/copied-to-midst-infra\.sha256)$'
       - id: test-install-hooks
         name: tools/test-install-hooks.cjs (the git-hook installer, a copy from midst-infra #37)
         language: system
