@@ -333,6 +333,42 @@ body {
   font-size: 30px;
 }
 
+/* The languages (#234): top right, above the navigation, on every page, and above the small-screen notice
+   (.window-size-popup) that covers the page on a phone: a reader who cannot read the notice needs this first.
+   Browsers clamp z-index to 2147483647, which the notice already reaches, so this is the last element in the page
+   (App.tsx) and wins the tie by order. */
+.language-selector {
+  position: fixed;
+  top: 6px;
+  right: 80px;
+  display: flex;
+  gap: 8px;
+  z-index: 2147483647;
+}
+
+.language-selector button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: #000000;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.language-selector button[aria-pressed='true'] {
+  border-color: currentColor;
+}
+
+.language-flag {
+  display: block;
+  outline: 1px solid rgba(0, 0, 0, 0.15);
+}
+
 .site-header nav a {
   color: #000000;
   text-align: center;

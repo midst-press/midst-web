@@ -5,9 +5,9 @@ import { installFonts } from './fonts'
 import { POEM_LIST } from './config'
 import store from './store'
 import { loadPoemList } from './store/actions'
-import { activateLocale, pickLocale, readerLanguages } from './i18n'
+import { activateLocale, chosenLocale, storedLanguage } from './i18n'
 
 installFonts()
-activateLocale(pickLocale(readerLanguages()))
+activateLocale(chosenLocale(storedLanguage()))
 if (POEM_LIST === 'published') store.dispatch(loadPoemList())
 ReactDOM.render(Root, document.getElementById('root'))
