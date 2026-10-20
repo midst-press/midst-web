@@ -288,9 +288,6 @@ The scroll engine (`follow`) and the build line (`build-label`) are midst-format
 `vendor/midst-format/` at the tag its `VENDOR.md` names, as the editor takes them (midst-web #194). The website
 has no copy of either, so there is no editor checkout to hold them to.
 
-`src/guide/editor-user-guide.md` began as a copy of the editor's `docs/user-guide.md` and is now the website's own
-file. Any difference from the editor's is Annelyse's to settle, not a check's.
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for where contributions go, the rule about poem content, the checks before a pull request, how an issue gets closed, and what CI runs.

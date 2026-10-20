@@ -1,7 +1,6 @@
 import React, { ReactElement } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
-import editorGuide from '../guide/editor-user-guide.generated'
 
 function TheApp(): ReactElement {
   return (
@@ -24,10 +23,19 @@ function TheApp(): ReactElement {
           <img src="http://annelysegelman.com/donotdelete/theredwheelbarrow.png" />
         </p>
 
-        {/* The editor's user guide (midst-editor docs/user-guide.md), until Annelyse writes the help
-            for this page (GitHub midst-press/midst-editor#63). Generated from a checked copy; see
-            src/guide/editorGuideHtml.ts. */}
-        <div id="help" className="editor-guide" dangerouslySetInnerHTML={{ __html: editorGuide }} />
+        {/* Help, where the editor's "Need help?" lands (/app#help, midst-editor #105). Two dropdowns, each "Under
+            construction" and nothing more, until Annelyse writes the help (GitHub midst-press/midst-editor#63; midst-web
+            #278). User-facing text other than buttons and labels is hers to write (Stuart, 21 Oct). */}
+        <div id="help" className="app-help">
+          <details>
+            <summary>Installation</summary>
+            <p>Under construction</p>
+          </details>
+          <details>
+            <summary>Using Midst</summary>
+            <p>Under construction</p>
+          </details>
+        </div>
       </section>
     </div>
   )

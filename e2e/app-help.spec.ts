@@ -1,7 +1,8 @@
 import { test, expect } from './coverage'
 
-// Beta builds of the editor open /app#help for "Need help?" (midst-editor #105). The page shows the editor's
-// user guide there, and the reader lands on it.
+// Beta builds of the editor open /app#help for "Need help?" (midst-editor #105). Until Annelyse writes the help, the
+// section is two dropdowns whose bodies say "Under construction" and nothing more (GitHub midst-press/midst-editor#63;
+// midst-web #278; Stuart, 21 Oct).
 
 test.beforeEach(async ({ page, baseURL }) => {
   await page.route('**/*', route => {
@@ -11,16 +12,25 @@ test.beforeEach(async ({ page, baseURL }) => {
   })
 })
 
-test('/app#help shows the guide placeholder on screen', async ({ page }) => {
+const LABELS = ['Installation', 'Using Midst']
+
+test('/app#help lands on two dropdowns, Installation and Using Midst, closed until opened', async ({ page }) => {
   await page.goto('/app#help')
   const help = page.locator('#help')
-  await expect(help.getByRole('heading', { name: 'Writing in Midst' })).toBeVisible()
-  // A placeholder until Annelyse writes the guide (#99, Stuart, 21 Oct).
-  await expect(help).toContainText('Under Construction.')
-  await expect(help).not.toContainText('**')
-  // The placeholder is short enough that the page may not scroll at all, so the check is only that it is on screen.
-  // The scroll-to-the-guide check returns with the real guide.
   await expect(help).toBeInViewport()
+  await expect(help.locator('summary')).toHaveText(LABELS)
+  for (const label of LABELS) {
+    const dropdown = help.locator('details', { has: page.locator('summary', { hasText: label }) })
+    const body = dropdown.locator('p')
+    await expect(body).toBeHidden()
+    await dropdown.locator('summary').click()
+    await expect(body).toBeVisible()
+    // The body is the placeholder and nothing more.
+    await expect(body).toHaveText('Under construction')
+  }
+  // Each dropdown is its label and that one line: no headings, no other text.
+  await expect(help.getByRole('heading')).toHaveCount(0)
+  await expect(help).toHaveText(LABELS.map(label => `${label}Under construction`).join(''))
 })
 
 test('/app without the anchor starts at the top', async ({ page }) => {
