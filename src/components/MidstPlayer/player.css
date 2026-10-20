@@ -48,6 +48,9 @@
 .midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; min-width: 80px; max-width: 140px; padding: 3px 10px; text-align: center; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .midst-tiptap-player .draft-markers .draft-marker:hover, .midst-tiptap-player .draft-markers .draft-marker:focus-visible { z-index: 1; }
 .midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }
+/* Hidden by the switch (#296). This wins over any display rule given to the row later, so `hidden` always hides it
+   (vivian-1a61bc9a, review of #298). */
+.midst-tiptap-player .timeline-control .draft-markers[hidden] { display: none !important; }
 /* The draft markers switch (#296): dimmed while the markers are hidden. */
 .midst-tiptap-player .draft-markers-switch[aria-checked="false"] { opacity: 0.45; }
 /* On a phone the labels would cover each other, so each marker is its pointer alone (#254). Its name stays on the
