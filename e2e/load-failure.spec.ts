@@ -38,13 +38,14 @@ const archive = (path: string, suffix: string) => path.startsWith('/archive/') &
 const answer = (suffix: string, status: number, body = '') => (path: string) => archive(path, suffix) ? { status, body } : null
 
 // Each failure and the sentence the reader gets for it (src/routes/Poem.tsx LOAD_FAILURE_MESSAGES).
-// 403 and 404 share one: the real poems host answers 403 for a file that is not there.
-const NOT_FOUND_OR_REFUSED = 'Unable to find the poem, but it is possible that access was refused.'
+// 404 and 403 have their own (#47): the poems host answers 404 for a file that is not there.
+const NOT_FOUND = 'Unable to find the poem.'
+const REFUSED = 'Access to the poem was refused.'
 const cases: Array<[string, (path: string) => { status: number, body: string } | 'abort' | null, string]> = [
-  ['the timelapse is missing (404)', answer('.midst.zip', 404), NOT_FOUND_OR_REFUSED],
-  ['the process note is missing (404)', answer('.md', 404), NOT_FOUND_OR_REFUSED],
-  ['the timelapse is refused (403)', answer('.midst.zip', 403), NOT_FOUND_OR_REFUSED],
-  ['the process note is refused (403)', answer('.md', 403), NOT_FOUND_OR_REFUSED],
+  ['the timelapse is missing (404)', answer('.midst.zip', 404), NOT_FOUND],
+  ['the process note is missing (404)', answer('.md', 404), NOT_FOUND],
+  ['the timelapse is refused (403)', answer('.midst.zip', 403), REFUSED],
+  ['the process note is refused (403)', answer('.md', 403), REFUSED],
   ['the server fails (500)', answer('.midst.zip', 500), 'The poem could not be fetched. Please try again later.'],
   ['the timelapse request fails in transport', path => archive(path, '.midst.zip') ? 'abort' : null,
     'Unable to reach the poem. Check your connection and try again.'],
