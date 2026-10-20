@@ -45,6 +45,7 @@ Every error has the same body:
 | 409 | `disabled` | resending an invitation to someone whose account is disabled: enable them first |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
+| 503 | `unavailable` | the request could not be recorded, so nothing was changed (a change), or nothing returned (a read of unpublished content); try again |
 
 `message` is a sentence a person can read. It never contains a poem's text, and never a token.
 
