@@ -1,3 +1,8 @@
+# 0.10.0
+
+- **The player has a switch to show or hide the draft markers**, beside the playback controls, for a poem that has
+  them. They are shown unless the reader turns them off, and the choice is kept in that browser, as the language is.
+
 # 0.9.0
 
 - **Each poem's address is the one it was given.** When the published list carries stored addresses, the site uses
