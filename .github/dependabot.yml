@@ -10,6 +10,10 @@ updates:
     ignore:
       - dependency-name: '@lingui/*'
         update-types: ['version-update:semver-major']
+      # TypeScript stays on 6.x until 7.1 (Stuart, 21 Oct; midst-web #275): 7.0 ships no stable API, and ts-jest does
+      # not run under it. A 7.1 PR is wanted, and is taken only once ts-jest and typescript-eslint support it (#275).
+      - dependency-name: 'typescript'
+        versions: ['7.0.x']
     groups:
       # One reviewable PR per group rather than thirty separate ones.
       all-dev:
