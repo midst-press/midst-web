@@ -6,7 +6,7 @@
   kept in your browser only: it is not in the page's address, not in a cookie, and not sent to us.
 - **Poems from the earlier editor keep the lines the old player drew**, converted with midst-format 0.5.0. A
   line break between paragraphs, a line written as a block of its own, and a hidden selection marker no longer
-  add or lose a line, and the replay follows the line the poet was writing even after lines were moved.
+  add or lose a line.
 
 # 0.3.0
 
