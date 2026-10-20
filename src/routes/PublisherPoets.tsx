@@ -3,6 +3,11 @@ import { ApiError } from '../app/api'
 import { Call } from '../app/publisher'
 import { Person, STATUS_WORDS, disablePoet, listPoets, poetOnly, registerPoet, resendInvitation } from '../app/poets'
 
+// Disable asks first: only an admin can turn the account back on, so a mis-click would lock the poet out (#122). The
+// wording is the one proposed to Annelyse (GitHub midst-web #65), and hers to change.
+export const confirmDisable = (name: string) =>
+  `Disable ${name}'s account? They won't be able to sign in until an admin turns it back on.`
+
 // The "Poets" part of the publisher's page: register a poet by name and email, resend the invitation, disable.
 // The publisher never sees or sets a password (docs/app-api.md, "Poets").
 
@@ -76,7 +81,9 @@ function PublisherPoets({ call, onExpired }: Props): ReactElement {
                   </button>
                 )}
                 {poetOnly(poet) && poet.status !== 'disabled' && (
-                  <button type="button" disabled={busy} onClick={() => run(() => disablePoet(call, poet.username), `Disabled ${poet.name}.`)}>
+                  <button type="button" disabled={busy} onClick={() => {
+                    if (window.confirm(confirmDisable(poet.name))) run(() => disablePoet(call, poet.username), `Disabled ${poet.name}.`)
+                  }}>
                     Disable
                   </button>
                 )}
