@@ -43,6 +43,14 @@ function isKey(value) {
 
 const malformed = () => new Error('The published poem list is not well formed.')
 
+// A stored address (#101): the publisher chooses each poem's address once and stores it in the entry as `url`; the
+// site uses it as stored and never derives one beside it, since only the publisher can see which addresses are
+// reserved or retired. It is one path segment: a non-empty string with no '/' and no control character. Nothing
+// narrower: the publisher's first addresses are today's derived ones (poemUrl), which can hold any other character.
+// eslint-disable-next-line no-control-regex
+const isStoredUrl = value => typeof value === 'string' && value.length > 0 && !/[/\u0000-\u001f\u007f]/.test(value)
+const hasStoredUrl = entry => Object.prototype.hasOwnProperty.call(entry, 'url')
+
 /**
  * Check a parsed published.json as a whole: one bad entry refuses the list, because a list with a hole in it
  * is not the list the publisher meant.
@@ -54,7 +62,7 @@ const malformed = () => new Error('The published poem list is not well formed.')
 function parsePublishedList(json) {
   if (!json || typeof json !== 'object' || json.version !== 1 || !Array.isArray(json.poems)) throw malformed()
   const seen = new Set()
-  return withAddresses(json.poems.map(entry => {
+  const entries = json.poems.map(entry => {
     if (!entry || typeof entry !== 'object') throw malformed()
     const { poemId, title, author, timelapse, processNote, publishDate, highlighted, date, firstPublishedAt } = entry
     if (!isText(poemId) || !isText(title) || !isText(author) || !isKey(timelapse) || seen.has(poemId)) throw malformed()
@@ -76,7 +84,18 @@ function parsePublishedList(json) {
       date: date ?? null,
       firstPublishedAt: firstPublishedAt ?? null,
     }
-  }))
+  })
+  // Every entry has a stored address, or none does (a list from before the publisher stored them, whose addresses are
+  // derived as they always were). Once one does, an entry without one, an invalid one or one used twice refuses the
+  // list: a missing address is not a valid one.
+  if (!json.poems.some(hasStoredUrl)) return withAddresses(entries)
+  const urls = new Set()
+  return entries.map((entry, i) => {
+    const { url } = json.poems[i]
+    if (!isStoredUrl(url) || urls.has(url)) throw malformed()
+    urls.add(url)
+    return { ...entry, url }
+  })
 }
 
 /**
