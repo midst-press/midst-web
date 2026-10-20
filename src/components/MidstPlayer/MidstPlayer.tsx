@@ -28,6 +28,9 @@ interface Props {
   hasScrollbar: boolean
 }
 
+// Half the 24px minimum target size (WCAG 2.2, 2.5.8) of a draft marker on a phone (#256).
+const MARKER_REACH = 12
+
 export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasScrollbar }: Props) {
   // Each frame is a whole snapshot of the document (the loader validates both file forms into frames), so the
   // player shows a frame's content as it is; nothing is rebuilt from changes.
@@ -49,6 +52,19 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
         const box = name.getBoundingClientRect()
         const shift = box.left < bounds.left ? bounds.left - box.left : box.right > bounds.right ? bounds.right - box.right : 0
         if (shift) name.style.transform = `translateX(${shift}px)`
+      })
+      // On a phone a marker is its tick alone, tapped through a box around it (#256). The box reaches 12px each
+      // side, making 24px, unless a neighbouring tick is nearer than 24px: then the two boxes meet halfway, so a
+      // tap reaches the nearer tick. The stylesheet uses these only below 600px.
+      const width = row.clientWidth
+      const centres = markers.map(marker => marker.index / Math.max(1, maxStep) * width)
+      const order = centres.map((_, i) => i).sort((a, b) => centres[a] - centres[b])
+      const buttons = row.querySelectorAll<HTMLElement>('.draft-marker')
+      order.forEach((i, k) => {
+        const toLeft = k > 0 ? (centres[i] - centres[order[k - 1]]) / 2 : MARKER_REACH
+        const toRight = k < order.length - 1 ? (centres[order[k + 1]] - centres[i]) / 2 : MARKER_REACH
+        buttons[i]?.style.setProperty('--reach-left', `${Math.min(MARKER_REACH, toLeft)}px`)
+        buttons[i]?.style.setProperty('--reach-right', `${Math.min(MARKER_REACH, toRight)}px`)
       })
     }
     fit()
