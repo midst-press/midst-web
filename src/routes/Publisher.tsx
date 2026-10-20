@@ -8,13 +8,19 @@ import PublisherPoets from './PublisherPoets'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import {
-  Call, Poem, PublisherList, callerFor, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish,
+  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder,
+  unpublish,
 } from '../app/publisher'
 
 // The publisher's page (docs/app-api.md, "Publisher"; #12, #110): publish, unpublish, reorder, and set a
 // published poem's date and highlight. A prototype for Annelyse to react to.
 
 const SAVED_NOT_RELOADED = 'The change was saved, but the list could not be refreshed. Reload the page to see it.'
+// When CloudFront did not take the request to clear withdrawn copies (#239). The copies are kept for a day.
+const LEFT_IN_CACHE = {
+  unpublish: 'Its copies could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.',
+  publish: 'The copies of the version it replaced could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.',
+}
 const CONFLICT = 'Someone else changed the published list while you were working. It has been reloaded; please check it and try again.'
 
 function PoemLine({ poem }: { poem: Poem }): ReactElement {
@@ -57,13 +63,14 @@ function Publisher(): ReactElement {
   }, [])
 
   // Every change: run it, then reload, so the page always shows what the server now holds.
-  const change = async (action: (c: Call, etag: string) => Promise<unknown>, done: string) => {
+  const change = async (action: (c: Call, etag: string) => Promise<unknown>, done: string, cacheNote?: string) => {
     if (!call || !list) return
     setBusy(true)
     setNotice(null)
     setProblem(null)
+    let result: unknown
     try {
-      await action(call, list.listEtag)
+      result = await action(call, list.listEtag)
     } catch (error) {
       expired(error)
       setFailures(count => count + 1)
@@ -76,13 +83,15 @@ function Publisher(): ReactElement {
       setBusy(false)
       return
     }
-    // The change is saved. Whatever the reload does, never say otherwise, or it may be made again (#127).
+    // The change is saved. Whatever the reload does, never say otherwise, or it may be made again (#127). Copies
+    // left in the cache are said either way.
+    const left = cacheNote && leftInCache(result) ? ` ${cacheNote}` : ''
     try {
       await reload(call)
-      setNotice(done)
+      setNotice(`${done}${left}`)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-      setProblem(SAVED_NOT_RELOADED)
+      setProblem(`${SAVED_NOT_RELOADED}${left}`)
     } finally {
       setBusy(false)
     }
@@ -150,7 +159,7 @@ function Publisher(): ReactElement {
                         event.target.checked ? `Highlighted ${poem.title}.` : `${poem.title} is no longer highlighted.`)} />
                     {' '}Highlighted
                   </label>
-                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => unpublish(c, poem.poemId, etag), `Unpublished ${poem.title}.`)}>
+                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => unpublish(c, poem.poemId, etag), `Unpublished ${poem.title}.`, LEFT_IN_CACHE.unpublish)}>
                     Unpublish
                   </button>
                 </span>
@@ -175,7 +184,7 @@ function Publisher(): ReactElement {
               <li key={poem.poemId}>
                 <PoemLine poem={poem} />
                 <span className="publisher-actions">
-                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publish(c, poem.poemId, etag), `Published ${poem.title}.`)}>
+                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publish(c, poem.poemId, etag), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
                     Publish
                   </button>
                 </span>

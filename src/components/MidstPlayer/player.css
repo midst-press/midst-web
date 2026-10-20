@@ -48,6 +48,15 @@
 .midst-tiptap-player .draft-marker-name { display: block; box-sizing: border-box; min-width: 80px; max-width: 140px; padding: 3px 10px; text-align: center; border: 1px solid #ff91af; border-radius: 20px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .midst-tiptap-player .draft-markers .draft-marker:hover, .midst-tiptap-player .draft-markers .draft-marker:focus-visible { z-index: 1; }
 .midst-tiptap-player .draft-markers .draft-marker:disabled { cursor: default; }
+/* On a phone the labels would cover each other, so each marker is its pointer alone (#254). Its name stays on the
+   button's title and accessible name. Below 600px, where the small-screen notice (App.tsx) shows. */
+@media screen and (max-width: 599px) {
+  .midst-tiptap-player .draft-marker-name { display: none; }
+  /* The button is an invisible box, 24px tall and as wide as MidstPlayer.tsx's reach either side, with the tick at
+     its bottom edge on the marker's place (#256). The tick itself is the size it always was. */
+  .midst-tiptap-player .draft-markers .draft-marker { width: calc(var(--reach-left, 12px) + var(--reach-right, 12px)); height: 24px; transform: translateX(calc(-1 * var(--reach-left, 12px))); }
+  .midst-tiptap-player .draft-markers .draft-marker::after { position: absolute; bottom: 0; left: var(--reach-left, 12px); transform: translateX(-50%); }
+}
 .midst-tiptap-player .frame-timestamp { position: absolute; top: 100%; left: 0; transform: translateX(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; box-sizing: border-box; padding: 3px 12px; border: 1px solid #000; border-radius: 6px; background: #fff; color: #000; font: 12px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; pointer-events: none; margin-top: 6px; }
 .midst-tiptap-player .frame-timestamp--unavailable { color: #666; font-style: italic; }
 .midst-tiptap-player .playback-controls { display: flex; align-items: center; gap: .25rem; flex-shrink: 0; }

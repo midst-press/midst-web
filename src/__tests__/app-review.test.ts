@@ -139,7 +139,7 @@ describe('the review list for an archive record', () => {
 
   it('shows the date of an archive record whose file gave one, and still offers nothing to play', () => {
     const dated = { ...archive, poet: 'qz@example.invalid', submittedAt: '2021-01-06T21:14:03.512Z' }
-    expect(reviewByline(dated)).toBe(`by Qz Vb, qz@example.invalid, ${new Date('2021-01-06T21:14:03.512Z').toLocaleDateString()}`)
+    expect(reviewByline(dated)).toBe(`by Qz Vb, qz@example.invalid, from the archive, last edited ${new Date('2021-01-06T21:14:03.512Z').toLocaleDateString()}`)
     expect(canPlay(dated)).toBe(false)
   })
 

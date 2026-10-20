@@ -45,6 +45,7 @@ Every error has the same body:
 | 409 | `disabled` | resending an invitation to someone whose account is disabled: enable them first |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
+| 503 | `unavailable` | the request could not be recorded, so nothing was changed (a change), or nothing returned (a read of unpublished content); try again |
 
 `message` is a sentence a person can read. It never contains a poem's text, and never a token.
 
@@ -145,10 +146,14 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
-- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
-  Copies the poem into the publishing bucket and adds it at the end of the list.
-- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published" }`
-  Removes it from the list and deletes the publishing copy. The draft stays.
+- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared"? }`
+  Copies the poem into the publishing bucket and adds it at the end of the list. A revision replaces the version
+  it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
+  CloudFront took the request.
+- `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
+  Removes it from the list and deletes the publishing copy. The draft stays. The copy is cleared from CloudFront's
+  cache too. `edgeCleared` is false when CloudFront did not take that request; the copy may then be served for up
+  to a day (`max-age=86400`), and the publisher's page says so (midst-infra #117).
 - `PUT /publisher/order` `{ "poemIds": [...], "listEtag" }` → `{ "listEtag", "published" }`
   400 `invalid` unless `poemIds` is exactly the published set, each once.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`

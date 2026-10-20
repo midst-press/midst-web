@@ -1,32 +1,92 @@
-import { i18n, activateLocale, catalogs, ensureLocale, pickLocale, readerLanguages, SOURCE_LOCALE } from '../i18n'
+import {
+  i18n,
+  activateLocale,
+  catalogs,
+  chosenLocale,
+  ensureLocale,
+  languageName,
+  languageOrder,
+  readerLanguages,
+  readerLocale,
+  SOURCE_LOCALE,
+} from '../i18n'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const linguiConfig = require('../../lingui.config')
 
 // src/i18n.ts, the site's catalog loader (midst-infra docs/design/message-catalog.md). The same cases as
 // midst-editor's src/__tests__/i18n.test.ts, which tests the same functions there.
 
-describe('pickLocale', () => {
+describe('chosenLocale', () => {
   const available = ['en', 'fr', 'pt-BR']
 
-  it('takes the first preference the catalog has', () => {
-    expect(pickLocale(['de', 'fr', 'en'], available)).toBe('fr')
+  it('is English until the reader chooses, whatever the browser language', () => {
+    expect(chosenLocale(undefined, available)).toBe('en')
   })
 
-  it('matches a regional tag by its language', () => {
-    expect(pickLocale(['fr-CA'], available)).toBe('fr')
+  it('is the stored choice while it has a catalog', () => {
+    expect(chosenLocale('fr', available)).toBe('fr')
+    expect(chosenLocale('pt-BR', available)).toBe('pt-BR')
   })
 
-  it('prefers an exact regional match, ignoring case', () => {
-    expect(pickLocale(['PT-br'], available)).toBe('pt-BR')
-  })
-
-  it('falls back to English when nothing matches, or there are no preferences', () => {
-    expect(pickLocale(['de', 'ja'], available)).toBe('en')
-    expect(pickLocale([], available)).toBe('en')
+  it('is English for a stored choice with no catalog, or not a tag at all', () => {
+    for (const stored of ['de', 'FR', 'toString', '', 3, null]) expect(chosenLocale(stored, available)).toBe('en')
   })
 
   it('reads the compiled catalogs by default', () => {
-    expect(pickLocale(['en-NZ'])).toBe('en')
+    expect(chosenLocale('en')).toBe('en')
+    expect(chosenLocale('xx')).toBe('en')
+  })
+})
+
+describe('readerLocale', () => {
+  const available = ['en', 'fr', 'pt-BR']
+
+  it('takes the first preference the catalog has', () => {
+    expect(readerLocale(['de', 'fr', 'en'], available)).toBe('fr')
+  })
+
+  it('matches a regional tag by its language', () => {
+    expect(readerLocale(['fr-CA'], available)).toBe('fr')
+  })
+
+  it('prefers an exact regional match, ignoring case', () => {
+    expect(readerLocale(['PT-br'], available)).toBe('pt-BR')
+  })
+
+  it('is undefined when nothing matches, or there are no preferences', () => {
+    expect(readerLocale(['de', 'ja'], available)).toBeUndefined()
+    expect(readerLocale([], available)).toBeUndefined()
+  })
+})
+
+describe('languageOrder', () => {
+  const available = ['pt-BR', 'en', 'fr', 'de']
+
+  it("puts English first, then the reader's own language, then the rest by tag", () => {
+    expect(languageOrder(['fr-CA', 'en'], available)).toEqual(['en', 'fr', 'de', 'pt-BR'])
+  })
+
+  it("puts English first once when English is the reader's own language", () => {
+    expect(languageOrder(['en-NZ', 'fr'], available)).toEqual(['en', 'de', 'fr', 'pt-BR'])
+  })
+
+  it('is English then the rest when no preference has a catalog', () => {
+    expect(languageOrder(['ja'], available)).toEqual(['en', 'de', 'fr', 'pt-BR'])
+  })
+
+  it('is only English with only the English catalog', () => {
+    expect(languageOrder(['fr', 'en'])).toEqual(['en'])
+  })
+})
+
+describe('languageName', () => {
+  it('names a language in that language', () => {
+    expect(languageName('en')).toBe('English')
+    expect(languageName('de')).toBe('Deutsch')
+  })
+
+  it('is the tag when it cannot name it', () => {
+    expect(languageName('not a tag')).toBe('not a tag')
   })
 })
 
@@ -72,7 +132,7 @@ describe('readerLanguages', () => {
 })
 
 describe('ensureLocale', () => {
-  it("activates the reader's language when none is active", () => {
+  it('activates English when none is active and nothing is stored', () => {
     jest.isolateModules(() => {
       // A fresh @lingui/core, so no language is active yet.
       // eslint-disable-next-line @typescript-eslint/no-var-requires

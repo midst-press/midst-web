@@ -90,3 +90,23 @@ test('becoming inactive during playback stops the timer and freezes the displaye
   expect(await timeline.inputValue()).toBe(stopped)
   expect(await page.locator(`${player} .editable`).textContent()).toBe(content)
 })
+
+// #257: the retired player's stylesheet styles the legacy control and nothing else, so a player mounted in the
+// harness is laid out as the site lays it out. Unscoped, its `.editor .editable` padding moved a phone's poem lines
+// to x=332 of 390. At desktop widths the site's own stylesheet happens to override it, so this is measured on a phone.
+test('the legacy stylesheet reaches the legacy control and not the site player', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mount(page, syntheticData(), options)
+  const editable = page.locator(`${player} .editor .editable`)
+  await expect(editable).toContainText('synthetic frame 39')
+  expect(await editable.evaluate(el => getComputedStyle(el).paddingLeft)).toBe('0px')
+  // CONTROL: the stylesheet is loaded and lays out the legacy control. Scoped, its rules now also win there over the
+  // site's equally specific ones, as they did on the retired player's own page.
+  const raw = 'midstVersion: 1\n' + JSON.stringify({
+    text: '<p>synthetic</p>', history: [{ front: 0, end: 0, inserted: '<p>synthetic</p>', t: 0, pos: 0 }],
+  })
+  await page.evaluate(file => (window as any).mountLegacyReplay(file), raw)
+  const legacy = page.locator('#legacy-control .editor .editable')
+  await expect(legacy).toContainText('synthetic')
+  expect(await legacy.evaluate(el => getComputedStyle(el).padding)).toBe('40px 170px 100px 300px')
+})

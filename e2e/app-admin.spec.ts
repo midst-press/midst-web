@@ -8,7 +8,7 @@ const API = 'https://api.example.invalid'
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, PUT' }
 
 interface Person { username: string, name: string, email: string, groups: string[], status: 'invited' | 'active' | 'disabled' }
-interface Store { people: Person[], writes: string[], bodies: unknown[] }
+interface Store { people: Person[], writes: string[], bodies: unknown[], resendMissing?: boolean }
 
 const person = (username: string, name: string, groups: string[], status: Person['status'] = 'active'): Person =>
   ({ username, name, email: `${username}@example.invalid`, groups, status })
@@ -52,6 +52,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     } else if (action === 'enable') {
       target.status = 'active'
     } else if (action === 'resend') {
+      // A deployed API without the route: API Gateway's own 404, not the API's error shape (#241).
+      if (store.resendMissing) return reply(404, { message: 'Not Found' })
       if (target.status !== 'invited') return reply(409, { error: 'already_signed_in', message: 'Zq has already chosen a password.' })
     }
     return reply(200, target)
@@ -91,8 +93,23 @@ test('resend the invitation to an invited admin; nobody who has signed in, or is
   await expect(row(page, 'Qz Vb').getByRole('button', { name: 'Resend invitation' })).toHaveCount(0)
   await expect(row(page, 'Vb Qz').getByRole('button', { name: 'Resend invitation' })).toHaveCount(0)
   await row(page, 'Zq Xv').getByRole('button', { name: 'Resend invitation' }).click()
-  await expect(page.getByRole('status')).toContainText('Sent the invitation to Zq Xv again.')
+  // In the row, beside the button, where the admin is looking (#241).
+  await expect(row(page, 'Zq Xv').getByRole('status')).toHaveText('Sent the invitation to Zq Xv again.')
+  await expect(page.getByRole('status')).toHaveCount(1)
   expect(store.writes).toEqual(['POST /admin/users/b2/resend'])
+})
+
+test('a resend the API cannot do says so in the row, with the status (#241)', async ({ page, baseURL }) => {
+  const store: Store = {
+    people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['admin'], 'invited')], writes: [], bodies: [], resendMissing: true,
+  }
+  await signedInAs(page, ['admin'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/admin')
+  await row(page, 'Zq Xv').getByRole('button', { name: 'Resend invitation' }).click()
+  await expect(row(page, 'Zq Xv').getByRole('alert')).toHaveText('Something went wrong on our side. Please try again. (HTTP 404)')
+  await expect(page.getByRole('status')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(1)
 })
 
 test('change a person’s groups', async ({ page, baseURL }) => {
@@ -108,6 +125,27 @@ test('change a person’s groups', async ({ page, baseURL }) => {
   expect(store.people[1].groups).toEqual(['poet', 'publisher'])
   await expect(row(page, 'Zq Xv').getByLabel('publisher')).toBeChecked()
 })
+
+for (const size of [{ name: 'desktop', width: 1280, height: 900 }, { name: 'phone', width: 390, height: 844 }]) {
+  test(`each group checkbox stays on one line with its word (${size.name}, #253)`, async ({ page, baseURL }) => {
+    await page.setViewportSize(size)
+    const store: Store = { people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['poet'])], writes: [], bodies: [] }
+    await signedInAs(page, ['admin'])
+    await standIn(page, baseURL!, store)
+    await page.goto('/admin')
+    if (size.width < 600) await page.locator('.window-size-popup').click()
+    await expect(row(page, 'Zq Xv')).toContainText('active')
+    const boxes = page.locator('[role="group"] label:has(input[type="checkbox"])')
+    expect(await boxes.count()).toBeGreaterThan(0)
+    // A label on one line is no taller than its box; one that wraps between the box and its word is about twice.
+    const broken = await boxes.evaluateAll(labels => labels.filter(label => {
+      const box = label.querySelector('input')!.getBoundingClientRect()
+      const r = label.getBoundingClientRect()
+      return label.getClientRects().length > 1 || r.height > box.height * 1.6
+    }).map(label => label.textContent))
+    expect(broken).toEqual([])
+  })
+}
 
 test('disable then enable', async ({ page, baseURL }) => {
   const store: Store = { people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['poet'])], writes: [], bodies: [] }
@@ -132,13 +170,14 @@ test('last_admin is shown in the API’s words and the list is reloaded', async 
   // Someone else is added in the meantime; only a reload shows it.
   store.people.push(person('c3', 'Vb Qz', ['poet']))
   await row(page, 'Qz Vb').getByRole('button', { name: 'Disable' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
+  // In the row whose button was refused, not above the invite form (#253).
+  await expect(row(page, 'Qz Vb').getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
   await expect(row(page, 'Vb Qz')).toBeVisible()
   await expect(row(page, 'Qz Vb')).toContainText('active')
   // The same refusal for taking away the admin group.
   await row(page, 'Qz Vb').getByLabel('admin').uncheck()
   await row(page, 'Qz Vb').getByRole('button', { name: 'Save groups' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
+  await expect(row(page, 'Qz Vb').getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
   await expect(row(page, 'Qz Vb').getByLabel('admin')).toBeChecked()
 })
 

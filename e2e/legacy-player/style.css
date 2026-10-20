@@ -1,3 +1,7 @@
+/* The retired player's stylesheet, applied only inside the harness's legacy control (#257). Unscoped, it set the
+   page's .editor .editable padding and the rest for every player the harness mounts, so the site's own player
+   there was laid out differently from the site. */
+#legacy-control {
 .round-icon {
   width: 40px;
   height: 40px;
@@ -724,4 +728,5 @@
   position: absolute;
   top: 0;
   right: 35px;
+}
 }

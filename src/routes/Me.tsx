@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError, Me as MeResult, apiFetch } from '../app/api'
-import { currentSession, forgetSession, signInUrl, signOut } from '../app/auth'
+import { currentSession, forgetSession, forgotPasswordUrl, signInUrl, signOut } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 
 // Who you are on the beta app, and your groups (docs/app-api.md, GET /me). The first signed-in page:
@@ -28,6 +28,12 @@ function Me(): ReactElement {
   const signIn = async () => {
     window.location.assign(await signInUrl(authSettings(), browserDeps(), '/me'))
   }
+  // The managed login's reset page (#243). A link, so it reads as one; its address is made on the click, as
+  // sign-in's is, because it carries a fresh state and PKCE challenge for the sign-in that follows the reset.
+  const forgotPassword = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault()
+    window.location.assign(await forgotPasswordUrl(authSettings(), browserDeps(), '/me'))
+  }
   const leave = () => {
     window.location.assign(signOut(authSettings(), browserDeps()))
   }
@@ -39,7 +45,13 @@ function Me(): ReactElement {
     content = (
       <>
         {problem && <p role="alert">{problem}</p>}
-        <p><button type="button" className="app-button" onClick={signIn}>Sign in</button></p>
+        <p>
+          <button type="button" className="app-button" onClick={signIn}>Sign in</button>
+          {' '}<a href="/me" onClick={forgotPassword}>Forgot your password?</a>
+        </p>
+        <p>
+          If you have never signed in, a reset will not work: ask for your invitation to be sent again.
+        </p>
       </>
     )
   } else if (problem) {
@@ -63,7 +75,12 @@ function Me(): ReactElement {
       <section className="heroine heroine--normal">
         <h2>Your account</h2>
         {content}
-        {session && <p><button type="button" className="app-button" onClick={leave}>Sign out</button></p>}
+        {session && (
+          <p>
+            <button type="button" className="app-button" onClick={leave}>Sign out</button>
+            {' '}<a href="/me" onClick={forgotPassword}>Change your password</a>
+          </p>
+        )}
       </section>
     </div>
   )

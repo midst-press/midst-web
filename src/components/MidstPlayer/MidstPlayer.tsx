@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
@@ -9,6 +9,7 @@ import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from '@midst-p
 import './player.css'
 import { installFonts } from '../../fonts'
 import { ensureLocale, i18n } from '../../i18n'
+import { LocaleContext } from '../../locale'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
@@ -26,6 +27,9 @@ interface Props {
   cursorFollowing: boolean
   hasScrollbar: boolean
 }
+
+// Half the 24px minimum target size (WCAG 2.2, 2.5.8) of a draft marker on a phone (#256).
+const MARKER_REACH = 12
 
 export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasScrollbar }: Props) {
   // Each frame is a whole snapshot of the document (the loader validates both file forms into frames), so the
@@ -48,6 +52,19 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
         const box = name.getBoundingClientRect()
         const shift = box.left < bounds.left ? bounds.left - box.left : box.right > bounds.right ? bounds.right - box.right : 0
         if (shift) name.style.transform = `translateX(${shift}px)`
+      })
+      // On a phone a marker is its tick alone, tapped through a box around it (#256). The box reaches 12px each
+      // side, making 24px, unless a neighbouring tick is nearer than 24px: then the two boxes meet halfway, so a
+      // tap reaches the nearer tick. The stylesheet uses these only below 600px.
+      const width = row.clientWidth
+      const centres = markers.map(marker => marker.index / Math.max(1, maxStep) * width)
+      const order = centres.map((_, i) => i).sort((a, b) => centres[a] - centres[b])
+      const buttons = row.querySelectorAll<HTMLElement>('.draft-marker')
+      order.forEach((i, k) => {
+        const toLeft = k > 0 ? (centres[i] - centres[order[k - 1]]) / 2 : MARKER_REACH
+        const toRight = k < order.length - 1 ? (centres[order[k + 1]] - centres[i]) / 2 : MARKER_REACH
+        buttons[i]?.style.setProperty('--reach-left', `${Math.min(MARKER_REACH, toLeft)}px`)
+        buttons[i]?.style.setProperty('--reach-right', `${Math.min(MARKER_REACH, toRight)}px`)
       })
     }
     fit()
@@ -80,6 +97,12 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     parseOptions: { preserveWhitespace: true },
     editorProps: { attributes: { class: 'editable', 'aria-label': i18n._('player.poemReplay') } },
   })
+
+  // The editor's attributes are set when it is made, so a language chosen afterwards reaches its label here.
+  const { locale } = useContext(LocaleContext)
+  useEffect(() => {
+    editor?.setOptions({ editorProps: { attributes: { class: 'editable', 'aria-label': i18n._('player.poemReplay') } } })
+  }, [editor, locale])
 
   function cancelGlide() {
     if (glide.current) cancelAnimationFrame(glide.current.frame)
