@@ -52,7 +52,7 @@ function ProcessNote(): ReactElement {
     document.addEventListener('mousedown', handleClickOutside)
 
     return () => {
-      document.removeEventListener('keydown', handleEsc)
+      document.body.removeEventListener('keydown', handleEsc)
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])

@@ -126,6 +126,27 @@ test('change a person’s groups', async ({ page, baseURL }) => {
   await expect(row(page, 'Zq Xv').getByLabel('publisher')).toBeChecked()
 })
 
+for (const size of [{ name: 'desktop', width: 1280, height: 900 }, { name: 'phone', width: 390, height: 844 }]) {
+  test(`each group checkbox stays on one line with its word (${size.name}, #253)`, async ({ page, baseURL }) => {
+    await page.setViewportSize(size)
+    const store: Store = { people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['poet'])], writes: [], bodies: [] }
+    await signedInAs(page, ['admin'])
+    await standIn(page, baseURL!, store)
+    await page.goto('/admin')
+    if (size.width < 600) await page.locator('.window-size-popup').click()
+    await expect(row(page, 'Zq Xv')).toContainText('active')
+    const boxes = page.locator('[role="group"] label:has(input[type="checkbox"])')
+    expect(await boxes.count()).toBeGreaterThan(0)
+    // A label on one line is no taller than its box; one that wraps between the box and its word is about twice.
+    const broken = await boxes.evaluateAll(labels => labels.filter(label => {
+      const box = label.querySelector('input')!.getBoundingClientRect()
+      const r = label.getBoundingClientRect()
+      return label.getClientRects().length > 1 || r.height > box.height * 1.6
+    }).map(label => label.textContent))
+    expect(broken).toEqual([])
+  })
+}
+
 test('disable then enable', async ({ page, baseURL }) => {
   const store: Store = { people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['poet'])], writes: [], bodies: [] }
   await signedInAs(page, ['admin'])
@@ -149,13 +170,14 @@ test('last_admin is shown in the API’s words and the list is reloaded', async 
   // Someone else is added in the meantime; only a reload shows it.
   store.people.push(person('c3', 'Vb Qz', ['poet']))
   await row(page, 'Qz Vb').getByRole('button', { name: 'Disable' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
+  // In the row whose button was refused, not above the invite form (#253).
+  await expect(row(page, 'Qz Vb').getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
   await expect(row(page, 'Vb Qz')).toBeVisible()
   await expect(row(page, 'Qz Vb')).toContainText('active')
   // The same refusal for taking away the admin group.
   await row(page, 'Qz Vb').getByLabel('admin').uncheck()
   await row(page, 'Qz Vb').getByRole('button', { name: 'Save groups' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
+  await expect(row(page, 'Qz Vb').getByRole('alert')).toHaveText('Zq is the last admin; make someone else an admin first.')
   await expect(row(page, 'Qz Vb').getByLabel('admin')).toBeChecked()
 })
 
