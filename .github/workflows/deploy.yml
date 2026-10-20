@@ -32,6 +32,9 @@
 #                                   the beta app stack's API URL, sign-in domain and app client, baked into the
 #                                   build for the /app pages (src/app/config.ts). deploy_site.sh passes its
 #                                   environment to the build, so setting them here is enough.
+#              MIDST_GA_MEASUREMENT_ID
+#                                   the Google Analytics 4 measurement id (G-...), from whoever holds the
+#                                   Analytics account. Unset or empty, the site loads no analytics (src/analytics.ts).
 # The environment admits only v* tags, so these keys cannot be used from a branch. A production site would
 # be its own environment with its own keys and values.
 name: deploy
@@ -120,6 +123,7 @@ jobs:
           MIDST_APP_API_URL: ${{ vars.MIDST_APP_API_URL }}
           MIDST_APP_AUTH_DOMAIN: ${{ vars.MIDST_APP_AUTH_DOMAIN }}
           MIDST_APP_CLIENT_ID: ${{ vars.MIDST_APP_CLIENT_ID }}
+          MIDST_GA_MEASUREMENT_ID: ${{ vars.MIDST_GA_MEASUREMENT_ID }}
         run: >-
           bash deploy/beta/deploy_site.sh --web-repo "$GITHUB_WORKSPACE" --key-scheme "$KEY_SCHEME"
           --poem-list "$MIDST_POEM_LIST"

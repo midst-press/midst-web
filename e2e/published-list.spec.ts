@@ -34,15 +34,11 @@ test.beforeEach(async ({ page, baseURL }) => {
     const url = new URL(route.request().url())
     if (url.origin === new URL(baseURL!).origin) return route.continue()
     if (url.origin === 'https://d3nlqr52a31o6y.cloudfront.net') {
-      if (url.pathname === '/midst-press/site/scripts/zip.js') {
-        return route.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
-      }
       if (url.pathname.startsWith('/midst-press/site/shapes/')) {
         return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg"/>' })
       }
     }
-    if ((url.origin === 'https://www.googletagmanager.com' && url.pathname === '/gtag/js')
-      || (url.origin === 'https://js.createsend1.com' && url.pathname === '/javascript/copypastesubscribeformlogic.js')) {
+    if (url.origin === 'https://js.createsend1.com' && url.pathname === '/javascript/copypastesubscribeformlogic.js') {
       return route.fulfill({ contentType: 'application/javascript', body: '' })
     }
     return route.abort()

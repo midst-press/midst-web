@@ -213,7 +213,6 @@ test('size limits: load, play, scrub', async ({ page, baseURL }) => {
       }
       const ok = url.origin === new URL(baseURL!).origin
       if (ok) return r.continue()
-      if (url.pathname.endsWith('/zip.js')) return r.fulfill({ path: join(__dirname, '..', 'static/static/scripts/zip.js'), contentType: 'application/javascript' })
       return r.abort()
     })
 

@@ -1,3 +1,9 @@
+# 0.6.0
+
+- **Analytics uses Google Analytics 4**, in place of the Universal Analytics tag Google stopped reading in 2023. It
+  loads only when the site is built with a measurement id, with Google signals and ad personalisation off. The
+  page's zip reader now comes from the site itself, no longer from the old production host.
+
 # 0.5.0
 
 - **The guides are under construction.** The reader's guide ("How to watch a poem") and the editor's guide on the
