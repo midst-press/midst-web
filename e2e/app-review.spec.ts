@@ -202,7 +202,7 @@ test('a 401 forgets the session and offers Sign in', async ({ page, baseURL }) =
 })
 
 for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
-test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport.width}px`, async ({ page, baseURL }) => {
+test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport.width}px`, async ({ page, baseURL }, testInfo) => {
   await page.setViewportSize(viewport)
   const store: Store = { submissions: [submission(1)], decisions: [], listReads: 0 }
   await signedInAs(page, ['publisher'])
@@ -245,6 +245,8 @@ test(`review playback is opaque, unobscured and keyboard-closeable at ${viewport
       label.style.pointerEvents = previous
     }
   })).toBe(true)
+  // For a person to look at: the player over the page, at this size.
+  await page.screenshot({ path: testInfo.outputPath(`review-player-${viewport.width}.png`) })
   // The page behind the modal takes no keyboard focus. Tabbing past the dialog's own controls may leave the page
   // for the browser (activeElement is then the body), as a native modal dialog does, but never lands behind it.
   const behind = () => dialog.evaluate(modal => {
