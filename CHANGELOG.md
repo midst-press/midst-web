@@ -1,7 +1,7 @@
 # 0.8.0
 
-- **About the App's help is two dropdowns**, Installation and Using Midst, with stand-in text until the help is
-  written. The editor's "Need help?" still lands on it.
+- **About the App's help is two dropdowns**, Installation and Using Midst, each under construction until the help
+  is written. The editor's "Need help?" still lands on it.
 
 # 0.7.0
 

@@ -23,16 +23,17 @@ function TheApp(): ReactElement {
           <img src="http://annelysegelman.com/donotdelete/theredwheelbarrow.png" />
         </p>
 
-        {/* Help, where the editor's "Need help?" lands (/app#help, midst-editor #105). Two dropdowns with stand-in
-            text until Annelyse writes the help (GitHub midst-press/midst-editor#63; midst-web #278). */}
+        {/* Help, where the editor's "Need help?" lands (/app#help, midst-editor #105). Two dropdowns, each "Under
+            construction" and nothing more, until Annelyse writes the help (GitHub midst-press/midst-editor#63; midst-web
+            #278). User-facing text other than buttons and labels is hers to write (Stuart, 21 Oct). */}
         <div id="help" className="app-help">
           <details>
             <summary>Installation</summary>
-            <p>[Installation instructions go here]</p>
+            <p>Under construction</p>
           </details>
           <details>
             <summary>Using Midst</summary>
-            <p>[Instructions for using Midst go here]</p>
+            <p>Under construction</p>
           </details>
         </div>
       </section>
