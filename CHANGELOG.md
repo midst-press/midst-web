@@ -3,6 +3,8 @@
 - **Analytics uses Google Analytics 4**, in place of the Universal Analytics tag Google stopped reading in 2023. It
   loads only when the site is built with a measurement id, with Google signals and ad personalisation off. The
   page's zip reader now comes from the site itself, no longer from the old production host.
+- **The zip reader is current**: @zip.js/zip.js 2.24.0, bundled from npm, in place of zip.js 1.x from 2013 and its
+  three worker scripts. Poems and review copies are read the same way, their CRC still checked.
 
 # 0.5.0
 

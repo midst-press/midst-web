@@ -1,6 +1,7 @@
 import { KEY_SCHEME, POEMS_URL } from '../config'
 import { fetchRecordedKey, parsePublishedList } from '../poems/poem-list'
 import { parseMidstFile } from './midst-file'
+import { ArchiveError, describeCause, readFirstEntry } from '../archive'
 import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
 // TODO: Type def file
@@ -53,25 +54,9 @@ const loadPoemList = (): any =>
     dispatch({ type: LOAD_POEM_LIST, payload: { entries }})
   }
 
-// The part of zip.js used here. It is loaded by a script tag in index.html, not imported.
-interface ZipEntry {
-  getData(writer: unknown, onData: (blob: Blob) => void, onProgress?: unknown, checkCrc32?: boolean): void
-}
-interface ZipJs {
-  workerScriptsPath: string
-  BlobReader: new (blob: Blob) => unknown
-  BlobWriter: new () => unknown
-  createReader(
-    reader: unknown,
-    onReader: (zipReader: { getEntries(onEntries: (entries: ZipEntry[]) => void): void }) => void,
-    // zip.js passes its error: a fixed message such as 'CRC failed.', never an entry's name or contents.
-    onError: (error?: unknown) => void,
-  ): void
-}
-
 // A failure with the message to log and the reason to show. A message carries its cause's name and message
-// (describeCause) only where that text cannot quote a poet's work: zip.js's fixed messages, the browser's network
-// and FileReader errors, and our own exceptions. The parser's can quote the poem, so it logs the name alone.
+// (describeCause) only where that text cannot quote a poet's work: the zip library's fixed messages, the browser's
+// network errors, and our own exceptions. The parser's can quote the poem, so it logs the name alone.
 interface LoadError {
   reason: PoemLoadFailure
   log?: string
@@ -79,56 +64,23 @@ interface LoadError {
 
 const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']
 
-// How long the archive read may take before the load is given up. zip.js inflates in a worker, and a worker that
-// never answers would otherwise leave the loading mark turning for ever (#43).
-export const ARCHIVE_READ_TIMEOUT_MS = 30000
-
-// What went wrong, for the log: the error's name and message, never its data. zip.js's messages are fixed strings and
-// a DOMException has a name, so a bug in our own callbacks (a TypeError) reads as ours and not as a damaged file.
-export const describeCause = (err: unknown): string => {
-  if (typeof err === 'string') return err.slice(0, 200)
-  if (err && typeof err === 'object' && 'name' in err && 'message' in err) {
-    const { name, message } = err as { name: unknown, message: unknown }
-    return `${String(name)}: ${String(message)}`.slice(0, 200)
-  }
-  return err === undefined ? 'no cause given' : `a thrown ${typeof err}`
-}
+// The archive's reading (its timeout, and what its errors may log) is in ../archive (#43, #270).
+export { ARCHIVE_READ_TIMEOUT_MS, describeCause } from '../archive'
 
 // The error's name alone, for a cause whose message may quote the poem.
 export const causeName = (err: unknown): string =>
   err && typeof err === 'object' && 'name' in err ? String((err as { name: unknown }).name) : `a thrown ${typeof err}`
 
-// The text of the first file in a timelapse archive. Every way it can fail ends in a rejection (#43):
-// - zip.js reports a bad archive, a bad entry header, a read or inflate error, and (with checkCrc32) a CRC mismatch
-//   through createReader's error callback;
-// - the callbacks run outside the caller's try, so each catches its own synchronous throw;
-// - a FileReader error, and a read that never finishes, reject too.
-const readFirstEntry = (zip: ZipJs, archive: Blob, timeoutMs = ARCHIVE_READ_TIMEOUT_MS): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject({ reason: 'unknown', log: 'Reading the Midst archive timed out' }), timeoutMs)
-    const ok = (text: string) => { clearTimeout(timer); resolve(text) }
-    const bad = (cause: unknown) => {
-      clearTimeout(timer)
-      reject({ reason: 'damaged', log: `Unable to read Midst archive: ${describeCause(cause)}` })
-    }
-    const guard = <A extends unknown[]>(fn: (...args: A) => void) => (...args: A) => {
-      try { fn(...args) } catch (err) { bad(err) }
-    }
-    try {
-      zip.createReader(new zip.BlobReader(archive), guard(zipReader => {
-        zipReader.getEntries(guard(entries => {
-          if (!entries.length) return bad('the archive has no entries')
-          entries[0].getData(new zip.BlobWriter(), guard((blob: Blob) => {
-            const reader = new FileReader()
-            reader.addEventListener('loadend', () => (reader.error ? bad(reader.error) : ok(reader.result as string)))
-            reader.readAsText(blob)
-          }), undefined, true)
-        }))
-      }), bad)
-    } catch (err) {
-      bad(err)
-    }
-  })
+// The text of the first file in a timelapse archive (#43). A damaged archive, one with no entries, or a CRC mismatch
+// is `damaged`; a read that never finishes gives up as `unknown`, as before.
+const readArchive = async (archive: Blob): Promise<string> => {
+  try {
+    return await readFirstEntry(archive)
+  } catch (err) {
+    if (err instanceof ArchiveError) throw { reason: err.kind === 'timeout' ? 'unknown' : 'damaged', log: err.message }
+    throw { reason: 'damaged', log: `Unable to read Midst archive: ${describeCause(err)}` }
+  }
+}
 
 // TODO: Should be: ThunkResult<void>. Why doesn't it work?
 const loadPoemData = (poemIndex: number): any =>
@@ -174,9 +126,6 @@ const loadPoemData = (poemIndex: number): any =>
     let text: string
     let processNote: string
     try {
-      const zip = (window as unknown as { zip: ZipJs }).zip
-      zip.workerScriptsPath = '/static/workers/'
-
       const names = poem.keys || objectNames(poem, KEY_SCHEME)
       // A recorded null means the poem has no note: no request, and an empty note.
       processNote = ''
@@ -185,10 +134,10 @@ const loadPoemData = (poemIndex: number): any =>
         processNote = insane(marked(note), { allowedTags: NOTE_TAGS })
       }
       const archive = await body(await get(names.timelapse), r => r.blob())
-      text = await readFirstEntry(zip, archive)
+      text = await readArchive(archive)
     } catch (e: unknown) {
       const error = e as Partial<LoadError> | null
-      // Not one of ours (marked or insane on the note, objectNames, no window.zip): its name only, since the note is
+      // Not one of ours (marked or insane on the note, objectNames): its name only, since the note is
       // the poet's text.
       const why = error && error.reason ? error.reason : causeName(e)
       return fail((error && error.log) || `Unable to load Midst data: ${why}`, (error && error.reason) || 'unknown')

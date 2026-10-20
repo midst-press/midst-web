@@ -1,3 +1,4 @@
+import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js'
 import { fetchPoemAsset } from '../poems/key-scheme'
 import { loadPoemData, loadPoemList } from '../store/actions'
 import { LOAD_POEM_DATA, LOAD_POEM_FAILED, LOAD_POEM_LIST, POEM_LIST_FAILED } from '../store/types'
@@ -19,7 +20,13 @@ const mockFetchAsset = fetchPoemAsset as unknown as jest.Mock
 
 const validText = JSON.stringify({ text: 'zq', history: [{ inserted: 'zq', front: 0, end: 0, t: 0 }] })
 const fakeBlob = { fake: 'blob' }
-const okResponse = (note = 'zq note') => ({ ok: true, text: async () => note, blob: async () => fakeBlob })
+// The timelapse is a real .midst.zip of validText (#270).
+const midstZip = async () => {
+  const writer = new ZipWriter(new BlobWriter('application/zip'))
+  await writer.add('zq.midst', new TextReader(validText))
+  return writer.close()
+}
+const okResponse = (note = 'zq note') => ({ ok: true, text: async () => note, blob: midstZip })
 const badResponse = (status = 403) => ({ ok: false, status, text: async () => '<Error/>', blob: async () => fakeBlob })
 const stateWith = (poems: any[]) => () => ({ app: { poems } })
 
@@ -37,34 +44,12 @@ beforeEach(() => {
   mockFetchAsset.mockReset()
   fetchMock = jest.fn()
   ;(globalThis as any).fetch = fetchMock
-  ;(globalThis as any).window = {
-    zip: {
-      BlobReader: jest.fn(),
-      BlobWriter: jest.fn(),
-      createReader: jest.fn((_reader: any, onReader: any) =>
-        onReader({ getEntries: (cb: any) => cb([{ getData: (_w: any, dataCb: any) => dataCb(fakeBlob) }]) })),
-    },
-  }
-  // As a browser's FileReader: the text is on `result` when loadend fires.
-  ;(globalThis as any).FileReader = class {
-    private listeners: Record<string, any> = {}
-    result: string | null = null
-    addEventListener(type: string, fn: any) {
-      this.listeners[type] = fn
-    }
-    readAsText() {
-      this.result = validText
-      this.listeners.loadend({ target: this })
-    }
-  }
   consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
 })
 
 afterEach(() => {
   consoleError.mockRestore()
   delete (globalThis as any).fetch
-  delete (globalThis as any).window
-  delete (globalThis as any).FileReader
 })
 
 describe('a poem from the published list (recorded keys)', () => {

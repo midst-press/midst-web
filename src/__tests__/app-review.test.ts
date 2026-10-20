@@ -1,6 +1,7 @@
 import { Call } from '../app/publisher'
 import { Submission, canPlay, reviewByline } from '../app/submit'
-import { POEM_LIST_UNKNOWN, PlayDeps, PlayError, ZipLib, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket } from '../app/review'
+import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js'
+import { POEM_LIST_UNKNOWN, PlayDeps, PlayError, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket } from '../app/review'
 
 // The review calls (docs/app-api.md, "Review") and the fetch, unzip and parse step behind Play.
 
@@ -74,50 +75,50 @@ const midst = JSON.stringify({
   meta: { editorDraftMarkers: [], editorFontFamily: 'Helvetica', editorFontSize: 14, editorHighestEverDraftNumber: 0, editorTitle: 'Untitled' },
 })
 
-// A stand-in for zip.js: one entry, or none, or a reader that fails.
-function zipLib(mode: 'ok' | 'empty' | 'unreadable' = 'ok'): ZipLib & { read: jest.Mock } {
-  const read = jest.fn()
-  return {
-    read,
-    BlobReader: class { constructor(blob: Blob) { read(blob) } },
-    BlobWriter: class {},
-    createReader: (_reader, onReader, onError) => {
-      if (mode === 'unreadable') return onError()
-      onReader({ getEntries: done => done(mode === 'empty' ? [] : [{ getData: (_w, got) => got(new Blob([midst])) }]) })
-    },
-  }
+// Real archives (#270): what Play fetches is a .midst.zip, made here with the zip library from synthetic contents.
+async function midstZip(files: [string, string][] = [['zq.midst', midst]], level?: number): Promise<Blob> {
+  const writer = new ZipWriter(new BlobWriter('application/zip'), level === undefined ? {} : { level })
+  for (const [name, text] of files) await writer.add(name, new TextReader(text))
+  return writer.close()
 }
 
-const deps = (over: Partial<PlayDeps> = {}): PlayDeps => ({
-  fetch: jest.fn(async () => ({ ok: true, blob: async () => new Blob(['zip']) })),
-  zip: zipLib(),
-  readText: async () => midst,
-  ...over,
+const serving = (archive: Blob): PlayDeps => ({
+  fetch: jest.fn(async () => ({ ok: true, blob: async () => archive })),
 })
 
 describe('fetchTimelapse', () => {
-  it('fetches the URL, unzips the first entry and parses it', async () => {
-    const d = deps()
+  it('fetches the URL, reads the first file of a real .midst.zip and parses it', async () => {
+    const d = serving(await midstZip([['zq.midst', midst], ['xv.midst', 'zq not this one']]))
     const data = await fetchTimelapse('https://files.example.invalid/zq', d)
     expect(d.fetch).toHaveBeenCalledWith('https://files.example.invalid/zq')
-    expect((d.zip as ReturnType<typeof zipLib>).read).toHaveBeenCalledTimes(1)
-    expect(d.zip.workerScriptsPath).toBe('/static/workers/')
     expect(data.editorTimelineFrames).toHaveLength(1)
     expect(data.editorTimelineFrames[0].content).toContain('zq')
   })
 
   it('says the link may have expired when the fetch is refused or cannot be made', async () => {
-    const refused = deps({ fetch: async () => ({ ok: false, blob: async () => new Blob() }) })
-    const down = deps({ fetch: async () => { throw new TypeError('network') } })
+    const refused: PlayDeps = { fetch: async () => ({ ok: false, blob: async () => new Blob() }) }
+    const down: PlayDeps = { fetch: async () => { throw new TypeError('network') } }
     for (const d of [refused, down]) {
       await expect(fetchTimelapse('https://files.example.invalid/zq', d)).rejects.toThrow(PlayError)
       await expect(fetchTimelapse('https://files.example.invalid/zq', d)).rejects.toThrow('may have expired')
     }
   })
 
-  it('says the copy is damaged when the archive is empty, unreadable, or not a Midst file', async () => {
-    for (const d of [deps({ zip: zipLib('empty') }), deps({ zip: zipLib('unreadable') }), deps({ readText: async () => 'not json' })]) {
-      await expect(fetchTimelapse('https://files.example.invalid/zq', d)).rejects.toThrow('damaged')
+  it('says the copy is damaged when the archive is empty, not an archive, fails its CRC, or holds no Midst file', async () => {
+    const stored = new Uint8Array(await (await midstZip([['zq.midst', midst]], 0)).arrayBuffer())
+    // A byte of the stored contents, not of the file name in the headers.
+    const at = Buffer.from(stored).indexOf('Helvetica')
+    expect(at).toBeGreaterThan(0)
+    stored[at + 1] ^= 1
+    const copies = [
+      await midstZip([]),
+      new Blob(['zq not a zip']),
+      new Blob([stored]),
+      await midstZip([['zq.midst', 'not json']]),
+    ]
+    for (const archive of copies) {
+      await expect(fetchTimelapse('https://files.example.invalid/zq', serving(archive))).rejects.toThrow(PlayError)
+      await expect(fetchTimelapse('https://files.example.invalid/zq', serving(archive))).rejects.toThrow('damaged')
     }
   })
 })

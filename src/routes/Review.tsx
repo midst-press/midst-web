@@ -14,12 +14,6 @@ import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 // The publisher's review page (docs/app-api.md, "Review"; #110): play a submission, accept or decline it
 // with a note. A prototype for Annelyse to react to.
 
-const readText = (blob: Blob) => new Promise<string>((resolve, reject) => {
-  const reader = new FileReader()
-  reader.addEventListener('loadend', () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('unreadable'))))
-  reader.readAsText(blob)
-})
-
 function Review(): ReactElement {
   const session = APP_AVAILABLE ? currentSession(browserDeps()) : null
   const [submissions, setSubmissions] = useState<Submission[] | null>(null)
@@ -80,11 +74,7 @@ function Review(): ReactElement {
     setProblem(null)
     try {
       const ticket = await timelapseTicket(call, submission.submissionId)
-      const data = await fetchTimelapse(ticket.url, {
-        fetch: url => fetch(url),
-        zip: (window as any).zip,
-        readText,
-      })
+      const data = await fetchTimelapse(ticket.url, { fetch: url => fetch(url) })
       setPlaying({ title: submission.title, data })
     } catch (error) {
       failed(error, 'That submission could not be played. Please try again.')
