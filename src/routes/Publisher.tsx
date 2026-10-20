@@ -5,12 +5,11 @@ import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
-import ReplacesChoice from './PublisherReplaces'
+import ReplacesChoice, { publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import {
-  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder,
-  unpublish,
+  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, saveDetails, saveOrder, unpublish,
 } from '../app/publisher'
 
 // The publisher's page (docs/app-api.md, "Publisher"; #12, #110): publish, unpublish, reorder, and set a
@@ -189,7 +188,8 @@ function Publisher(): ReactElement {
                 <span className="publisher-actions">
                   <ReplacesChoice poem={poem} published={list.published} value={replacing[poem.poemId] ?? ''} disabled={busy || reordered}
                     onChange={poemId => setReplacing(chosen => ({ ...chosen, [poem.poemId]: poemId }))} />
-                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publish(c, poem.poemId, etag, replacing[poem.poemId] || undefined), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
+                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publishWithChoice(c, etag, poem, list.published, replacing[poem.poemId],
+                    poemId => setReplacing(({ [poemId]: _done, ...rest }) => rest)), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
                     Publish
                   </button>
                 </span>

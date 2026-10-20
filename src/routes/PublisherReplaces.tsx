@@ -1,5 +1,5 @@
 import React, { ReactElement } from 'react'
-import { Poem } from '../app/publisher'
+import { Call, ListChange, Poem, publish } from '../app/publisher'
 
 // Which published poem an unpublished one replaces, if any (Stuart, 21 Oct, #101): the replaced poem leaves the list,
 // the new one takes its place, and old links to it lead to the new one. Only a poem by the same poet may be replaced
@@ -9,6 +9,23 @@ import { Poem } from '../app/publisher'
 /** The published poems `poem` may be published as the replacement for. */
 export function replaceable(poem: Poem, published: Poem[]): Poem[] {
   return published.filter(other => other.poemId !== poem.poemId && other.author === poem.author)
+}
+
+/** The replacement to send: the chosen poem only while it is still offered (cora-2f1e43dc, review of #290). */
+export function replacementToSend(poem: Poem, published: Poem[], chosen: string | undefined): string | undefined {
+  return chosen && replaceable(poem, published).some(other => other.poemId === chosen) ? chosen : undefined
+}
+
+/**
+ * Publish `poem`, replacing the chosen poem if it is still offered, and forget the choice once the publish has
+ * landed, so a later republish does not send it again. A failed publish keeps it.
+ */
+export async function publishWithChoice(
+  call: Call, etag: string, poem: Poem, published: Poem[], chosen: string | undefined, forget: (poemId: string) => void,
+): Promise<ListChange> {
+  const result = await publish(call, poem.poemId, etag, replacementToSend(poem, published, chosen))
+  forget(poem.poemId)
+  return result
 }
 
 interface Props {

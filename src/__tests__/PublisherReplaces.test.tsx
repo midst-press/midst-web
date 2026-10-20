@@ -2,8 +2,8 @@
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
-import ReplacesChoice, { replaceable } from '../routes/PublisherReplaces'
-import { Poem } from '../app/publisher'
+import ReplacesChoice, { publishWithChoice, replaceable, replacementToSend } from '../routes/PublisherReplaces'
+import { Call, Poem } from '../app/publisher'
 
 // The publisher may publish a poem as the replacement for a published one by the same poet (#101; midst-infra #190).
 // Titles and names are invented.
@@ -77,5 +77,32 @@ describe('ReplacesChoice', () => {
   it('is disabled while the page is busy', () => {
     render({ disabled: true })
     expect((container.querySelector('select') as HTMLSelectElement).disabled).toBe(true)
+  })
+})
+
+// cora-2f1e43dc, review of #290: never send a replacement the page no longer shows, and never send one twice.
+describe('what publish sends', () => {
+  it('sends the chosen poem only while it is still offered', () => {
+    expect(replacementToSend(NEW, [SAME_A, OTHER], 'p1')).toBe('p1')
+    expect(replacementToSend(NEW, [OTHER], 'p1')).toBeUndefined() // the chosen poem left the list
+    expect(replacementToSend(NEW, [SAME_A, OTHER], 'p3')).toBeUndefined() // another poet's
+    expect(replacementToSend(NEW, [SAME_A], '')).toBeUndefined()
+    expect(replacementToSend(NEW, [SAME_A], undefined)).toBeUndefined()
+  })
+
+  it('sends no replaces key for a choice no longer offered, and forgets the choice once published', async () => {
+    const call = jest.fn(async () => ({ listEtag: 'e2', published: [] })) as unknown as Call & jest.Mock
+    const forget = jest.fn()
+    await publishWithChoice(call, 'e1', NEW, [OTHER], 'p1', forget)
+    expect(call.mock.calls).toEqual([['/publisher/publish', { method: 'POST', body: { poemId: 'n1', listEtag: 'e1' } }]])
+    expect(forget.mock.calls).toEqual([['n1']])
+  })
+
+  it('sends a choice still offered, and a failed publish keeps it', async () => {
+    const call = jest.fn(async () => { throw new Error('refused') }) as unknown as Call & jest.Mock
+    const forget = jest.fn()
+    await expect(publishWithChoice(call, 'e1', NEW, [SAME_A], 'p1', forget)).rejects.toThrow('refused')
+    expect(call.mock.calls).toEqual([['/publisher/publish', { method: 'POST', body: { poemId: 'n1', listEtag: 'e1', replaces: 'p1' } }]])
+    expect(forget).not.toHaveBeenCalled()
   })
 })
