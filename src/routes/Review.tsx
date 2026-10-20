@@ -1,5 +1,6 @@
 import React, { ReactElement, useEffect, useRef, useState } from 'react'
 import { Helmet } from 'react-helmet'
+import { Link } from 'react-router-dom'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
@@ -23,7 +24,7 @@ function Review(): ReactElement {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  const [playing, setPlaying] = useState<{ title: string, data: IMidstFile } | null>(null)
+  const [playing, setPlaying] = useState<{ title: string, author: string, data: IMidstFile } | null>(null)
   const playerDialog = useRef<HTMLDialogElement>(null)
   const playButton = useRef<HTMLButtonElement | null>(null)
 
@@ -75,7 +76,7 @@ function Review(): ReactElement {
     try {
       const ticket = await timelapseTicket(call, submission.submissionId)
       const data = await fetchTimelapse(ticket.url, { fetch: url => fetch(url) })
-      setPlaying({ title: submission.title, data })
+      setPlaying({ title: submission.title, author: submission.author, data })
     } catch (error) {
       failed(error, 'That submission could not be played. Please try again.')
     } finally {
@@ -135,6 +136,7 @@ function Review(): ReactElement {
       <>
         {notice && <p role="status" className="publisher-notice">{notice}</p>}
         {problem && <p role="alert" className="publisher-problem">{problem}</p>}
+        <p className="portal-link"><Link to="/publisher">Publish poems</Link></p>
         {submissions === null ? (problem ? null : <p>Loading…</p>) : submissions.length === 0 ? <p>Nothing has been submitted yet.</p> : (
           <ul className="publisher-list" aria-label="Submissions">
             {submissions.map(s => (
@@ -189,6 +191,13 @@ function Review(): ReactElement {
         <dialog ref={playerDialog} className="sliding-poems review-player" aria-label={`Playing ${playing.title}`}
           onCancel={event => { event.preventDefault(); setPlaying(null) }}>
           <button type="button" className="app-button review-player-close" autoFocus onClick={() => setPlaying(null)}>Close</button>
+          {/* Author and title above the poem, as on the public poem page (PoemNav), as text: a submission's title is the
+              poet's own and is never read as markup (#289). */}
+          <p className="poem-credit review-player-credit">
+            <i className="author-name">{playing.author}</i>
+            <span className="divider">&nbsp;|&nbsp;</span>
+            <span className="poem-title">{playing.title}</span>
+          </p>
           <div className="sliding-poems__frame" style={{ width: '200%' }}>
             <div className="sliding-poems__poem sliding-poems__poem--loaded" data-trigger="false">
               <div className="scrolling-area-border" />

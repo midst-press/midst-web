@@ -1,5 +1,6 @@
 import React, { ReactElement, useCallback, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
+import { Link } from 'react-router-dom'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
@@ -8,6 +9,7 @@ import PublisherPoets from './PublisherPoets'
 import ReplacesChoice, { publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
+import { reviewSubmissions, waitingCount } from '../app/review'
 import {
   Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, saveDetails, saveOrder, unpublish,
 } from '../app/publisher'
@@ -39,6 +41,8 @@ function Publisher(): ReactElement {
   const [failures, setFailures] = useState(0)
   // For each unpublished poem, the published poem it is to replace, if one was chosen.
   const [replacing, setReplacing] = useState<Record<string, string>>({})
+  // Submissions waiting on the review page (#289); null until read, or when they could not be.
+  const [waiting, setWaiting] = useState<number | null>(null)
 
   // Only a publisher's page asks for the list; the API would refuse anyone else anyway.
   const call: Call | null = session && session.groups.includes('publisher') ? callerFor(APP_API_URL, session.idToken) : null
@@ -61,6 +65,8 @@ function Publisher(): ReactElement {
 
   useEffect(() => {
     if (call) reload(call).catch(error => { expired(error); setProblem(error instanceof ApiError ? error.message : 'The list could not be loaded.') })
+    // The count is only a pointer to the review page: if it cannot be read, the link is shown without it.
+    if (call) reviewSubmissions(call).then(r => setWaiting(waitingCount(r.submissions))).catch(error => expired(error))
     // Loaded once per visit; each change reloads it.
   }, [])
 
@@ -121,6 +127,29 @@ function Publisher(): ReactElement {
       <>
         {notice && <p role="status" className="publisher-notice">{notice}</p>}
         {problem && <p role="alert" className="publisher-problem">{problem}</p>}
+        <p className="portal-link">
+          <Link to="/review">{waiting === null ? 'Review submissions' : `Review submissions (${waiting} waiting)`}</Link>
+        </p>
+
+        <h3>Not published</h3>
+        {list.unpublished.length === 0 ? <p>There is nothing waiting to be published.</p> : (
+          <ul className="publisher-list" aria-label="Poems not published">
+            {list.unpublished.map(poem => (
+              <li key={poem.poemId}>
+                <PoemLine poem={poem} />
+                <span className="publisher-actions">
+                  <ReplacesChoice poem={poem} published={list.published} value={replacing[poem.poemId] ?? ''} disabled={busy || reordered}
+                    onChange={poemId => setReplacing(chosen => ({ ...chosen, [poem.poemId]: poemId }))} />
+                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publishWithChoice(c, etag, poem, list.published, replacing[poem.poemId],
+                    poemId => setReplacing(({ [poemId]: _done, ...rest }) => rest)), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
+                    Publish
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {reordered && <p className="publisher-hint">Save or undo the new order before publishing or changing anything else.</p>}
 
         <h3>Published, in reading order</h3>
         {order.length === 0 ? <p>Nothing is published yet.</p> : (
@@ -178,26 +207,6 @@ function Publisher(): ReactElement {
             <button type="button" disabled={busy} onClick={() => setOrder(list.published)}>Undo changes</button>
           </p>
         )}
-
-        <h3>Not published</h3>
-        {list.unpublished.length === 0 ? <p>There is nothing waiting to be published.</p> : (
-          <ul className="publisher-list" aria-label="Poems not published">
-            {list.unpublished.map(poem => (
-              <li key={poem.poemId}>
-                <PoemLine poem={poem} />
-                <span className="publisher-actions">
-                  <ReplacesChoice poem={poem} published={list.published} value={replacing[poem.poemId] ?? ''} disabled={busy || reordered}
-                    onChange={poemId => setReplacing(chosen => ({ ...chosen, [poem.poemId]: poemId }))} />
-                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publishWithChoice(c, etag, poem, list.published, replacing[poem.poemId],
-                    poemId => setReplacing(({ [poemId]: _done, ...rest }) => rest)), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
-                    Publish
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {reordered && <p className="publisher-hint">Save or undo the new order before publishing or changing anything else.</p>}
 
         {call && <PublisherPoets call={call} onExpired={expired} />}
         {call && <PublisherPatrons call={call} onExpired={expired} />}

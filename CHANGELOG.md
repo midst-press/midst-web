@@ -1,3 +1,14 @@
+# 0.9.0
+
+- **Each poem's address is the one it was given.** When the published list carries stored addresses, the site uses
+  them as they are and no longer works them out from titles, so publishing or withdrawing another poem cannot move
+  a poem's address. The list is refused if an address is missing, invalid or used twice. Until the list carries
+  them, addresses are worked out exactly as before, so nothing changes for readers yet.
+- **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
+  list, and links to it lead to the new one.
+- **Dependencies are current**: TypeScript 6.0.3, with minor and patch updates to the rest. Nothing a reader sees
+  changes.
+
 # 0.8.0
 
 - **About the App's help is two dropdowns**, Installation and Using Midst, each under construction until the help

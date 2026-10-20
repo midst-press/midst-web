@@ -1,7 +1,7 @@
 import { Call } from '../app/publisher'
 import { Submission, canPlay, reviewByline } from '../app/submit'
 import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js'
-import { POEM_LIST_UNKNOWN, PlayDeps, PlayError, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket } from '../app/review'
+import { POEM_LIST_UNKNOWN, PlayDeps, PlayError, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket, waitingCount } from '../app/review'
 
 // The review calls (docs/app-api.md, "Review") and the fetch, unzip and parse step behind Play.
 
@@ -28,6 +28,15 @@ describe('review calls', () => {
       ['/review/submissions/s%2F1/decision', { method: 'POST', body: { decision: 'accept', note: 'Zq note' } }],
       ['/review/submissions/s%2F1/decision', { method: 'POST', body: { decision: 'decline', note: '' } }],
     ])
+  })
+})
+
+describe('waitingCount (#289)', () => {
+  it('counts only the submissions waiting to be read', () => {
+    const of = (...statuses: Submission['status'][]) => statuses.map(status => ({ status }))
+    expect(waitingCount(of())).toBe(0)
+    expect(waitingCount(of('received', 'received'))).toBe(2)
+    expect(waitingCount(of('uploading', 'received', 'accepted', 'declined', 'published'))).toBe(1)
   })
 })
 
