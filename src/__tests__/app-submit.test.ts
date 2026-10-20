@@ -58,8 +58,13 @@ describe('whenWords', () => {
     expect(whenWords(upload)).toBe(new Date('2026-10-15T09:30:00Z').toLocaleDateString())
   })
 
-  it('shows the date of an archive record that has one: the last edit in its own file', () => {
+  it('says an archive record\'s date is its last edit, not a submission date (#159)', () => {
     const lastEdit = '2021-01-06T21:14:03.512Z'
-    expect(whenWords({ ...archive, submittedAt: lastEdit })).toBe(new Date(lastEdit).toLocaleDateString())
+    expect(whenWords({ ...archive, submittedAt: lastEdit })).toBe(`from the archive, last edited ${new Date(lastEdit).toLocaleDateString()}`)
+  })
+
+  it('never says "last edited" for an upload', () => {
+    expect(whenWords(upload)).not.toContain('last edited')
+    expect(whenWords({ origin: 'upload', submittedAt: null })).not.toContain('last edited')
   })
 })

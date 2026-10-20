@@ -28,12 +28,22 @@ export const ARCHIVE_WORDS = 'from the archive'
 export const NO_DATE_WORDS = 'date not recorded'
 
 /**
- * When a submission arrived, for a person: the local date; with no time, "from the archive" for an archive record and
- * "date not recorded" otherwise, so a lost date on an upload is not passed off as provenance (silas-397300f6, review
- * of #157). A null time is never made into a date.
+ * An archive record's date is the last edit in its own file (Stuart, 16 Oct), not when it was submitted, so it says so
+ * (#159). Provisional wording, pending Annelyse (GitHub midst-press/midst-web#65, point 2): this is the one place to
+ * change it.
+ */
+export const archiveDatedWords = (date: string): string => `${ARCHIVE_WORDS}, last edited ${date}`
+
+/**
+ * When a submission arrived, for a person: an upload's local date; an archive record's last edit, saying it is one
+ * (#159); with no time, "from the archive" for an archive record and "date not recorded" otherwise, so a lost date on
+ * an upload is not passed off as provenance (silas-397300f6, review of #157). A null time is never made into a date.
  */
 export const whenWords = (s: Pick<Submission, 'origin' | 'submittedAt'>): string => {
-  if (s.submittedAt !== null) return new Date(s.submittedAt).toLocaleDateString()
+  if (s.submittedAt !== null) {
+    const date = new Date(s.submittedAt).toLocaleDateString()
+    return s.origin === 'archive' ? archiveDatedWords(date) : date
+  }
   return s.origin === 'archive' ? ARCHIVE_WORDS : NO_DATE_WORDS
 }
 
