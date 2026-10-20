@@ -333,6 +333,42 @@ body {
   font-size: 30px;
 }
 
+/* The languages (#234): top right, above the navigation, on every page, and above the small-screen notice
+   (.window-size-popup) that covers the page on a phone: a reader who cannot read the notice needs this first.
+   Browsers clamp z-index to 2147483647, which the notice already reaches, so this is the last element in the page
+   (App.tsx) and wins the tie by order. */
+.language-selector {
+  position: fixed;
+  top: 6px;
+  right: 80px;
+  display: flex;
+  gap: 8px;
+  z-index: 2147483647;
+}
+
+.language-selector button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: #000000;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.language-selector button[aria-pressed='true'] {
+  border-color: currentColor;
+}
+
+.language-flag {
+  display: block;
+  outline: 1px solid rgba(0, 0, 0, 0.15);
+}
+
 .site-header nav a {
   color: #000000;
   text-align: center;
@@ -1475,6 +1511,43 @@ background-size: contain;
   margin-top: 36px;
 }
 
+/* The portals' forms (#253, from the internal UX review): each field's label above it, one button style in the brand
+   pink, and a checkbox kept on one line with its word, a phone included. Scoped to the page's own section, so the
+   player that the review page opens over it keeps its controls. */
+.app-account-page .heroine form label:not(:has(input[type="checkbox"])) {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.app-account-page .heroine form label:not(:has(input[type="checkbox"])) input {
+  display: block;
+  margin-top: 4px;
+}
+
+.app-account-page .heroine label:has(input[type="checkbox"]) {
+  white-space: nowrap;
+}
+
+.app-account-page .heroine button {
+  display: inline-block;
+  background: #FF91AF;
+  color: #000;
+  border: 1px solid #690000;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Disabled still reads: #555 on #ffd3df is above 4.5:1. */
+.app-account-page .heroine button:disabled {
+  background: #ffd3df;
+  border-color: #c98a97;
+  color: #555;
+  cursor: default;
+}
+
 .publisher-list {
   padding-left: 1.5em;
 }
@@ -1520,9 +1593,45 @@ background-size: contain;
   color: #a00;
 }
 
+body.review-player-open {
+  overflow: hidden;
+}
+
+body.review-player-open .site-footer {
+  display: none;
+}
+
+.review-player {
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: none;
+  max-height: none;
+  height: 100dvh;
+  background: #FFF5EE;
+  color: inherit;
+}
+
+.review-player .sliding-poems__frame {
+  height: 100%;
+}
+
+.review-player .sliding-poems__poem {
+  height: 100%;
+}
+
 .review-player-close {
   position: fixed;
   top: 12px;
   right: 16px;
   z-index: 10;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid currentColor;
+  background: #FFF5EE;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }

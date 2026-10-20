@@ -27,11 +27,15 @@ function Submit(): ReactElement {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  // Which control the problem is about, so it is shown beside it (#253): the file chosen, or the sending of it.
+  // null: neither, such as the list failing to load; shown above the form.
+  const [problemAt, setProblemAt] = useState<'file' | 'send' | null>(null)
 
   const call = session && isPoet ? callerFor(APP_API_URL, session.idToken) : null
-  const failed = (error: unknown, fallback: string) => {
+  const failed = (error: unknown, fallback: string, at: 'send' | null = null) => {
     if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
     setProblem(error instanceof ApiError ? error.message : fallback)
+    setProblemAt(at)
   }
 
   useEffect(() => {
@@ -43,10 +47,11 @@ function Submit(): ReactElement {
     event.preventDefault()
     if (!call || !file) return
     const wrong = fileProblem(file)
-    if (wrong) { setProblem(wrong); return }
+    if (wrong) { setProblem(wrong); setProblemAt('file'); return }
     setBusy(true)
     setNotice(null)
     setProblem(null)
+    setProblemAt(null)
     try {
       const sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim() }, file)
       setNotice(`Thank you. We have received “${sent.title}”. You will get an email to say so.`)
@@ -54,7 +59,7 @@ function Submit(): ReactElement {
       setFile(null)
       setFormKey(k => k + 1)
     } catch (error) {
-      failed(error, 'Your poem could not be sent. Please try again.')
+      failed(error, 'Your poem could not be sent. Please try again.', 'send')
       setBusy(false)
       return
     }
@@ -65,6 +70,7 @@ function Submit(): ReactElement {
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
       setProblem('Your poem was received, but the list below could not be refreshed. Reload the page to see it.')
+      setProblemAt(null)
     } finally {
       setBusy(false)
     }
@@ -88,12 +94,14 @@ function Submit(): ReactElement {
     content = (
       <>
         {notice && <p role="status" className="publisher-notice">{notice}</p>}
-        {problem && <p role="alert" className="publisher-problem">{problem}</p>}
+        {problem && problemAt === null && <p role="alert" className="publisher-problem">{problem}</p>}
         <form className="submit-form" onSubmit={send} key={formKey}>
           <p><label>Title <input type="text" required value={title} onChange={e => setTitle(e.target.value)} disabled={busy} /></label></p>
           <p><label>Your name as it should appear <input type="text" required value={author} onChange={e => setAuthor(e.target.value)} disabled={busy} /></label></p>
           <p><label>The poem, as a Midst file (.midst) <input type="file" accept=".midst" required onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={busy} /></label></p>
+          {problem && problemAt === 'file' && <p role="alert" className="publisher-problem">{problem}</p>}
           <p><button type="submit" className="app-button" disabled={busy || !file}>{busy ? 'Sending…' : 'Submit poem'}</button></p>
+          {problem && problemAt === 'send' && <p role="alert" className="publisher-problem">{problem}</p>}
         </form>
 
         <h3>Your submissions</h3>

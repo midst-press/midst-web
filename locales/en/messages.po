@@ -86,6 +86,7 @@ msgstr "Playback speed controls"
 # Heard, not seen: what a screen reader calls the area where the poem is replayed.
 #. js-lingui-explicit-id
 #: src/components/MidstPlayer/MidstPlayer.tsx
+#: src/components/MidstPlayer/MidstPlayer.tsx
 #, fuzzy
 msgid "player.poemReplay"
 msgstr "Poem replay"
@@ -110,3 +111,10 @@ msgstr "Skip to start"
 #, fuzzy
 msgid "player.timeline"
 msgstr "Timeline"
+
+# What a screen reader calls the row of languages at the top of every page.
+#. js-lingui-explicit-id
+#: src/components/LanguageSelector.tsx
+#, fuzzy
+msgid "site.language"
+msgstr "Language"
