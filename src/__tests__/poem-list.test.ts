@@ -207,6 +207,14 @@ describe('stored addresses (#101)', () => {
       .toThrow('not well formed')
   })
 
+  it('refuses two addresses that differ only in Unicode normalisation', () => {
+    const composed = 'caf\u00e9-tide'
+    const decomposed = 'cafe\u0301-tide'
+    expect(composed).not.toBe(decomposed)
+    expect(() => parsePublishedList(list(at(ID_A, { url: composed }), at(ID_B, { url: decomposed })))).toThrow('not well formed')
+    expect(() => parsePublishedList(list(at(ID_A, { url: decomposed }), at(ID_B, { url: composed })))).toThrow('not well formed')
+  })
+
   it('refuses an address that is not one path segment of text', () => {
     for (const url of ['', 'a/b', '/a', 'a\nb', 'a\u0000b', 'a\u007fb', null, 7, ['aa-title']]) {
       expect(() => parsePublishedList(list(at(ID_A, { url })))).toThrow('not well formed')

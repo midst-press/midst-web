@@ -89,11 +89,13 @@ function parsePublishedList(json) {
   // derived as they always were). Once one does, an entry without one, an invalid one or one used twice refuses the
   // list: a missing address is not a valid one.
   if (!json.poems.some(hasStoredUrl)) return withAddresses(entries)
+  // Compared composed: two spellings of one address look the same, a browser may send either, and the old-links table
+  // stores a route under both (cora-2f1e43dc, vivian-1a61bc9a, review of #287).
   const urls = new Set()
   return entries.map((entry, i) => {
     const { url } = json.poems[i]
-    if (!isStoredUrl(url) || urls.has(url)) throw malformed()
-    urls.add(url)
+    if (!isStoredUrl(url) || urls.has(url.normalize('NFC'))) throw malformed()
+    urls.add(url.normalize('NFC'))
     return { ...entry, url }
   })
 }
