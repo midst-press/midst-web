@@ -1,3 +1,8 @@
+# 0.7.0
+
+- **The zip reader is current**: @zip.js/zip.js 2.24.0, bundled from npm, in place of zip.js 1.x from 2013 and its
+  three worker scripts. Poems and review copies are read the same way, their CRC still checked.
+
 # 0.6.0
 
 - **Analytics uses Google Analytics 4**, in place of the Universal Analytics tag Google stopped reading in 2023. It

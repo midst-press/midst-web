@@ -1,3 +1,5 @@
+import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js'
+import * as archiveModule from '../archive'
 import { fetchPoemAsset } from '../poems/key-scheme'
 import { parseMidstFile } from '../store/midst-file'
 import { processNoteObjectName, timelapseObjectName } from '../poems/poem-names'
@@ -57,14 +59,20 @@ const validText = JSON.stringify({ text: 'zq', history: [{ inserted: 'zq', front
 
 const fakeBlob = { fake: 'blob' }
 let fileText: string
-let zip: any
-let fakeZipReaderMode: 'ok' | 'error' | 'empty'
+// What the timelapse request answers: a real .midst.zip of fileText (#270), unless a test sets other bytes.
+let archiveBytes: (() => Promise<Blob>) | null
 let consoleError: jest.SpyInstance
+
+async function zipOf(files: [string, string][], level?: number): Promise<Blob> {
+  const writer = new ZipWriter(new BlobWriter('application/zip'), level === undefined ? {} : { level })
+  for (const [name, text] of files) await writer.add(name, new TextReader(text))
+  return writer.close()
+}
 
 const okResponse = (note = 'zq note') => ({
   ok: true,
   text: async () => note,
-  blob: async () => fakeBlob,
+  blob: async () => (archiveBytes ? archiveBytes() : zipOf([['zq.midst', fileText]])),
 })
 // A failed request still has a readable body (S3 answers 403 with an error document). Only the
 // check of `ok` keeps that body from being used as a process note or opened as an archive, so these
@@ -83,43 +91,14 @@ const failedB = (reason: string) => [[{ type: LOAD_POEM_FAILED, payload: { poemI
 
 beforeEach(() => {
   fileText = validText
-  fakeZipReaderMode = 'ok'
-  zip = {
-    workerScriptsPath: undefined,
-    BlobReader: jest.fn().mockImplementation(function (this: any, arg: any) {
-      this.arg = arg
-    }),
-    BlobWriter: jest.fn().mockImplementation(function () {}),
-    createReader: jest.fn((reader: any, onReader: any, onError: any) => {
-      if (fakeZipReaderMode === 'error') return onError()
-      if (fakeZipReaderMode === 'empty') return onReader({ getEntries: (cb: any) => cb([]) })
-      return onReader({
-        getEntries: (cb: any) =>
-          cb([{ getData: (_writer: any, dataCb: any) => dataCb(fakeBlob) }]),
-      })
-    }),
-  }
-  ;(globalThis as any).window = { zip }
-  // As a browser's FileReader: the text is on `result` when loadend fires.
-  ;(globalThis as any).FileReader = class {
-    private listeners: Record<string, any> = {}
-    result: string | null = null
-    addEventListener(type: string, fn: any) {
-      this.listeners[type] = fn
-    }
-    readAsText(_blob: any) {
-      this.result = fileText
-      this.listeners.loadend({ target: this })
-    }
-  }
+  archiveBytes = null
   mockFetchAsset.mockReset()
   consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
 })
 
 afterEach(() => {
   consoleError.mockRestore()
-  delete (globalThis as any).window
-  delete (globalThis as any).FileReader
+  jest.restoreAllMocks()
 })
 
 describe('plain action creators', () => {
@@ -160,9 +139,6 @@ describe('loadPoemData success', () => {
     ])
     expect(mockFetchAsset.mock.calls[0][1]).toBe(processNoteObjectName(poemB))
     expect(mockFetchAsset.mock.calls[1][1]).toBe(timelapseObjectName(poemB))
-    expect(zip.workerScriptsPath).toBe('/static/workers/')
-    expect(zip.BlobReader).toHaveBeenCalledWith(fakeBlob)
-    expect(zip.createReader).toHaveBeenCalledTimes(1)
     expect(consoleError).not.toHaveBeenCalled()
   })
 
@@ -284,7 +260,6 @@ describe('loadPoemData failures before unzip', () => {
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
     expect(mockFetchAsset).toHaveBeenCalledTimes(2)
-    expect(zip.createReader).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('refused'))
     expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: refused']])
   })
@@ -348,16 +323,15 @@ describe('loadPoemData failures before unzip', () => {
 })
 
 describe('loadPoemData failures during unzip and parse', () => {
-  it('archive reader error: failure dispatched', async () => {
-    fakeZipReaderMode = 'error'
+  it('bytes that are not an archive: failure dispatched, logged with the library\'s message', async () => {
+    archiveBytes = async () => new Blob(['zq not a zip'])
     mockFetchAsset.mockResolvedValueOnce(okResponse()).mockResolvedValueOnce(okResponse())
     const dispatch = jest.fn()
 
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
-    expect(zip.createReader).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: no cause given']])
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: Error: File format is not recognized']])
   })
 
   it.each([
@@ -377,13 +351,12 @@ describe('loadPoemData failures during unzip and parse', () => {
   })
 
   it('archive with no entries: failure dispatched, nothing thrown', async () => {
-    fakeZipReaderMode = 'empty'
+    archiveBytes = () => zipOf([])
     mockFetchAsset.mockResolvedValueOnce(okResponse()).mockResolvedValueOnce(okResponse())
     const dispatch = jest.fn()
 
     await loadPoemData(0)(dispatch, stateWith([poemB]))
 
-    expect(zip.BlobWriter).not.toHaveBeenCalled()
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
     expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: the archive has no entries']])
   })
@@ -398,90 +371,40 @@ describe('loadPoemData failures during unzip and parse', () => {
   })
 })
 
-describe('window.zip missing', () => {
-  it('is a reported failure like any other: nothing fetched, failure dispatched', async () => {
-    ;(globalThis as any).window = {}
-    const dispatch = jest.fn()
-
-    await loadPoemData(0)(dispatch, stateWith([poemB]))
-
-    expect(mockFetchAsset).not.toHaveBeenCalled()
-    expect(dispatch.mock.calls).toEqual(failedB('unknown'))
-    expect(consoleError.mock.calls).toEqual([['Unable to load Midst data: TypeError']])
-  })
-})
-
 // #43: every way the archive read or a body read can fail reaches LOAD_POEM_FAILED. None of these may leave the
 // loading mark turning for ever.
 describe('loadPoemData: failures inside the archive read and the body read (#43)', () => {
-  const entryWith = (getData: any) => {
-    zip.createReader = jest.fn((_r: any, onReader: any) => onReader({ getEntries: (cb: any) => cb([{ getData }]) }))
-  }
-
-  it('asks zip.js to check the CRC, so a mismatch reaches its error callback rather than the parser', async () => {
+  it('a CRC mismatch is damaged, logged with the library\'s message, and never reaches the parser', async () => {
+    const stored = new Uint8Array(await (await zipOf([['zq.midst', validText]], 0)).arrayBuffer())
+    // A byte of the stored contents, not of the file name in the headers. The text stays valid JSON, so only the CRC
+    // check can refuse it.
+    const at = Buffer.from(stored).indexOf('inserted')
+    expect(at).toBeGreaterThan(0)
+    stored[at + 1] ^= 1
+    archiveBytes = async () => new Blob([stored])
     mockFetchAsset.mockResolvedValue(okResponse())
-    // getData(writer, onEnd, onProgress, checkSignature): the fourth argument is the one under test.
-    const getData = jest.fn((_w: any, cb: any, _p?: any, _check?: boolean) => cb(fakeBlob))
-    entryWith(getData)
-    await loadPoemData(0)(jest.fn(), stateWith([poemB]))
-    expect(getData.mock.calls[0][3]).toBe(true)
-  })
-
-  it('a CRC mismatch is logged with zip.js\'s own message', async () => {
-    mockFetchAsset.mockResolvedValue(okResponse())
-    zip.createReader = jest.fn((_r: any, _ok: any, onError: any) => onError('CRC failed.'))
     const dispatch = jest.fn()
     await loadPoemData(0)(dispatch, stateWith([poemB]))
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: CRC failed.']])
+    expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: Error: Invalid CRC32']])
   })
 
-  it('a TypeError in our own callback is logged as one, not as a damaged file alone', async () => {
+  it('an error that is not the archive\'s is damaged and logged by its name and message', async () => {
+    jest.spyOn(archiveModule, 'readFirstEntry').mockRejectedValue(new TypeError('zq is not a function'))
     mockFetchAsset.mockResolvedValue(okResponse())
-    entryWith(() => { throw new TypeError('zq is not a function') })
     const dispatch = jest.fn()
     await loadPoemData(0)(dispatch, stateWith([poemB]))
     expect(dispatch.mock.calls).toEqual(failedB('damaged'))
     expect(consoleError.mock.calls).toEqual([['Unable to read Midst archive: TypeError: zq is not a function']])
   })
 
-  it('a throw inside a zip.js callback is damaged, not silent', async () => {
-    mockFetchAsset.mockResolvedValue(okResponse())
-    entryWith(() => { throw new Error('zq inflate') })
-    const dispatch = jest.fn()
-    await loadPoemData(0)(dispatch, stateWith([poemB]))
-    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-  })
-
-  it('zip.js throwing as the reader is created is damaged', async () => {
-    mockFetchAsset.mockResolvedValue(okResponse())
-    zip.createReader = jest.fn(() => { throw new Error('zq reader') })
-    const dispatch = jest.fn()
-    await loadPoemData(0)(dispatch, stateWith([poemB]))
-    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-  })
-
-  it('a FileReader error is damaged', async () => {
-    mockFetchAsset.mockResolvedValue(okResponse())
-    ;(globalThis as any).FileReader = class {
-      private listeners: Record<string, any> = {}
-      // A real reader leaves result null on error, and the parser would then call it damaged anyway. A readable
-      // result beside the error makes this test fail unless the reader's error itself is checked.
-      result: string | null = validText
-      error = new Error('zq read')
-      addEventListener(type: string, fn: any) { this.listeners[type] = fn }
-      readAsText() { this.listeners.loadend({ target: this }) }
-    }
-    const dispatch = jest.fn()
-    await loadPoemData(0)(dispatch, stateWith([poemB]))
-    expect(dispatch.mock.calls).toEqual(failedB('damaged'))
-  })
-
   it('an archive read that never finishes gives up after the timeout', async () => {
     jest.useFakeTimers()
     try {
+      // Bytes that never arrive: the library waits on them for ever, and only the timer ends the read.
+      const stalled = { size: 100, type: 'application/zip', slice: () => stalled, arrayBuffer: () => new Promise<ArrayBuffer>(() => {}) }
+      archiveBytes = async () => stalled as unknown as Blob
       mockFetchAsset.mockResolvedValue(okResponse())
-      entryWith(() => { /* a worker that never answers */ })
       const dispatch = jest.fn()
       const done = loadPoemData(0)(dispatch, stateWith([poemB]))
       await jest.advanceTimersByTimeAsync(ARCHIVE_READ_TIMEOUT_MS - 1)
@@ -489,6 +412,7 @@ describe('loadPoemData: failures inside the archive read and the body read (#43)
       await jest.advanceTimersByTimeAsync(1)
       await done
       expect(dispatch.mock.calls).toEqual(failedB('unknown'))
+      expect(consoleError.mock.calls).toEqual([['Reading the Midst archive timed out']])
     } finally {
       jest.useRealTimers()
     }

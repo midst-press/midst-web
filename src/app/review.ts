@@ -5,6 +5,7 @@
  */
 import { Call, PublisherList } from './publisher'
 import { Submission } from './submit'
+import { readFirstEntry } from '../archive'
 import { parseMidstFile } from '../store/midst-file'
 import { IMidstFile } from '../store/types'
 
@@ -46,29 +47,17 @@ export function needsFinishing(submission: Pick<Submission, 'submissionId' | 'or
 /** Why a review copy could not be played. The message is safe to show: it never carries the file or the URL. */
 export class PlayError extends Error {}
 
-/** The parts of the zip library (window.zip, zip.js) this file uses. */
-export interface ZipLib {
-  workerScriptsPath?: string
-  BlobReader: new (blob: Blob) => unknown
-  BlobWriter: new () => unknown
-  createReader: (
-    reader: unknown,
-    onReader: (zipReader: { getEntries: (done: (entries: { getData: (writer: unknown, done: (blob: Blob) => void) => void }[]) => void) => void }) => void,
-    onError: () => void,
-  ) => void
-}
-
 export interface PlayDeps {
   fetch: (url: string) => Promise<{ ok: boolean, blob: () => Promise<Blob> }>
-  zip: ZipLib
-  readText: (blob: Blob) => Promise<string>
+  /** The text of the archive's first file (../archive); replaceable in tests. */
+  readArchive?: (archive: Blob) => Promise<string>
 }
 
 const EXPIRED = 'The review copy could not be fetched. The link may have expired: press Play again.'
 const DAMAGED = 'The review copy is damaged and cannot be played.'
 
 /** Fetch the pre-signed review copy, unzip it and parse the Midst file inside. Throws a PlayError a person can read. */
-export async function fetchTimelapse(url: string, deps: PlayDeps, workerScriptsPath = '/static/workers/'): Promise<IMidstFile> {
+export async function fetchTimelapse(url: string, deps: PlayDeps): Promise<IMidstFile> {
   let blob: Blob
   try {
     const response = await deps.fetch(url)
@@ -77,17 +66,8 @@ export async function fetchTimelapse(url: string, deps: PlayDeps, workerScriptsP
   } catch {
     throw new PlayError(EXPIRED)
   }
-  const zip = deps.zip
-  zip.workerScriptsPath = workerScriptsPath
-  let entry: { getData: (writer: unknown, done: (blob: Blob) => void) => void }
   try {
-    entry = await new Promise((resolve, reject) => {
-      zip.createReader(new zip.BlobReader(blob), zipReader => {
-        zipReader.getEntries(entries => (entries.length ? resolve(entries[0]) : reject(new PlayError(DAMAGED))))
-      }, () => reject(new PlayError(DAMAGED)))
-    })
-    const unzipped = await new Promise<Blob>(resolve => entry.getData(new zip.BlobWriter(), resolve))
-    return parseMidstFile(await deps.readText(unzipped))
+    return parseMidstFile(await (deps.readArchive ?? readFirstEntry)(blob))
   } catch {
     throw new PlayError(DAMAGED)
   }

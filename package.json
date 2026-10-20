@@ -49,6 +49,7 @@
     "@types/react-router-dom": "5.1.5",
     "@types/uuid": "3.4.9",
     "@types/voca": "1.4.0",
+    "@zip.js/zip.js": "2.24.0",
     "global.css": "1.1.0",
     "immer": "4.0.2",
     "insane": "2.6.2",
@@ -132,7 +133,8 @@
       "<rootDir>/tools/__tests__/**/*.test.cjs"
     ],
     "setupFiles": [
-      "<rootDir>/src/__tests__/jest-key-scheme.setup.js"
+      "<rootDir>/src/__tests__/jest-key-scheme.setup.js",
+      "<rootDir>/src/__tests__/jest-web-streams.setup.js"
     ],
     "transform": {
       "^.+\\.[tj]sx?$": [

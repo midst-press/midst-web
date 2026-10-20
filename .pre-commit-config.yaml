@@ -5,8 +5,8 @@
 # Install once per clone:  pre-commit install
 #
 # GENERATED AND VENDORED FILES ARE NOT OURS TO REFORMAT. The player was built by vendoring
-# jQuery, Rangy, React and zip.js directly into the tree, and static/ holds third-party font
-# specimens and worker scripts. Reformatting a minified vendor bundle can change its meaning and
+# jQuery, Rangy and React directly into the tree, and static/ holds third-party font
+# specimens. Reformatting a minified vendor bundle can change its meaning and
 # will certainly destroy its diffability against upstream. One anchor, aliased by every hook that
 # WRITES, so the list cannot drift between them. Hooks that only VALIDATE (check-json, check-yaml)
 # deliberately still cover these files.
