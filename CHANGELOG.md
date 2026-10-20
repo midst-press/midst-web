@@ -1,3 +1,8 @@
+# 0.8.0
+
+- **About the App's help is two dropdowns**, Installation and Using Midst, with stand-in text until the help is
+  written. The editor's "Need help?" still lands on it.
+
 # 0.7.0
 
 - **The zip reader is current**: @zip.js/zip.js 2.24.0, bundled from npm, in place of zip.js 1.x from 2013 and its
