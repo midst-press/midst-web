@@ -6,8 +6,6 @@
   edits. A poem published through the publisher page showed no date before.
 - **The publisher can remove an unpublished poem from the portal.** It asks first. The poem is no longer listed and
   can't be published from the portal again; nothing is deleted.
-- **A poem's address under /read opens the poem.** `/read/<poem>` goes to the poem's page, the same full player the
-  Table of Contents opens; it used to show a blank page.
 
 # 0.13.0
 
