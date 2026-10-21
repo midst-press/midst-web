@@ -6,7 +6,7 @@ import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
-import ReplacesChoice, { publishWithChoice } from './PublisherReplaces'
+import ReplacesChoice, { detailsFor, localToday, publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
@@ -41,6 +41,8 @@ function Publisher(): ReactElement {
   const [failures, setFailures] = useState(0)
   // For each unpublished poem, the published poem it is to replace, if one was chosen.
   const [replacing, setReplacing] = useState<Record<string, string>>({})
+  // For each unpublished poem, the date or highlight the publisher changed from where they start (detailsFor, #305).
+  const [publishing, setPublishing] = useState<Record<string, { publishDate?: string, highlighted?: boolean }>>({})
   // Submissions waiting on the review page (#289); null until read, or when they could not be.
   const [waiting, setWaiting] = useState<number | null>(null)
 
@@ -140,10 +142,31 @@ function Publisher(): ReactElement {
                 <span className="publisher-actions">
                   <ReplacesChoice poem={poem} published={list.published} value={replacing[poem.poemId] ?? ''} disabled={busy || reordered}
                     onChange={poemId => setReplacing(chosen => ({ ...chosen, [poem.poemId]: poemId }))} />
-                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publishWithChoice(c, etag, poem, list.published, replacing[poem.poemId],
-                    poemId => setReplacing(({ [poemId]: _done, ...rest }) => rest)), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
-                    Publish
-                  </button>
+                  {(() => {
+                    const details = { ...detailsFor(poem, list.published, replacing[poem.poemId], localToday()), ...publishing[poem.poemId] }
+                    const edit = (field: { publishDate?: string, highlighted?: boolean }) =>
+                      setPublishing(edits => ({ ...edits, [poem.poemId]: { ...edits[poem.poemId], ...field } }))
+                    return <>
+                      <label>
+                        Date{' '}
+                        <input type="date" required disabled={busy || reordered} value={details.publishDate}
+                          aria-label={`Publish date of ${poem.title}`} onChange={event => edit({ publishDate: event.target.value })} />
+                      </label>
+                      <label>
+                        <input type="checkbox" disabled={busy || reordered} checked={details.highlighted}
+                          aria-label={`Highlighted, for ${poem.title}`} onChange={event => edit({ highlighted: event.target.checked })} />
+                        {' '}Highlighted
+                      </label>
+                      <button type="button" disabled={busy || reordered || !details.publishDate}
+                        onClick={() => change((c, etag) => publishWithChoice(c, etag, poem, list.published, replacing[poem.poemId], details,
+                          poemId => {
+                            setReplacing(({ [poemId]: _done, ...rest }) => rest)
+                            setPublishing(({ [poemId]: _done, ...rest }) => rest)
+                          }), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
+                        Publish
+                      </button>
+                    </>
+                  })()}
                 </span>
               </li>
             ))}

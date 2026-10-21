@@ -2,7 +2,7 @@
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
-import ReplacesChoice, { publishWithChoice, replaceable, replacementToSend } from '../routes/PublisherReplaces'
+import ReplacesChoice, { detailsFor, localToday, publishWithChoice, replaceable, replacementToSend } from '../routes/PublisherReplaces'
 import { Call, Poem } from '../app/publisher'
 
 // The publisher may publish a poem as the replacement for a published one by the same poet (#101; midst-infra #190).
@@ -93,16 +93,47 @@ describe('what publish sends', () => {
   it('sends no replaces key for a choice no longer offered, and forgets the choice once published', async () => {
     const call = jest.fn(async () => ({ listEtag: 'e2', published: [] })) as unknown as Call & jest.Mock
     const forget = jest.fn()
-    await publishWithChoice(call, 'e1', NEW, [OTHER], 'p1', forget)
-    expect(call.mock.calls).toEqual([['/publisher/publish', { method: 'POST', body: { poemId: 'n1', listEtag: 'e1' } }]])
+    await publishWithChoice(call, 'e1', NEW, [OTHER], 'p1', { publishDate: '2026-10-21', highlighted: false }, forget)
+    expect(call.mock.calls).toEqual([['/publisher/publish', { method: 'POST', body: { poemId: 'n1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false } }]])
     expect(forget.mock.calls).toEqual([['n1']])
   })
 
   it('sends a choice still offered, and a failed publish keeps it', async () => {
     const call = jest.fn(async () => { throw new Error('refused') }) as unknown as Call & jest.Mock
     const forget = jest.fn()
-    await expect(publishWithChoice(call, 'e1', NEW, [SAME_A], 'p1', forget)).rejects.toThrow('refused')
-    expect(call.mock.calls).toEqual([['/publisher/publish', { method: 'POST', body: { poemId: 'n1', listEtag: 'e1', replaces: 'p1' } }]])
+    await expect(publishWithChoice(call, 'e1', NEW, [SAME_A], 'p1', { publishDate: '2026-10-21', highlighted: false }, forget)).rejects.toThrow('refused')
+    expect(call.mock.calls).toEqual([['/publisher/publish', { method: 'POST', body: { poemId: 'n1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false, replaces: 'p1' } }]])
     expect(forget).not.toHaveBeenCalled()
+  })
+})
+
+describe('the date and highlight a publish starts from (#305)', () => {
+  const P = (poemId: string, fields: Partial<Poem>): Poem => ({
+    poemId, title: 'Zq', author: 'Qz', timelapseKey: '', processNoteKey: null, publishDate: null, highlighted: false, ...fields,
+  })
+  const today = '2026-10-21'
+
+  it('a new poem starts from today, not highlighted', () => {
+    expect(detailsFor(P('n', { title: 'Vb' }), [P('a', {})], undefined, today)).toEqual({ publishDate: today, highlighted: false })
+  })
+
+  it('a republished poem starts from what it had', () => {
+    expect(detailsFor(P('n', { title: 'Vb', publishDate: '2020-01-02', highlighted: true }), [], undefined, today))
+      .toEqual({ publishDate: '2020-01-02', highlighted: true })
+  })
+
+  it('a poem replacing a chosen one starts from that one\'s', () => {
+    const old = P('a', { title: 'Other', publishDate: '2019-05-06', highlighted: true })
+    expect(detailsFor(P('n', { title: 'Vb' }), [old], 'a', today)).toEqual({ publishDate: '2019-05-06', highlighted: true })
+  })
+
+  it('a likely revision, same author and title, starts from the published one\'s', () => {
+    const old = P('a', { title: ' zq ', publishDate: '2018-07-08', highlighted: true })
+    expect(detailsFor(P('n', {}), [old], undefined, today)).toEqual({ publishDate: '2018-07-08', highlighted: true })
+    expect(detailsFor(P('n', {}), [{ ...old, author: 'Other' }], undefined, today)).toEqual({ publishDate: today, highlighted: false })
+  })
+
+  it('today is the date where the publisher is', () => {
+    expect(localToday(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05')
   })
 })

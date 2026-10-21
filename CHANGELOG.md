@@ -1,3 +1,8 @@
+# 0.13.0
+
+- **A poem is published with its date and highlight**, set beside the Publish button: the date starts as today, or
+  as the date of the poem it replaces, and either can be changed before publishing.
+
 # 0.12.0
 
 - **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
