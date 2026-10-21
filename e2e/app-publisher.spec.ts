@@ -421,7 +421,7 @@ for (const groups of [['publisher', 'admin'], ['admin']]) {
 
 for (const groups of [['publisher'], ['poet'], [], null]) {
   test(`publisher invitation link is absent for ${groups === null ? 'signed out' : JSON.stringify(groups)}`, async ({ page, baseURL }) => {
-    const store: Store = { etag: 1, published: [], unpublished: [], writes: [] }
+    const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [] }
     if (groups !== null) await signedInAs(page, groups)
     await standIn(page, baseURL!, store)
     await page.goto('/publisher')
