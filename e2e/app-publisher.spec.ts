@@ -413,6 +413,46 @@ test('someone who is not a publisher is told so, and the list is not asked for',
   expect(asked).toBe(false)
 })
 
+for (const groups of [['publisher', 'admin'], ['admin']]) {
+  test(`an admin (${groups.join(', ')}) can find the existing publisher invitation form`, async ({ page, baseURL }) => {
+    const store: Store = { etag: 1, published: [], unpublished: [], writes: [] }
+    await signedInAs(page, groups)
+    await standIn(page, baseURL!, store)
+    const adminMethods: string[] = []
+    await page.route(`${API}/admin/users`, route => {
+      adminMethods.push(route.request().method())
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '{"users":[]}' })
+    })
+    await page.goto('/publisher')
+    const link = page.getByRole('link', { name: 'Invite publishers', exact: true })
+    await expect(link).toBeVisible()
+    await expect(link).toHaveAttribute('href', '/admin')
+    await link.click()
+    await expect(page).toHaveURL(/\/admin$/)
+    const form = page.getByRole('form', { name: 'Invite someone' })
+    await expect(form).toBeVisible()
+    await expect(form.getByRole('checkbox', { name: 'publisher', exact: true })).toBeVisible()
+    expect(adminMethods).toContain('GET')
+    expect(adminMethods.every(method => method === 'GET' || method === 'OPTIONS')).toBe(true)
+    expect(store.writes).toEqual([])
+  })
+}
+
+for (const groups of [['publisher'], ['poet'], [], null]) {
+  test(`publisher invitation link is absent for ${groups === null ? 'signed out' : JSON.stringify(groups)}`, async ({ page, baseURL }) => {
+    const store: Store = { etag: 1, published: [poem(1)], unpublished: [], writes: [] }
+    if (groups !== null) await signedInAs(page, groups)
+    await standIn(page, baseURL!, store)
+    await page.goto('/publisher')
+    await expect(page.getByRole('heading', { name: 'Publish', exact: true })).toBeVisible()
+    if (groups === null) await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+    else if (groups.includes('publisher')) await expect(page.getByRole('list', { name: 'Published poems' })).toBeVisible()
+    else await expect(page.getByText('Your account cannot publish.', { exact: false })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Invite publishers', exact: true })).toHaveCount(0)
+    expect(store.writes).toEqual([])
+  })
+}
+
 // #101 (Stuart, 21 Oct): a poem can be published as the replacement for a published poem by the same poet.
 const byPoet = (n: number, author: string) => ({ ...poem(n), author })
 // Today where the browser is, as the page fills a new poem's date in (#305).
@@ -520,6 +560,26 @@ test('a publish starts from the replaced poem\'s date and highlight, and sends w
   await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
   expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: '2026-10-01', highlighted: false, replaces: 'id-1' }])
   await expect(published(page)).toHaveText(['Zq 2'])
+})
+
+// #305: when the poet last edited each poem, read-only, in both lists; nothing where it is not known.
+test('each poem shows when the poet last edited it, where that is known', async ({ page, baseURL }) => {
+  const at = '2021-01-07T08:00:00.000Z'
+  const store: Store = {
+    etag: 1, writes: [],
+    published: [{ ...poem(1), lastEdited: at } as ReturnType<typeof poem>, poem(2)],
+    unpublished: [{ ...poem(3), lastEdited: '2026-09-30T12:00:00.000Z' } as ReturnType<typeof poem>],
+  }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const day = (iso: string) => page.evaluate(value => new Date(value).toLocaleDateString(), iso)
+  const item = (list: string, title: string) => page.getByRole('list', { name: list }).getByRole('listitem').filter({ hasText: title })
+  await expect(item('Published poems', 'Zq 1')).toContainText(`by Qz 1, last edited ${await day(at)}`)
+  await expect(item('Poems not published', 'Zq 3')).toContainText(`by Qz 3, last edited ${await day('2026-09-30T12:00:00.000Z')}`)
+  await expect(item('Published poems', 'Zq 2')).not.toContainText('last edited')
+  // Shown, never sent: nothing on the page edits it.
+  expect(store.writes).toEqual([])
 })
 
 test('remove from portal asks first; dismissed, nothing is sent; accepted, the poem leaves the portal (#308)', async ({ page, baseURL }) => {

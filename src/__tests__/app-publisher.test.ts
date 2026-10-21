@@ -1,4 +1,4 @@
-import { Call, Poem, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish } from '../app/publisher'
+import { Call, Poem, lastEditedWords, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish } from '../app/publisher'
 
 // The publisher's calls (docs/app-api.md) and the reordering the page does before it saves.
 
@@ -73,5 +73,18 @@ describe('leftInCache', () => {
       { edgeCleared: null }, null, undefined, 'false', false]) {
       expect(leftInCache(result)).toBe(false)
     }
+  })
+})
+
+describe('lastEditedWords', () => {
+  it('says when the poet last edited, as the reader writes dates (#305)', () => {
+    const at = '2021-01-07T08:00:00.000Z'
+    expect(lastEditedWords(at)).toBe(`last edited ${new Date(at).toLocaleDateString()}`)
+  })
+
+  it('says nothing when it is not known: null, absent (an API before midst-infra #208), or not a time', () => {
+    expect(lastEditedWords(null)).toBeNull()
+    expect(lastEditedWords(undefined)).toBeNull()
+    expect(lastEditedWords('not a time')).toBeNull()
   })
 })

@@ -8,9 +8,29 @@ import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
 import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
 import NoteEditor from '../components/NoteEditor'
+import { Link } from 'react-router-dom'
 
-// The poet's page (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21): send a poem as a .midst
-// file, and see where each submission stands. A prototype; the wording is Annelyse's to choose.
+// The Submit page (#326, GitHub midst-press/midst-web#88). Everyone reads Annelyse's text about submitting; a signed-in poet
+// also gets, under it, the form to send a poem as a .midst file and the list of where each submission stands
+// (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21).
+
+// Annelyse's words, as she wrote them (GitHub #88, 21 Oct). They move to her content/ folder once #281 has landed.
+function SubmissionsText(): ReactElement {
+  return (
+    <div className="submit-text">
+      <p>Midst is currently <strong>closed</strong> to submissions.</p>
+      <p>
+        Please note that we <em>only</em> consider .midst files—poems written and edited with <Link to="/app">the Midst app</Link>.
+        We do not accept poems in any other format made with any other software (.doc, .docx, .pdf, .txt, etc.).
+      </p>
+      <p>
+        The app is free to download and free to use, built by and for writers. Everything you write with it is completely
+        private and belongs 100% to you. It works on Mac, Windows, and Linux. <Link to="/app">Download it here</Link>.
+      </p>
+      <p><a href="#newsletter">Sign up to our newsletter</a> to find out about open submission windows and other opportunities.</p>
+    </div>
+  )
+}
 
 const putFile = async (url: string, headers: Record<string, string>, file: Blob) => {
   const response = await fetch(url, { method: 'PUT', headers, body: file })
@@ -82,9 +102,10 @@ function Submit(): ReactElement {
 
   const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/submit'))
 
-  let content: ReactElement
+  // Under her text: nothing on a site without the app; otherwise sign-in, or the poet's form.
+  let content: ReactElement | null
   if (!APP_AVAILABLE) {
-    content = <p>Submitting is not available on this site.</p>
+    content = null
   } else if (!session) {
     content = (
       <>
@@ -127,11 +148,16 @@ function Submit(): ReactElement {
   return (
     <div className="app-account-page submit-page">
       <Helmet>
-        <title>{BASE_SITE_PAGE_TITLE} Submit a poem</title>
+        <title>{BASE_SITE_PAGE_TITLE} Submit</title>
       </Helmet>
       <section className="heroine heroine--normal">
-        <h2>Submit a poem</h2>
-        {content}
+        <SubmissionsText />
+        {content && (
+          <>
+            <h2>Submit a poem</h2>
+            {content}
+          </>
+        )}
       </section>
     </div>
   )

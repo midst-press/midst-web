@@ -12,8 +12,8 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
 import {
-  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, removeFromPortal, saveDetails, saveOrder,
-  unpublish,
+  Call, Poem, PublisherList, callerFor, lastEditedWords, leftInCache, loadList, moved, orderChanged, removeFromPortal,
+  saveDetails, saveOrder, unpublish,
 } from '../app/publisher'
 
 // The publisher's page (docs/app-api.md, "Publisher"; #12, #110): publish, unpublish, reorder, and set a
@@ -33,7 +33,11 @@ export const confirmRemove = (title: string) =>
 const CONFLICT = 'Someone else changed the published list while you were working. It has been reloaded; please check it and try again.'
 
 function PoemLine({ poem }: { poem: Poem }): ReactElement {
-  return <span className="publisher-poem"><strong>{poem.title}</strong> <span className="publisher-author">by {poem.author}</span></span>
+  const edited = lastEditedWords(poem.lastEdited)
+  return <span className="publisher-poem">
+    <strong>{poem.title}</strong> <span className="publisher-author">by {poem.author}</span>
+    {edited && <span className="publisher-last-edited">, {edited}</span>}
+  </span>
 }
 
 function Publisher(): ReactElement {
@@ -258,6 +262,9 @@ function Publisher(): ReactElement {
       </Helmet>
       <section className="heroine heroine--normal">
         <h2>Publish</h2>
+        {session?.groups.includes('admin') && (
+          <p className="portal-link"><Link to="/admin">Invite publishers</Link></p>
+        )}
         {content}
       </section>
     </div>

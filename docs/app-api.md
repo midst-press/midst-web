@@ -78,12 +78,16 @@ A 429 means wait and try again.
   "timelapseKey": "poems/3f6c2b1e-8a4d-4c55-9b0e-2d7a1c9e4f10/timelapse.midst.zip",
   "processNoteKey": null,
   "publishDate": "2026-10-20",
-  "highlighted": false
+  "highlighted": false,
+  "lastEdited": "2026-10-19T21:14:03.512Z"
 }
 ```
 
 `poemId` is the opaque id minted when a submission arrives (#41). Names never appear in a key; keys are
 recorded, not derived. `publishDate` and `highlighted` are `null` / `false` until the publisher sets them.
+`lastEdited` is when the poet last edited the poem: the latest time in its timelapse, recorded when it is accepted
+(#305; midst-infra #208). Only `GET /publisher/poems` carries it, `null` where it is not known. The publisher's page
+shows it and nothing sets it; it is never written to the published list, so the site never shows it.
 
 A list entry also carries `firstPublishedAt`, the ISO time of the poem's first publication. It is kept across an
 unpublish and a republish, and a revision takes it over from the version it replaces (midst-infra #83). Entries
@@ -154,8 +158,9 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   they win over what a republish kept or a revision inherits; both absent, the poem keeps what it had. One without
   the other is 400 `invalid`. The page fills them in: the replaced poem's, else a same-titled published poem's by the
   same author, else what the poem had, else today and not highlighted. A revision replaces the version
-  it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
-  CloudFront took the request.
+  it revises; that version's copies are cleared from CloudFront, and `edgeCleared` says whether CloudFront took the
+  request. They are deleted a day later, not at once, so a reader still on a page that loaded the old list can open
+  them (midst-infra #179, #210).
 - `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
   Removes it from the list and deletes the publishing copy. The draft stays. The copy is cleared from CloudFront's
   cache too. `edgeCleared` is false when CloudFront did not take that request; the copy may then be served for up

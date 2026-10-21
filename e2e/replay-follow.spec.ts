@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test'
 import { test, expect } from './coverage'
+import { showDraftMarkers } from './draft-markers-on'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import names from '../src/poems/poem-names.js'
@@ -207,6 +208,7 @@ test('presentation reaches rendered paragraphs and draft buttons seek exact unch
   const computed = await player.locator('.editable p').evaluate(p => ({ size: getComputedStyle(p).fontSize, family: getComputedStyle(p).fontFamily }))
   expect(computed.size).toBe('24px')
   expect(computed.family).toContain('Courier')
+  await showDraftMarkers(player)
   await expect(player.locator('.draft-marker')).toHaveCount(3)
   await expect(player.getByRole('button', { name: 'Jump to synthetic outside draft' })).toHaveCount(0)
   await player.getByRole('button', { name: 'Jump to synthetic unchanged draft', exact: true }).click()
@@ -227,6 +229,7 @@ test('B font and legacy-index draft markers remain supported', async ({ page, ba
   const player = page.locator(scope)
   await expect(player.locator('.editable')).toContainText('synthetic legacy')
   expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe('36px')
+  await showDraftMarkers(player)
   await expect(player.locator('.draft-marker')).toHaveCount(2)
   await player.getByRole('button', { name: 'Jump to synthetic 0', exact: true }).click()
   await expect(player.getByRole('slider', { name: 'Timeline' })).toHaveValue('0')
