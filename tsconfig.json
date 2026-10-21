@@ -22,6 +22,17 @@
       "node"
     ]
   },
+  "include": [
+    "*",
+    "src",
+    "e2e",
+    "tools",
+    "scripts",
+    "deploy",
+    "static",
+    "vendor",
+    "locales"
+  ],
   "exclude": [
     "node_modules",
     "bower_components",
