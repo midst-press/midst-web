@@ -1,14 +1,11 @@
 /** @jest-environment jsdom */
-// midst-web #303: a poem's address under /read goes to its page under /poem.
+// midst-web #303: a poem's address under /read goes to its page under /poem, by a real request, so the edge can follow
+// old links for /poem/* (cora-2f1e43dc, review of #317).
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import ReadRedirect from '../components/ReadRedirect'
-
-function Where() {
-  return <p id="where">{useLocation().pathname}</p>
-}
 
 let host: HTMLDivElement
 let root: Root
@@ -22,29 +19,31 @@ afterEach(() => {
   host.remove()
 })
 
+// Where the page asked the browser to go, and what the router showed meanwhile.
 const at = (path: string) => {
+  const went: string[] = []
   act(() => root.render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/read/:poemUrl" element={<ReadRedirect />} />
-        <Route path="/poem/:poemUrl" element={<Where />} />
-        <Route path="/read" element={<p id="where">table of contents</p>} />
+        <Route path="/read/:poemUrl" element={<ReadRedirect go={url => went.push(url)} />} />
+        <Route path="/poem/:poemUrl" element={<p id="routed">routed</p>} />
+        <Route path="/read" element={<p id="toc">table of contents</p>} />
       </Routes>
     </MemoryRouter>,
   ))
-  return host.querySelector('#where')?.textContent
+  return { went, routed: host.querySelector('#routed') !== null, toc: host.querySelector('#toc') !== null }
 }
 
 describe('ReadRedirect', () => {
-  it('sends /read/<poem> to /poem/<poem>/', () => {
-    expect(at('/read/zq-rain--zq-au')).toBe('/poem/zq-rain--zq-au/')
+  it('asks the browser for /poem/<poem>/, once, and never routes there inside the page', () => {
+    expect(at('/read/zq-rain--zq-au')).toEqual({ went: ['/poem/zq-rain--zq-au/'], routed: false, toc: false })
   })
 
-  it('takes a trailing slash too', () => {
-    expect(at('/read/zq-rain--zq-au/')).toBe('/poem/zq-rain--zq-au/')
+  it('takes a trailing slash, and keeps the query and fragment', () => {
+    expect(at('/read/zq-rain--zq-au/?t=3#note').went).toEqual(['/poem/zq-rain--zq-au/?t=3#note'])
   })
 
   it('leaves /read itself as the Table of Contents', () => {
-    expect(at('/read')).toBe('table of contents')
+    expect(at('/read')).toEqual({ went: [], routed: false, toc: true })
   })
 })
