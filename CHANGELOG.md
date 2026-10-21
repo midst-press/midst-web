@@ -4,6 +4,8 @@
   as the submit form. The poet's own note is kept.
 - **The Table of Contents shows each poem's publish date**, the date it is sorted by and the one the publisher
   edits. A poem published through the publisher page showed no date before.
+- **The publisher can remove an unpublished poem from the portal.** It asks first. The poem is no longer listed and
+  can't be published from the portal again; nothing is deleted.
 
 # 0.13.0
 
