@@ -16,12 +16,14 @@ default_install_hook_types: [pre-commit, commit-msg, pre-push]
 default_stages: [pre-commit, manual]
 # The vendored build vendor/midst-format/ is byte-exact (its VENDOR.md): no whitespace fixer, line-ending fixer
 # or formatter may touch it, so each of those hooks excludes it. The vendored-format hook guards it by hash.
+# content/ (Annelyse's, #281) is in the same list: it arrives from GitHub as she wrote it, and a fixer would fail CI on
+# her text or strip a Markdown line break. The hooks that only check (poem data, keys, large files, logs) still cover it.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^content/|^vendor/midst-format/|^static/|^etc/|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
