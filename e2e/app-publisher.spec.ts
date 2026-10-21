@@ -394,6 +394,46 @@ test('someone who is not a publisher is told so, and the list is not asked for',
   expect(asked).toBe(false)
 })
 
+for (const groups of [['publisher', 'admin'], ['admin']]) {
+  test(`an admin (${groups.join(', ')}) can find the existing publisher invitation form`, async ({ page, baseURL }) => {
+    const store: Store = { etag: 1, published: [], unpublished: [], writes: [] }
+    await signedInAs(page, groups)
+    await standIn(page, baseURL!, store)
+    const adminMethods: string[] = []
+    await page.route(`${API}/admin/users`, route => {
+      adminMethods.push(route.request().method())
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '{"users":[]}' })
+    })
+    await page.goto('/publisher')
+    const link = page.getByRole('link', { name: 'Invite publishers', exact: true })
+    await expect(link).toBeVisible()
+    await expect(link).toHaveAttribute('href', '/admin')
+    await link.click()
+    await expect(page).toHaveURL(/\/admin$/)
+    const form = page.getByRole('form', { name: 'Invite someone' })
+    await expect(form).toBeVisible()
+    await expect(form.getByRole('checkbox', { name: 'publisher', exact: true })).toBeVisible()
+    expect(adminMethods).toContain('GET')
+    expect(adminMethods.every(method => method === 'GET' || method === 'OPTIONS')).toBe(true)
+    expect(store.writes).toEqual([])
+  })
+}
+
+for (const groups of [['publisher'], ['poet'], [], null]) {
+  test(`publisher invitation link is absent for ${groups === null ? 'signed out' : JSON.stringify(groups)}`, async ({ page, baseURL }) => {
+    const store: Store = { etag: 1, published: [], unpublished: [], writes: [] }
+    if (groups !== null) await signedInAs(page, groups)
+    await standIn(page, baseURL!, store)
+    await page.goto('/publisher')
+    await expect(page.getByRole('heading', { name: 'Publish', exact: true })).toBeVisible()
+    if (groups === null) await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+    else if (groups.includes('publisher')) await expect(page.getByRole('list', { name: 'Published poems' })).toBeVisible()
+    else await expect(page.getByText('Your account cannot publish.', { exact: false })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Invite publishers', exact: true })).toHaveCount(0)
+    expect(store.writes).toEqual([])
+  })
+}
+
 // #101 (Stuart, 21 Oct): a poem can be published as the replacement for a published poem by the same poet.
 const byPoet = (n: number, author: string) => ({ ...poem(n), author })
 const notPublished = (page: Page) => page.getByRole('list', { name: 'Poems not published' })
