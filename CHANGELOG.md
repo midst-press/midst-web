@@ -6,9 +6,6 @@
   edits. A poem published through the publisher page showed no date before.
 - **The publisher can remove an unpublished poem from the portal.** It asks first. The poem is no longer listed and
   can't be published from the portal again; nothing is deleted.
-- **The Table of Contents opens newest first by publish date.** Readers can still sort by author or title, or reverse
-  any of them. Poems with no publish date come last. A poem's next arrow follows the same order, so from the opening
-  order it goes to the next older poem.
 
 # 0.13.0
 
