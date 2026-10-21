@@ -262,6 +262,9 @@ function Publisher(): ReactElement {
       </Helmet>
       <section className="heroine heroine--normal">
         <h2>Publish</h2>
+        {session?.groups.includes('admin') && (
+          <p className="portal-link"><Link to="/admin">Invite publishers</Link></p>
+        )}
         {content}
       </section>
     </div>

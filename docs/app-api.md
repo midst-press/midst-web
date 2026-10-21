@@ -158,8 +158,9 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   they win over what a republish kept or a revision inherits; both absent, the poem keeps what it had. One without
   the other is 400 `invalid`. The page fills them in: the replaced poem's, else a same-titled published poem's by the
   same author, else what the poem had, else today and not highlighted. A revision replaces the version
-  it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
-  CloudFront took the request.
+  it revises; that version's copies are cleared from CloudFront, and `edgeCleared` says whether CloudFront took the
+  request. They are deleted a day later, not at once, so a reader still on a page that loaded the old list can open
+  them (midst-infra #179, #210).
 - `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
   Removes it from the list and deletes the publishing copy. The draft stays. The copy is cleared from CloudFront's
   cache too. `edgeCleared` is false when CloudFront did not take that request; the copy may then be served for up
