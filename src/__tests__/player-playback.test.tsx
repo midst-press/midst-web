@@ -397,6 +397,48 @@ describe('spacebar', () => {
     expect(playButton().getAttribute('aria-label')).toBe('Pause')
     expect(event.defaultPrevented).toBe(true)
   })
+
+  it('space on the focused timeline after seeking resumes there and pauses without losing focus', () => {
+    render({ data: FIVE })
+    timeline().focus()
+    setRange(timeline(), 1)
+    expect(document.activeElement).toBe(timeline())
+    expect(shown()).toBe('zq1')
+    expect(key(timeline()).defaultPrevented).toBe(true)
+    expect(playButton().getAttribute('aria-label')).toBe('Pause')
+    advance(60)
+    expect(shown()).toBe('zq2')
+    expect(key(timeline()).defaultPrevented).toBe(true)
+    expect(playButton().getAttribute('aria-label')).toBe('Play')
+    advance(120)
+    expect(shown()).toBe('zq2')
+    expect(document.activeElement).toBe(timeline())
+  })
+
+  it.each<KeyboardEventInit>([
+    { repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true },
+    { key: 'ArrowRight' }, { key: 'Home' }, { key: 'End' },
+  ])('timeline does not consume unrelated or modified keys: %j', init => {
+    render({ data: FIVE })
+    timeline().focus()
+    setRange(timeline(), 1)
+    expect(key(timeline(), init).defaultPrevented).toBe(false)
+    expect(playButton().getAttribute('aria-label')).toBe('Play')
+  })
+
+  it('timeline respects an already handled space', () => {
+    render({ data: FIVE })
+    const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+    event.preventDefault()
+    act(() => { timeline().dispatchEvent(event) })
+    expect(playButton().getAttribute('aria-label')).toBe('Play')
+  })
+
+  it('an inactive timeline does not handle space', () => {
+    render({ data: FIVE, activePlayer: false })
+    expect(key(timeline()).defaultPrevented).toBe(false)
+    expect(playButton().getAttribute('aria-label')).toBe('Play')
+  })
 })
 
 describe('speed', () => {
