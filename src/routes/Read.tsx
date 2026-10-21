@@ -172,7 +172,8 @@ function Read(): ReactElement {
               dangerouslySetInnerHTML={{ __html: poem.title }}
             />
             <div className="poem-line__column poem-date">
-              { poem.date.isValid() ? poem.date.format('MM/DD/YYYY') : '' }
+              {/* The publish date, the one the list is sorted by and the publisher edits (midst-web #305). */}
+              { poem.publishDate.isValid() ? poem.publishDate.format('MM/DD/YYYY') : '' }
             </div>
           </Link>
         ))}

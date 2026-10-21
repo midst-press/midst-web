@@ -2,6 +2,8 @@
 
 - **The publisher can edit an unpublished poem's process note**, to house style, with the same buttons and Preview
   as the submit form. The poet's own note is kept.
+- **The Table of Contents shows each poem's publish date**, the date it is sorted by and the one the publisher
+  edits. A poem published through the publisher page showed no date before.
 
 # 0.13.0
 
