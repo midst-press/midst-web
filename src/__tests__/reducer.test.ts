@@ -291,15 +291,16 @@ describe('SET_SORT_TERM', () => {
     expect(titles(next)).toEqual(BY_TITLE)
   })
 
-  it('orders by publishDate ascending', () => {
+  it('orders by publishDate newest first', () => {
     const next = reducer(reducer(asc, { type: SET_SORT_TERM, payload: 'title' }), { type: SET_SORT_TERM, payload: 'publishDate' })
     expect(next.sortTerm).toBe('publishDate')
-    expect(titles(next)).toEqual(BY_DATE)
+    expect(next.sortOrder).toBe('DESC')
+    expect(titles(next)).toEqual(OPENING_ORDER)
   })
 
-  it('from the opening state (descending) orders by author and title in descending order', () => {
-    expect(titles(reducer(initialState, { type: SET_SORT_TERM, payload: 'author' }))).toEqual(['Bb, Ti', 'Aa Title', 'Cc Title'])
-    expect(titles(reducer(initialState, { type: SET_SORT_TERM, payload: 'title' }))).toEqual(['Cc Title', 'Bb, Ti', 'Aa Title'])
+  it('from the opening state (descending) orders by author and title A to Z', () => {
+    expect(titles(reducer(initialState, { type: SET_SORT_TERM, payload: 'author' }))).toEqual(BY_AUTHOR)
+    expect(titles(reducer(initialState, { type: SET_SORT_TERM, payload: 'title' }))).toEqual(BY_TITLE)
   })
 
   it('does not mutate the input state', () => {
@@ -316,7 +317,7 @@ describe('REVERSE_SORT_ORDER', () => {
   it('flips the opening DESC to ASC and puts the oldest publish date first', () => {
     const next = reducer(initialState, { type: REVERSE_SORT_ORDER })
     expect(next.sortOrder).toBe('ASC')
-    expect(titles(next)).toEqual(['Bb, Ti', 'Cc Title', 'Aa Title'])
+    expect(titles(next)).toEqual(BY_DATE)
   })
 
   it('flips ASC to DESC and reverses the current term order', () => {
@@ -334,13 +335,14 @@ describe('REVERSE_SORT_ORDER', () => {
     expect(titles(asc)).toEqual(BY_AUTHOR)
   })
 
-  it('applies DESC to a newly chosen sort term', () => {
+  it('starts a newly chosen term at its own order, whatever the previous direction', () => {
     const desc = reducer(byAuthor, { type: REVERSE_SORT_ORDER })
     const byTitle = reducer(desc, { type: SET_SORT_TERM, payload: 'title' })
-    expect(byTitle.sortOrder).toBe('DESC')
-    expect(titles(byTitle)).toEqual(['Cc Title', 'Bb, Ti', 'Aa Title'])
+    expect(byTitle.sortOrder).toBe('ASC')
+    expect(titles(byTitle)).toEqual(BY_TITLE)
     const byDate = reducer(byTitle, { type: SET_SORT_TERM, payload: 'publishDate' })
-    expect(titles(byDate)).toEqual(['Aa Title', 'Cc Title', 'Bb, Ti'])
+    expect(byDate.sortOrder).toBe('DESC')
+    expect(titles(byDate)).toEqual(OPENING_ORDER)
   })
 
   it('does not mutate the input state', () => {

@@ -3,6 +3,7 @@
 // poem-names.js, the module the application uses, so none is typed here. Midst-web #100.
 import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
+import moment from 'moment'
 import names from '../src/poems/poem-names.js'
 
 const POEMS = join(__dirname, '..', 'src', 'poems')
@@ -14,6 +15,23 @@ export const route = (file: string): string => `/poem/${names.poemUrl(meta(file)
 
 /** Published poems, in display order: their metadata file names (without .json). */
 export const published: string[] = order.filter(file => meta(file).published === true)
+
+/**
+ * Published poems in the order the Table of Contents opens, which the next and previous arrows follow: newest
+ * first by publish date (YYYY-MM-DD, strictly), ties and undated poems in display order, undated last
+ * (src/store/reducer.ts sortPoems; midst-web #309).
+ */
+const dateOf = (file: string): string | null => {
+  const value = meta(file).publishDate
+  return moment(typeof value === 'string' ? value : null, 'YYYY-MM-DD', true).isValid() ? value : null
+}
+export const opening: string[] = [
+  ...published.filter(file => dateOf(file) !== null)
+    .map((file, position) => ({ file, position, date: dateOf(file)! }))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.position - b.position))
+    .map(poem => poem.file),
+  ...published.filter(file => dateOf(file) === null),
+]
 
 /** Poems whose metadata says "published": false. */
 export const unpublished: string[] = readdirSync(POEMS)

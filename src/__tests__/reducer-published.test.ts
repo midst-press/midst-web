@@ -161,11 +161,11 @@ describe('sorting a loaded list', () => {
   })
 
   it('reverses a sorted loaded list', () => {
-    // Opens descending, so by title it is Cc, Bb, Aa; reversed, Aa, Bb, Cc.
+    // A title sort starts A to Z though the page opens descending; reversed, Z to A.
     const byTitle = reducer(loaded(), { type: SET_SORT_TERM, payload: 'title' })
-    expect(titles(byTitle)).toEqual(['Cc Title', 'Bb Title', 'Aa Title'])
+    expect(titles(byTitle)).toEqual(['Aa Title', 'Bb Title', 'Cc Title'])
     const reversed = reducer(byTitle, { type: REVERSE_SORT_ORDER })
-    expect(titles(reversed)).toEqual(['Aa Title', 'Bb Title', 'Cc Title'])
+    expect(titles(reversed)).toEqual(['Cc Title', 'Bb Title', 'Aa Title'])
   })
 
   it('keeps the data a poem has loaded', () => {
@@ -217,12 +217,13 @@ describe('opening order of a loaded list (midst-web #309)', () => {
 
   it('sorting by author or title and back to publish date keeps undated poems last', () => {
     const byTitle = sortBy(load(mixed), 'title')
-    expect(titles(byTitle)).toEqual(['Nn', 'Mm', 'Kk', 'Dd', 'Ca', 'Bb'])
+    expect(titles(byTitle)).toEqual(['Bb', 'Ca', 'Dd', 'Kk', 'Mm', 'Nn'])
     expect(titles(sortBy(byTitle, 'publishDate'))).toEqual(['Bb', 'Ca', 'Dd', 'Nn', 'Mm', 'Kk'])
     const byAuthor = sortBy(load(mixed), 'author')
-    // One author for all six: a tie, so list order, in descending as in ascending.
+    // One author for all six: a tie, so list order.
     expect(titles(byAuthor)).toEqual(['Nn', 'Dd', 'Mm', 'Bb', 'Kk', 'Ca'])
     expect(titles(sortBy(byAuthor, 'publishDate'))).toEqual(['Bb', 'Ca', 'Dd', 'Nn', 'Mm', 'Kk'])
-    expect(titles(sortBy(ascending(byAuthor), 'publishDate'))).toEqual(['Dd', 'Ca', 'Bb', 'Nn', 'Mm', 'Kk'])
+    // Back to the date it is newest first again; reversed, oldest first, and the undated still last.
+    expect(titles(reducer(sortBy(byAuthor, 'publishDate'), { type: REVERSE_SORT_ORDER }))).toEqual(['Dd', 'Ca', 'Bb', 'Nn', 'Mm', 'Kk'])
   })
 })

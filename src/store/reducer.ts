@@ -179,6 +179,9 @@ const reducer = (
     case SET_SORT_TERM:
       return produce(state, draftState => {
         draftState.sortTerm = payload
+        // A newly chosen term starts at its own order: a date newest first, an author or title A to Z, whatever the
+        // previous sort's direction (midst-web #309: the page opens descending, so keeping it would start authors at Z).
+        draftState.sortOrder = payload === 'publishDate' ? 'DESC' : 'ASC'
         draftState.poems = sortPoems(draftState)
       })
 
