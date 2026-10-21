@@ -1598,6 +1598,14 @@ background-size: contain;
   white-space: nowrap;
 }
 
+/* A poem's tag marks on the Table of Contents (#310), beside the badge. */
+.table-of-contents .poem-line .poem-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-right: 8px;
+}
+
 .publisher-tags {
   display: inline-flex;
   flex-wrap: wrap;

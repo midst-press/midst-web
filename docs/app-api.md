@@ -189,7 +189,8 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - The tags are public: `site/tags.json` in the publishing bucket, served at `/site/tags.json` with a one-minute
   `Cache-Control`, `{ "version": 1, "updated", "tags": [{ "id", "name", "colour" }, ...] }`. A poem names its tags by
-  id in its list entry; the site ignores an id that is not a tag.
+  id in its list entry; the site ignores an id that is not a tag. The Table of Contents reads the file once some poem
+  names a tag, and marks each such poem's line; if the file cannot be read it shows no marks (src/tags.ts).
 - `GET /publisher/tags` → `{ "tagsEtag", "tags": [{ "id", "name", "colour" }, ...] }`. Before the first save:
   `"tagsEtag": "none"`, no tags.
 - `PUT /publisher/tags` `{ "tagsEtag", "tags": [{ "id"?, "name", "colour" }, ...] }` → the same shape as GET, as
