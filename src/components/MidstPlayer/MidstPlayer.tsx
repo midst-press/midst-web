@@ -18,7 +18,7 @@ ensureLocale()
 
 const MIN_FPS = 1
 const MAX_FPS = 60
-const DEFAULT_FPS = 1000 / 60
+const DEFAULT_FPS = 11 // the web player opens at 11 fps (Annelyse, GitHub #89; midst-web #327)
 const displayFPS = (fps: number) => String(Math.round(fps * 10) / 10)
 
 interface Props {
