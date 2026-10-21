@@ -8,7 +8,8 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor, loadList } from '../app/publisher'
 import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
-import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, reviewSubmissions, timelapseTicket } from '../app/review'
+import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, processNoteOf, reviewSubmissions, timelapseTicket } from '../app/review'
+import { renderPoetNote } from '../processNote'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 
@@ -21,6 +22,8 @@ function Review(): ReactElement {
   // 'loading' while read; null when it could not be read, and then we cannot tell which accepted submissions lack a poem.
   const [poemIds, setPoemIds] = useState<PoemIds>('loading')
   const [notes, setNotes] = useState<Record<string, string>>({})
+  // Each process note shown (#292), as Markdown, by submission; null for one made before notes were asked for.
+  const [processNotes, setProcessNotes] = useState<Record<string, string | null>>({})
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -84,6 +87,26 @@ function Review(): ReactElement {
     }
   }
 
+  const showProcessNote = async (submission: Submission) => {
+    if (!call) return
+    const id = submission.submissionId
+    if (id in processNotes) {
+      setProcessNotes(({ [id]: _shown, ...rest }) => rest)
+      return
+    }
+    setBusy(true)
+    setProblem(null)
+    try {
+      const { processNote } = await processNoteOf(call, id)
+      setProcessNotes(n => ({ ...n, [id]: processNote }))
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) setProcessNotes(n => ({ ...n, [id]: null }))
+      else failed(error, 'That process note could not be loaded. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const decideOn = async (submission: Submission, decision: Decision, finishing = false) => {
     if (!call) return
     setBusy(true)
@@ -141,14 +164,21 @@ function Review(): ReactElement {
           <ul className="publisher-list" aria-label="Submissions">
             {submissions.map(s => (
               <li key={s.submissionId}>
-                <span className="publisher-poem">
+                <div className="publisher-poem">
                   <strong>{s.title}</strong> <span className="publisher-author">{reviewByline(s)}</span>
                   <br />
                   {STATUS_WORDS[s.status]}{s.note ? `: ${s.note}` : ''}
-                </span>
+                  {s.submissionId in processNotes && (processNotes[s.submissionId] === null
+                    ? <div className="review-process-note">No process note.</div>
+                    // The poet's Markdown, with the narrow list: this page holds a publisher's session.
+                    : <div className="review-process-note" role="region" aria-label={`Process note for ${s.title}`}
+                      dangerouslySetInnerHTML={{ __html: renderPoetNote(processNotes[s.submissionId] as string) }} />)}
+                </div>
                 <span className="publisher-actions">
                   {/* An upload that never completed has no review copy to play, and nor does an archive record. */}
                   {canPlay(s) && <button type="button" disabled={busy} onClick={event => play(s, event.currentTarget)} aria-label={`Play ${s.title}`}>Play</button>}
+                  {canPlay(s) && <button type="button" disabled={busy} onClick={() => showProcessNote(s)} aria-expanded={s.submissionId in processNotes}
+                    aria-label={`Process note for ${s.title}`}>Process note</button>}
                   {/* Only a submission still waiting to be read is decided here; a decided one shows its status. */}
                   {s.status === 'received' && <>
                   <label>

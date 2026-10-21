@@ -87,12 +87,12 @@ export function fileProblem(file: { name: string, size: number }): string | null
 export async function submitPoem(
   call: Call,
   put: (url: string, headers: Record<string, string>, file: Blob) => Promise<{ ok: boolean }>,
-  details: { title: string, author: string },
+  details: { title: string, author: string, processNote: string },
   file: File | (Blob & { name: string }),
 ): Promise<Submission> {
   const ticket = await call<UploadTicket>('/submissions', {
     method: 'POST',
-    body: { title: details.title, author: details.author, fileName: file.name, sizeBytes: file.size },
+    body: { title: details.title, author: details.author, processNote: details.processNote, fileName: file.name, sizeBytes: file.size },
   })
   let uploaded: { ok: boolean }
   try {

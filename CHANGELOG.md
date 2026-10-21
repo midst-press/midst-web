@@ -1,3 +1,15 @@
+# 0.13.0
+
+- **A poem is published with its date and highlight**, set beside the Publish button: the date starts as today, or
+  as the date of the poem it replaces, and either can be changed before publishing.
+
+# 0.12.0
+
+- **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
+  review page shows each submission's note.
+- **Keyboard focus is visible:** the link, button or field reached with the keyboard has a dark red outline, the
+  player's own colour.
+
 # 0.11.0
 
 - **An admin's group change sends the groups the page showed**, so once the API checks them (midst-infra #202), a
