@@ -1,3 +1,8 @@
+# 0.13.0
+
+- **The publisher can edit an unpublished poem's process note**, to house style, with the same buttons and Preview
+  as the submit form. The poet's own note is kept.
+
 # 0.12.0
 
 - **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
