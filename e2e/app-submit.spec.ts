@@ -242,3 +242,30 @@ test('someone who is not a poet is told so, and nothing is asked for', async ({ 
   await expect(page.getByText('Your account cannot submit poems.')).toBeVisible()
   expect(asked).toBe(false)
 })
+
+// #326 (Annelyse, GitHub #88): the Submit page is her text, for everyone, in the main nav; the form is for signed-in poets.
+test('anyone reading Submit sees her text, its links to the app and the newsletter, and no form', async ({ page, baseURL }) => {
+  await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+  await page.goto('/')
+  await page.locator('.nav-links-wrapper').getByRole('link', { name: 'Submit', exact: true }).click()
+  await expect(page).toHaveURL(/\/submit$/)
+  const text = page.locator('.submit-text')
+  await expect(text).toContainText('Midst is currently closed to submissions.')
+  await expect(text.locator('strong')).toHaveText('closed')
+  await expect(text.locator('em')).toHaveText('only')
+  await expect(text.getByRole('link', { name: 'the Midst app' })).toHaveAttribute('href', '/app')
+  await expect(text.getByRole('link', { name: 'Download it here' })).toHaveAttribute('href', '/app')
+  await expect(text.getByRole('link', { name: 'Sign up to our newsletter' })).toHaveAttribute('href', '#newsletter')
+  await expect(page.locator('#newsletter .campaign-monitor-form')).toHaveCount(1)
+  await expect(page.locator('form.submit-form')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+})
+
+test('a signed-in poet sees her text first and the form under it', async ({ page, baseURL }) => {
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+  await page.goto('/submit')
+  await expect(page.locator('form.submit-form')).toBeVisible()
+  const order = await page.locator('.submit-text, form.submit-form').evaluateAll(els => els.map(el => el.className))
+  expect(order).toEqual(['submit-text', 'submit-form'])
+})

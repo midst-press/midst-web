@@ -142,7 +142,8 @@ function App(): ReactElement {
             <Route path="/poem/:poemUrl" element={<Poem />} />
           </Routes>
         </main>
-        <footer className="site-footer">
+        {/* The Submit page's "Sign up to our newsletter" points here (#326). */}
+        <footer className="site-footer" id="newsletter">
           <Hide from="poem">
             <>
               <CampaignMonitorForm
