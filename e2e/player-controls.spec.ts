@@ -121,10 +121,10 @@ test('several rate changes retain the next tick deadline and overdue changes tic
   const root = page.locator(player)
   const timeline = root.getByRole('slider', { name: 'Timeline' })
   await root.getByRole('button', { name: 'Play', exact: true }).click()
-  expect((await liveInterval(page)).due).toBe(1060)
+  expect((await liveInterval(page)).due).toBe(1091) // fake clock starts at 1000; default 11 fps period is 91
   await root.getByRole('button', { name: 'Playback speed' }).click()
   const rate = root.getByRole('slider', { name: 'Playback frame rate' })
-  for (const [fps, due] of [[25, 1040], [26, 1039], [25, 1040]]) {
+  for (const [fps, due] of [[25, 1040], [26, 1039], [25, 1040]]) { // the 91 ms default deadline at now=1000, re-anchored after advance(10)
     await page.evaluate(() => (window as any).playerTestTimers.advance(10))
     await rate.fill(String(fps))
     await expect.poll(async () => (await liveInterval(page)).due).toBe(due)
@@ -480,7 +480,7 @@ test('two mounted players retain independent FPS, popup and playback state', asy
   await expect(second.getByRole('group', { name: 'Playback speed controls' })).toHaveCount(0)
   await first.getByRole('button', { name: 'Play', exact: true }).click()
   const timer = await liveInterval(page)
-  expect(timer.delay).toBe(84)
+  expect(timer.delay).toBe(84) // unchanged by the default move: player one is at 12 fps (period 84), explicit fill
   await fire(page, timer.id)
   await expect(first.getByRole('slider', { name: 'Timeline' })).toHaveValue('1')
   await expect(second.getByRole('slider', { name: 'Timeline' })).toHaveValue('79')
