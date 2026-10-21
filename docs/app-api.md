@@ -148,8 +148,12 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
-- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared"? }`
-  Copies the poem into the publishing bucket and adds it at the end of the list. A revision replaces the version
+- `POST /publisher/publish` `{ "poemId", "listEtag", "publishDate", "highlighted" }` → `{ "listEtag", "published", "edgeCleared"? }`
+  Copies the poem into the publishing bucket and adds it at the end of the list. `publishDate` (YYYY-MM-DD) and
+  `highlighted` are the date the Table of Contents shows and the highlight (#305): sent together, both valid, and
+  they win over what a republish kept or a revision inherits; both absent, the poem keeps what it had. One without
+  the other is 400 `invalid`. The page fills them in: the replaced poem's, else a same-titled published poem's by the
+  same author, else what the poem had, else today and not highlighted. A revision replaces the version
   it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
   CloudFront took the request.
 - `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
@@ -208,10 +212,13 @@ The routes:
 
 Submitting is three steps, so the file goes straight to the bucket and never through the Lambda:
 
-1. `POST /submissions` `{ "title", "author", "fileName", "sizeBytes" }` →
+1. `POST /submissions` `{ "title", "author", "processNote", "fileName", "sizeBytes" }` →
    `{ "submissionId", "uploadUrl", "uploadHeaders": { ... }, "expiresAt" }`
    `uploadUrl` is a pre-signed PUT for one key, valid for five minutes. 400 `invalid` when the file name does not
    end in `.midst`, or `sizeBytes` is not a whole number from 1 to 20 MB (20,971,520 bytes); `message` says so.
+   `processNote` is the poet's process note as Markdown (#292): required, not blank, at most 20,000 characters
+   counted as UTF-16 code units (as a textarea's `maxlength` counts). It is stored once, never logged, and on accept
+   becomes the poem's `processNoteKey`.
 2. The browser `PUT`s the file to `uploadUrl` with exactly `uploadHeaders`.
 3. `POST /submissions/{submissionId}/complete` → `Submission` with status `received`.
    The Lambda checks that the file arrived, is the size declared, and is a current-format Midst file, then writes
@@ -240,6 +247,9 @@ Submitting is three steps, so the file goes straight to the bucket and never thr
   A pre-signed GET of the review copy written by `complete`, valid for five minutes, so the review page plays it
   with the player as it is. 404 for a submission still `uploading`, which has no review copy. 409 `archive` for
   an archive record, which never had one; the review page does not offer Play for it.
+- `GET /review/submissions/{submissionId}/process-note` → `{ "processNote" }`, the poet's Markdown, which the
+  review page renders as the poem page does. Audited as a read. 404 for a submission still `uploading`, or one made
+  before process notes were asked for; 409 `archive` for an archive record.
 - `POST /review/submissions/{submissionId}/decision` `{ "decision": "accept" | "decline", "note" }` →
   `Submission`. Accepting makes it an unpublished poem. `note` is optional, at most 2,000 characters; blank is
   `null`. A decision is made only on a submission that is `received`, with one exception: accepting one that
