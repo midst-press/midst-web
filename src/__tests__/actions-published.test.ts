@@ -130,6 +130,17 @@ describe('loadPoemList', () => {
     expect(consoleError).not.toHaveBeenCalled()
   })
 
+  it('gives each entry the tag ids its `tags` names, and none to an entry without them (#310)', async () => {
+    const tagged = { ...published, poems: [{ ...published.poems[0], tags: ['ta', 7, 'Mexico'] }] }
+    fetchMock.mockResolvedValueOnce(jsonResponse(tagged))
+    const dispatch = jest.fn()
+    await loadPoemList()(dispatch)
+    expect(dispatch.mock.calls[0][0].payload.entries[0].tagIds).toEqual(['ta', 'Mexico'])
+    fetchMock.mockResolvedValueOnce(jsonResponse(published))
+    await loadPoemList()(dispatch)
+    expect(dispatch.mock.calls[1][0].payload.entries[0].tagIds).toEqual([])
+  })
+
   it.each([
     ['the request never gets an answer', () => fetchMock.mockRejectedValueOnce(new Error('x')), 'network'],
     ['the answer is 404', () => fetchMock.mockResolvedValueOnce(jsonResponse({}, 404)), 'server'],

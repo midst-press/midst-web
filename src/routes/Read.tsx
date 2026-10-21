@@ -8,6 +8,8 @@ import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { IPoem } from '../store/types'
 import { setMobileNavOpen, setSortTerm, reverseSortOrder } from '../store/actions'
+import TagMark from '../components/TagMark'
+import { SiteTag, loadSiteTags, marksFor } from '../tags'
 
 function Read(): ReactElement {
   const { poems, sortTerm, sortOrder } = useSelector((state: RootState) => ({
@@ -19,6 +21,17 @@ function Read(): ReactElement {
   const dispatch = useDispatch()
 
   const [editorLetterOpen, setEditorLetterOpen] = useState(false)
+
+  // The tags' names and colours (#310), fetched once some poem names a tag. A failure shows no marks, and nothing else
+  // changes: the marks are decoration.
+  const [tags, setTags] = useState<Map<string, SiteTag> | null>(null)
+  const tagged = poems.some(poem => (poem.tagIds ?? []).length > 0)
+  useEffect(() => {
+    if (!tagged || tags) return
+    let current = true
+    loadSiteTags().then(found => { if (current) setTags(found) }).catch(() => undefined)
+    return () => { current = false }
+  }, [tagged])
 
   useEffect(() => {
     // TODO: React "call on an unmounted component" warning
@@ -165,6 +178,11 @@ function Read(): ReactElement {
           >
             {poem.badge && (
               <div className="poem-badge">{ poem.badge }</div>
+            )}
+            {marksFor(poem.tagIds, tags).length > 0 && (
+              <div className="poem-tags">
+                {marksFor(poem.tagIds, tags).map(tag => <TagMark key={tag.id} name={tag.name} colour={tag.colour} />)}
+              </div>
             )}
             <div className="poem-line__column poem-author">{poem.author}</div>
             <div

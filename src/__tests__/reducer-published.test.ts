@@ -227,3 +227,12 @@ describe('opening order of a loaded list (midst-web #309)', () => {
     expect(titles(reducer(sortBy(byAuthor, 'publishDate'), { type: REVERSE_SORT_ORDER }))).toEqual(['Dd', 'Ca', 'Bb', 'Nn', 'Mm', 'Kk'])
   })
 })
+
+describe('tag ids (#310)', () => {
+  it('each published poem keeps the tag ids its entry carried, and has none when it carried none', () => {
+    const [first, ...rest] = entries
+    const state = reducer(initialState, { type: LOAD_POEM_LIST, payload: { entries: [{ ...first, tagIds: ['ta', 'tb'] }, ...rest] } })
+    expect(state.poems.find(poem => poem.poemId === first.poemId)?.tagIds).toEqual(['ta', 'tb'])
+    expect(state.poems.filter(poem => poem.poemId !== first.poemId).every(poem => Array.isArray(poem.tagIds) && poem.tagIds.length === 0)).toBe(true)
+  })
+})

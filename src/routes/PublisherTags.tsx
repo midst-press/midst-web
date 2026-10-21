@@ -1,13 +1,14 @@
 import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
 import { ApiError } from '../app/api'
 import { Call } from '../app/publisher'
-import { TAG_NAME_MAX, TAGS_MAX, Tag, TagsList, loadTags, saveTags, textColourFor } from '../app/tags'
+import { TAG_NAME_MAX, TAGS_MAX, Tag, TagsList, loadTags, saveTags } from '../app/tags'
+import TagMark from '../components/TagMark'
 
 // The "Tags" part of the publisher's page (#310): named, coloured marks for a collection, such as a folio. Saving
 // replaces the whole list; a tag still on a published poem cannot be removed until it is taken off those poems.
 
-// Only "Saved.": the site does not show tags until its half of #310 ships, which says more (cora-2f1e43dc, river-2fc1630e).
-export const SAVED = 'Saved.'
+// The site reads the tags with a one-minute cache, when its Table of Contents is opened (src/tags.ts).
+export const SAVED = 'Saved. The site shows the tags within a minute.'
 export const CONFLICT = 'Someone else saved the tags while you were editing. They have been reloaded; please make your change again.'
 export const NOT_RELOADED = 'The tags could not be reloaded, so these changes cannot be saved. Reload them, noting anything you want to keep first.'
 export const RELOADED = 'The tags have been reloaded.'
@@ -31,11 +32,6 @@ interface Row {
 
 let nextKey = 0
 const rowsOf = (tags: Tag[]): Row[] => tags.map(t => ({ key: nextKey++, id: t.id, name: t.name, colour: t.colour }))
-
-/** A tag's mark as the site will show it: its colour, with black or white text, whichever reads. */
-export function TagMark({ name, colour }: { name: string, colour: string }): ReactElement {
-  return <span className="tag-mark" style={{ backgroundColor: colour, color: textColourFor(colour) }}>{name}</span>
-}
 
 function PublisherTags({ call, onExpired, onTags }: Props): ReactElement {
   const [saved, setSaved] = useState<TagsList | null>(null)
