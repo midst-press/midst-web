@@ -32,7 +32,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
     if (request.method() === 'GET' && url.pathname === '/admin/users') return reply(200, { users: store.people })
     store.writes.push(`${request.method()} ${url.pathname}`)
-    const body = request.postData() ? request.postDataJSON() as { name?: string, email?: string, groups?: string[] } : {}
+    const body = request.postData() ? request.postDataJSON() as { name?: string, email?: string, groups?: string[], fromGroups?: string[] } : {}
     store.bodies.push(body)
     const lastAdmin = () => reply(409, { error: 'last_admin', message: 'Zq is the last admin; make someone else an admin first.' })
     if (request.method() === 'POST' && url.pathname === '/admin/users') {
@@ -44,6 +44,10 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     const [, , , username, action] = url.pathname.split('/')
     const target = store.people.find(p => p.username === decodeURIComponent(username))!
     if (action === 'groups') {
+      const same = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join()
+      if (!body.fromGroups || !same(body.fromGroups, target.groups)) {
+        return reply(409, { error: 'groups_changed', message: 'Someone else changed these groups. The page now shows them as they are.' })
+      }
       if (target.groups.includes('admin') && !body.groups!.includes('admin') && activeAdmins() === 1) return lastAdmin()
       target.groups = body.groups!
     } else if (action === 'disable') {
@@ -122,8 +126,25 @@ test('change a person’s groups', async ({ page, baseURL }) => {
   await row(page, 'Zq Xv').getByRole('button', { name: 'Save groups' }).click()
   await expect(page.getByRole('status')).toHaveText('Saved the groups of Zq Xv.')
   expect(store.writes).toEqual(['PUT /admin/users/b2/groups'])
+  expect(store.bodies).toEqual([{ groups: ['poet', 'publisher'], fromGroups: ['poet'] }])
   expect(store.people[1].groups).toEqual(['poet', 'publisher'])
   await expect(row(page, 'Zq Xv').getByLabel('publisher')).toBeChecked()
+})
+
+test('a group change from a page loaded before someone else changed those groups is refused, and the row shows them as they are (midst-infra #179)', async ({ page, baseURL }) => {
+  const store: Store = { people: [person('a1', 'Qz Vb', ['admin']), person('b2', 'Zq Xv', ['poet'])], writes: [], bodies: [] }
+  await signedInAs(page, ['admin'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/admin')
+  await expect(row(page, 'Zq Xv').getByLabel('poet')).toBeChecked()
+  // Another admin makes them a publisher after this page loaded.
+  store.people[1].groups = ['poet', 'publisher']
+  await row(page, 'Zq Xv').getByLabel('admin').check()
+  await row(page, 'Zq Xv').getByRole('button', { name: 'Save groups' }).click()
+  await expect(row(page, 'Zq Xv').getByRole('alert')).toHaveText('Someone else changed these groups. The page now shows them as they are.')
+  expect(store.people[1].groups).toEqual(['poet', 'publisher'])
+  await expect(row(page, 'Zq Xv').getByLabel('publisher')).toBeChecked()
+  await expect(row(page, 'Zq Xv').getByLabel('admin')).not.toBeChecked()
 })
 
 for (const size of [{ name: 'desktop', width: 1280, height: 900 }, { name: 'phone', width: 390, height: 844 }]) {
