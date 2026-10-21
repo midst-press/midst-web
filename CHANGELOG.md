@@ -1,5 +1,7 @@
 # 0.10.0
 
+- **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
+  list, and links to it lead to the new one.
 - **The player has a switch to show or hide the draft markers**, beside the playback controls, for a poem that has
   them. They are shown unless the reader turns them off, and the choice is kept in that browser, as the language is.
 
