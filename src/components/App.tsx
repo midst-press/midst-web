@@ -8,6 +8,7 @@ import Hide from './Hide'
 import CampaignMonitorForm from '../components/CampaignMonitorForm'
 import Shapes from '../components/Shapes'
 import PoemNav from '../components/PoemNav'
+import ReadRedirect from './ReadRedirect'
 import SiteNavLinks from '../components/SiteNavLinks'
 import { RootState } from '../store'
 import { setMobileNavOpen } from '../store/actions'
@@ -128,6 +129,7 @@ function App(): ReactElement {
             <Route path="/" element={<Home />} />
             <Route path="/nominate" element={<Nominate />} />
             <Route path="/read" element={<Read />} />
+            <Route path="/read/:poemUrl" element={<ReadRedirect />} />
             <Route path="/guide" element={<ReadersGuide />} />
             <Route path="/app" element={<AboutTheApp />} />
             <Route path="/funding" element={<Funding />} />

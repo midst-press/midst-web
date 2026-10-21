@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test'
 import { test, expect } from './coverage'
+import { showDraftMarkers } from './draft-markers-on'
 
 // Draft markers on the timeline show the name the poet gave them (issue #71).
 // Synthetic content only: invented words, never a poem or a poet's marker name.
@@ -21,8 +22,15 @@ function syntheticData(markers: Marker[], frames = 41) {
   }
 }
 
-async function mount(page: Page, data: ReturnType<typeof syntheticData>) {
+// Mounted as a reader first sees it, markers off (#324).
+async function mountAsLoaded(page: Page, data: ReturnType<typeof syntheticData>) {
   await page.evaluate(({ data, flags }) => (window as any).mountPlayerOptions(data, flags), { data, flags: options })
+}
+
+// Mounted with the markers turned on, for the tests of how they look and behave.
+async function mount(page: Page, data: ReturnType<typeof syntheticData>) {
+  await mountAsLoaded(page, data)
+  await showDraftMarkers(page.locator(player))
 }
 
 test.beforeEach(async ({ page, baseURL }) => {
@@ -33,6 +41,36 @@ test.beforeEach(async ({ page, baseURL }) => {
   })
   await page.goto('/legacy-harness.html')
   await page.waitForFunction(() => typeof (window as any).mountPlayerOptions === 'function')
+})
+
+// #324 (Annelyse, GitHub #85): off by default; the switch, the editor's bookmarks icon, shows them.
+test('the markers start hidden, and the switch shows them', async ({ page }) => {
+  await mountAsLoaded(page, syntheticData([{ timelineIndex: 10, name: 'zq xv', defaultName: 'Draft 1' }]))
+  const toggle = page.locator(`${player} .draft-markers-switch`)
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  await expect(page.locator(`${player} .draft-marker`)).toBeHidden()
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator(`${player} .draft-marker`)).toBeVisible()
+})
+
+// #325 (GitHub #87): a click leaves the switch focused, and Space there must play and pause, never switch it.
+test('after a click on the switch, Space plays and pauses and leaves the markers as they are', async ({ page }) => {
+  await mountAsLoaded(page, syntheticData([{ timelineIndex: 150, name: 'zq xv' }], 200))
+  const toggle = page.locator(`${player} .draft-markers-switch`)
+  const play = page.locator(`${player} .play-pause-button`)
+  await toggle.click()
+  await expect(toggle).toBeFocused()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await page.keyboard.press('Space')
+  await expect(play).toHaveClass(/playing/)
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await page.keyboard.press('Space')
+  await expect(play).not.toHaveClass(/playing/)
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  // Enter, a keyboard reader's way to work a button, still switches it.
+  await page.keyboard.press('Enter')
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
 })
 
 test('a draft marker shows its name on a pale yellow label', async ({ page }) => {
