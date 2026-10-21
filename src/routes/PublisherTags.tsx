@@ -6,7 +6,8 @@ import { TAG_NAME_MAX, TAGS_MAX, Tag, TagsList, loadTags, saveTags, textColourFo
 // The "Tags" part of the publisher's page (#310): named, coloured marks for a collection, such as a folio. Saving
 // replaces the whole list; a tag still on a published poem cannot be removed until it is taken off those poems.
 
-export const SAVED = 'Saved. The site shows the tags within a minute.'
+// Only "Saved.": the site does not show tags until its half of #310 ships, which says more (cora-2f1e43dc, river-2fc1630e).
+export const SAVED = 'Saved.'
 export const CONFLICT = 'Someone else saved the tags while you were editing. They have been reloaded; please make your change again.'
 export const NOT_RELOADED = 'The tags could not be reloaded, so these changes cannot be saved. Reload them, noting anything you want to keep first.'
 export const RELOADED = 'The tags have been reloaded.'
@@ -127,7 +128,6 @@ function PublisherTags({ call, onExpired, onTags }: Props): ReactElement {
   return (
     <>
       <h3>Tags</h3>
-      <p>A tag marks a collection, such as a folio, on each poem it is given. Give a published poem its tags in the list above.</p>
       {notice && <p role="status" className="publisher-notice">{notice}</p>}
       {problem && <p role="alert" className="publisher-problem">{problem}</p>}
       {(stale || (saved === null && problem)) && (
