@@ -160,8 +160,19 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   Removes it from the list and deletes the publishing copy. The draft stays. The copy is cleared from CloudFront's
   cache too. `edgeCleared` is false when CloudFront did not take that request; the copy may then be served for up
   to a day (`max-age=86400`), and the publisher's page says so (midst-infra #117).
+- `POST /publisher/remove` `{ "poemId" }` → `{ "removed" }`
+  Removes an unpublished poem from the portal (#308): its draft record is marked `removed`, and nothing is deleted.
+  `GET /publisher/poems` no longer lists it, and publishing it is 409 `removed`. A published poem is 409 `published`:
+  unpublish it first. The list is not written, so it takes no `listEtag`.
 - `PUT /publisher/order` `{ "poemIds": [...], "listEtag" }` → `{ "listEtag", "published" }`
   400 `invalid` unless `poemIds` is exactly the published set, each once.
+- `GET /publisher/poems/{poemId}/process-note` → `{ "processNote", "noteVersion" }`, a draft poem's note as
+  Markdown (#312), both `null` for a poem with none. Audited as a read.
+- `PUT /publisher/poems/{poemId}/process-note` `{ "processNote", "noteVersion" }` → the same, at the new version.
+  The note is validated as at submission. `noteVersion` is the one read (`null` for none); a stale one is 409
+  `conflict`. Each edit is kept beside the poet's own note and every earlier edit, never written over them. A
+  published poem is 409 `published`: readers see the copy made when it was published, so unpublish, edit and publish
+  again.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`
   For a published poem.
 

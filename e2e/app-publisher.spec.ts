@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[] }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -30,6 +30,18 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (url.origin !== API) return route.abort()
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
+    // A draft poem's process note (#312): the version is bumped on each save, and a stale one is a conflict.
+    const noteOf = /^\/publisher\/poems\/([^/]+)\/process-note$/.exec(url.pathname)
+    if (noteOf && store.notes) {
+      const id = decodeURIComponent(noteOf[1])
+      const note = store.notes[id] ?? { text: null, version: null }
+      if (request.method() === 'GET') return reply(200, { processNote: note.text, noteVersion: note.version })
+      const body = request.postDataJSON()
+      ;(store.noteSaves ??= []).push(body)
+      if (body.noteVersion !== note.version) return reply(409, { error: 'conflict', message: 'The note changed since you loaded it. Load it again.' })
+      store.notes[id] = { text: body.processNote, version: `v${(store.noteSaves.length)}` }
+      return reply(200, { processNote: body.processNote, noteVersion: store.notes[id].version })
+    }
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') {
       // The reload after a saved change fails once (#127): unavailable, or, with reloadStatus 401, a token no
       // longer accepted (#178).
@@ -69,6 +81,12 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     const body = request.postDataJSON() as { poemId?: string, poemIds?: string[], listEtag: string, publishDate?: string | null, highlighted?: boolean, replaces?: string }
     store.writes.push(`${request.method()} ${url.pathname}`)
     store.bodies?.push(body)
+    // #308: remove changes the poem's record, not the list, so it takes no listEtag; a published poem is refused.
+    if (url.pathname === '/publisher/remove') {
+      if (store.published.some(p => p.poemId === body.poemId)) return reply(409, { error: 'published', message: 'This poem is published. Unpublish it before removing it from the portal.' })
+      store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
+      return reply(200, { removed: body.poemId })
+    }
     // #101, midst-infra #190: a replacement the server refuses (another poet's, say) is a 400 with a brief message.
     if (store.refuseReplaces && url.pathname === '/publisher/publish' && body.replaces) {
       return reply(400, { error: 'invalid', message: store.refuseReplaces })
@@ -447,6 +465,46 @@ test('a poem with nothing it could replace shows no Replaces choice', async ({ p
   await expect(page.getByLabel(/^Replaces/)).toHaveCount(0)
 })
 
+test('an unpublished poem\'s process note opens in the editor, is saved on the version loaded, and says so (#312)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(3)], writes: [], notes: { 'id-3': { text: 'Zq xv', version: 'v0' } } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Process note for Zq 3', exact: true }).click()
+  const box = page.getByRole('textbox', { name: 'Process note for Zq 3', exact: true })
+  await expect(box).toHaveValue('Zq xv')
+  const save = page.getByRole('button', { name: 'Save note' })
+  await expect(save).toBeDisabled()
+  await box.evaluate((b: HTMLTextAreaElement) => b.setSelectionRange(3, 5))
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await expect(box).toHaveValue('Zq **xv**')
+  await page.getByRole('button', { name: 'Preview' }).click()
+  await expect(page.getByRole('region', { name: 'Process note for Zq 3 preview' }).locator('strong')).toHaveText('xv')
+  await save.click()
+  await expect(page.getByRole('status')).toHaveText('Note saved.')
+  expect(store.noteSaves).toEqual([{ processNote: 'Zq **xv**', noteVersion: 'v0' }])
+  // Saved again from the version the save answered with.
+  await box.fill('Zq **xv** vb')
+  await save.click()
+  await expect(page.getByRole('status')).toHaveText('Note saved.')
+  expect(store.noteSaves).toEqual([{ processNote: 'Zq **xv**', noteVersion: 'v0' }, { processNote: 'Zq **xv** vb', noteVersion: 'v1' }])
+})
+
+test('a note changed by someone else meanwhile is refused and says so, and a poem with no note starts empty (#312)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(3), poem(4)], writes: [], notes: { 'id-3': { text: 'Zq', version: 'v0' } } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Process note for Zq 4', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Process note for Zq 4', exact: true })).toHaveValue('')
+  await page.getByRole('button', { name: 'Process note for Zq 3', exact: true }).click()
+  store.notes!['id-3'] = { text: 'Vb', version: 'v9' }
+  await page.getByRole('textbox', { name: 'Process note for Zq 3', exact: true }).fill('Zq qz')
+  await page.getByRole('button', { name: 'Save note' }).first().click()
+  await expect(page.getByRole('alert')).toHaveText('The note changed since you opened it. Open it again to see it.')
+  expect(store.notes!['id-3']).toEqual({ text: 'Vb', version: 'v9' })
+})
+
 test('a publish starts from the replaced poem\'s date and highlight, and sends what the publisher changes them to (#305)', async ({ page, baseURL }) => {
   const store: Store = { etag: 1, published: [{ ...byPoet(1, 'Qz Vel'), publishDate: '2019-05-06', highlighted: true }], unpublished: [byPoet(2, 'Qz Vel')], writes: [], bodies: [] }
   await signedInAs(page, ['publisher'])
@@ -461,5 +519,36 @@ test('a publish starts from the replaced poem\'s date and highlight, and sends w
   await notPublished(page).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
   expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: '2026-10-01', highlighted: false, replaces: 'id-1' }])
+  await expect(published(page)).toHaveText(['Zq 2'])
+})
+
+test('remove from portal asks first; dismissed, nothing is sent; accepted, the poem leaves the portal (#308)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2), poem(3)], writes: [], bodies: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const asked: string[] = []
+  page.once('dialog', dialog => { asked.push(dialog.message()); return dialog.dismiss() })
+  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  expect(asked).toEqual(['Remove "Zq 2" from the portal? It will no longer be listed here and can\'t be published from the portal again. Nothing is deleted.'])
+  expect(store.writes).toEqual([])
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  await expect(page.getByRole('status')).toHaveText('Removed Zq 2 from the portal.')
+  expect(store.bodies).toEqual([{ poemId: 'id-2' }])
+  await expect(page.getByRole('list', { name: 'Poems not published' }).locator('strong')).toHaveText(['Zq 3'])
+  await expect(published(page)).toHaveText(['Zq 1'])
+})
+
+test('a remove the server refuses says why, and the poem stays (#308)', async ({ page, baseURL }) => {
+  // Published elsewhere since the page loaded: the server refuses, and the reload shows where it now is.
+  const store: Store = { etag: 1, published: [], unpublished: [poem(2)], writes: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  store.published.push(store.unpublished.pop()!)
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  await expect(page.getByRole('alert')).toHaveText('This poem is published. Unpublish it before removing it from the portal.')
   await expect(published(page)).toHaveText(['Zq 2'])
 })

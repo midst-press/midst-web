@@ -6,12 +6,14 @@ import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
+import PublisherNote from './PublisherNote'
 import ReplacesChoice, { detailsFor, localToday, publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
 import {
-  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, saveDetails, saveOrder, unpublish,
+  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, removeFromPortal, saveDetails, saveOrder,
+  unpublish,
 } from '../app/publisher'
 
 // The publisher's page (docs/app-api.md, "Publisher"; #12, #110): publish, unpublish, reorder, and set a
@@ -23,6 +25,11 @@ const LEFT_IN_CACHE = {
   unpublish: 'Its copies could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.',
   publish: 'The copies of the version it replaced could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.',
 }
+// Remove asks first: the portal will not offer the poem again (#308). Nothing is deleted, so an admin can bring it
+// back, but the publisher cannot.
+export const confirmRemove = (title: string) =>
+  `Remove "${title}" from the portal? It will no longer be listed here and can't be published from the portal again. Nothing is deleted.`
+
 const CONFLICT = 'Someone else changed the published list while you were working. It has been reloaded; please check it and try again.'
 
 function PoemLine({ poem }: { poem: Poem }): ReactElement {
@@ -165,9 +172,16 @@ function Publisher(): ReactElement {
                           }), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
                         Publish
                       </button>
+                      <button type="button" disabled={busy || reordered} aria-label={`Remove ${poem.title} from the portal`}
+                        onClick={() => {
+                          if (window.confirm(confirmRemove(poem.title))) change(c => removeFromPortal(c, poem.poemId), `Removed ${poem.title} from the portal.`)
+                        }}>
+                        Remove from portal
+                      </button>
                     </>
                   })()}
                 </span>
+                {call && <PublisherNote call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
               </li>
             ))}
           </ul>
