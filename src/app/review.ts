@@ -16,6 +16,10 @@ export const reviewSubmissions = (call: Call) => call<{ submissions: Submission[
 export const timelapseTicket = (call: Call, submissionId: string) =>
   call<{ url: string, expiresAt: string }>(`/review/submissions/${encodeURIComponent(submissionId)}/timelapse`)
 
+/** The poet's process note, as Markdown (#292). 404 for a submission made before notes were asked for. */
+export const processNoteOf = (call: Call, submissionId: string) =>
+  call<{ processNote: string }>(`/review/submissions/${encodeURIComponent(submissionId)}/process-note`)
+
 export const decide = (call: Call, submissionId: string, decision: Decision, note: string) =>
   call<Submission>(`/review/submissions/${encodeURIComponent(submissionId)}/decision`, { method: 'POST', body: { decision, note } })
 

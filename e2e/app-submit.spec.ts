@@ -17,7 +17,7 @@ async function signedInAs(page: Page, groups: string[]) {
 }
 
 interface Submission { submissionId: string, title: string, author: string, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
-interface Store { submissions: Submission[], uploaded: string[], uploadFails?: boolean, listFailsAfterComplete?: boolean }
+interface Store { submissions: Submission[], uploaded: string[], processNotes?: string[], uploadFails?: boolean, listFailsAfterComplete?: boolean }
 
 async function standIn(page: Page, baseURL: string, store: Store) {
   await page.route('**/*', async (route: Route) => {
@@ -38,6 +38,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     }
     if (request.method() === 'POST' && url.pathname === '/submissions') {
       const body = request.postDataJSON()
+      ;(store.processNotes ??= []).push(body.processNote)
       store.submissions.unshift({ submissionId: 'sub-9', title: body.title, author: body.author, origin: 'upload', submittedAt: '2026-10-15T09:30:00Z', status: 'uploading', note: null })
       return reply(200, { submissionId: 'sub-9', uploadUrl: `${UPLOAD}/submissions/sub-9/zq.midst`, uploadHeaders: { 'Content-Type': 'application/octet-stream' }, expiresAt: 'x' })
     }
@@ -59,12 +60,58 @@ test('a poet sends a .midst file, is thanked, and sees it received', async ({ pa
   await expect(page.getByRole('list', { name: 'Your submissions' })).toContainText('Not taken this time: Zq note')
   await page.getByLabel('Title').fill('Zq vb')
   await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
   await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
   await page.getByRole('button', { name: 'Submit poem' }).click()
   await expect(page.getByRole('status')).toContainText('We have received “Zq vb”')
   expect(store.uploaded).toEqual(['/submissions/sub-9/zq.midst application/octet-stream zq synthetic'])
+  expect(store.processNotes).toEqual(['Zq *xv*'])
   await expect(page.getByRole('list', { name: 'Your submissions' }).getByRole('listitem').first()).toContainText('Received, waiting to be read')
   await expect(page.getByLabel('Title')).toHaveValue('')
+  await expect(page.getByLabel('Process Note', { exact: true })).toHaveValue('')
+})
+
+test('the Process Note is required: with no note the form is not sent (#292)', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [], uploaded: [] }
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/submit')
+  await page.getByLabel('Title').fill('Zq')
+  await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
+  await page.getByRole('button', { name: 'Submit poem' }).click()
+  await expect(page.getByLabel('Process Note', { exact: true })).toBeFocused()
+  expect(store.submissions).toEqual([])
+  await expect(page.getByLabel('Process Note', { exact: true })).toHaveAttribute('maxlength', '20000')
+})
+
+test('Bold, Italic and Link wrap the selection, and Preview shows the note as the poem page will (#292)', async ({ page, baseURL }) => {
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+  await page.goto('/submit')
+  const box = page.getByLabel('Process Note', { exact: true })
+  await box.fill('zq xv vb')
+  await box.evaluate((b: HTMLTextAreaElement) => b.setSelectionRange(3, 5))
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await expect(box).toHaveValue('zq **xv** vb')
+  await expect(box).toBeFocused()
+  await box.evaluate((b: HTMLTextAreaElement) => b.setSelectionRange(10, 12))
+  await page.getByRole('button', { name: 'Italic' }).click()
+  await expect(box).toHaveValue('zq **xv** *vb*')
+  await box.evaluate((b: HTMLTextAreaElement) => b.setSelectionRange(0, 2))
+  await page.getByRole('button', { name: 'Link' }).click()
+  await page.keyboard.type('https://example.invalid/')
+  await expect(box).toHaveValue('[zq](https://example.invalid/) **xv** *vb*')
+  await box.press('End')
+  await box.pressSequentially('\n\n<img src="https://example.invalid/t.png"><script>x()</script>')
+  await page.getByRole('button', { name: 'Preview' }).click()
+  const preview = page.getByRole('region', { name: 'Process Note preview' })
+  await expect(preview.locator('strong')).toHaveText('xv')
+  await expect(preview.locator('em')).toHaveText('vb')
+  await expect(preview.locator('a')).toHaveAttribute('href', 'https://example.invalid/')
+  await expect(preview.locator('script')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Preview' }).click()
+  await expect(preview).toHaveCount(0)
 })
 
 test('an archive record in the poet\'s list says it is from the archive, and shows no 1970', async ({ page, baseURL }) => {
@@ -84,6 +131,7 @@ test('when the poem is received but the list cannot be refreshed, it does not sa
   await page.goto('/submit')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
   await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
   await page.getByRole('button', { name: 'Submit poem' }).click()
   await expect(page.getByRole('status')).toContainText('We have received')
@@ -98,6 +146,7 @@ test('a file that is not .midst is refused before anything is sent', async ({ pa
   await page.goto('/submit')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
   await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles({ ...midstFile, name: 'zq.txt' })
   await page.getByRole('button', { name: 'Submit poem' }).click()
   await expect(page.getByRole('alert')).toContainText('ends in .midst')
@@ -111,6 +160,7 @@ test('an upload that fails is said, and the submission is not completed', async 
   await page.goto('/submit')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
   await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
   await page.getByRole('button', { name: 'Submit poem' }).click()
   await expect(page.getByRole('alert')).toContainText('could not be uploaded')
@@ -161,6 +211,7 @@ for (const size of SIZES) {
     if (size.width < 600) await page.locator('.window-size-popup').click()
     await page.getByLabel('Title').fill('Zq')
     await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
     const file = page.getByLabel('The poem, as a Midst file (.midst)')
     const button = page.getByRole('button', { name: 'Submit poem' })
     const between = async (above: number, below: number) => {

@@ -34,7 +34,7 @@ function fixtureZip(): Buffer {
 }
 
 interface Submission { submissionId: string, title: string, author: string, poet: string | null, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
-interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean, unpublished?: string[], published?: string[], poemsFail?: boolean, poemReads?: number }
+interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean, unpublished?: string[], published?: string[], poemsFail?: boolean, poemReads?: number, processNotes?: Record<string, string> }
 
 const submission = (n: number, over: Partial<Submission> = {}): Submission =>
   ({ submissionId: `sub-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, poet: `qz${n}@example.invalid`, origin: 'upload', submittedAt: `2026-10-0${n}T09:00:00Z`, status: 'received', note: null, ...over })
@@ -56,6 +56,11 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       if (store.listFailsAfterDecision && store.decisions.length > 0) return reply(503, { message: 'Service Unavailable' })
       store.listReads += 1
       return reply(200, { submissions: store.submissions })
+    }
+    const noteOf = /^\/review\/submissions\/([^/]+)\/process-note$/.exec(url.pathname)
+    if (request.method() === 'GET' && noteOf) {
+      const note = store.processNotes?.[decodeURIComponent(noteOf[1])]
+      return note === undefined ? reply(404, { error: 'not_found', message: 'This submission has no process note.' }) : reply(200, { processNote: note })
     }
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') {
       store.poemReads = (store.poemReads ?? 0) + 1
@@ -341,4 +346,24 @@ test('when the poem list cannot be loaded, Finish accepting is disabled and says
   const reason = 'Can\'t tell whether this poem was made: the list of poems could not be loaded. Reload the page to try again.'
   await expect(row(page, 'Zq 1')).toContainText(reason)
   await expect(finish).toHaveAccessibleDescription(reason)
+})
+
+test('Process note shows the poet\'s note rendered and sanitised, says when there is none, and hides again (#292)', async ({ page, baseURL }) => {
+  const store: Store = {
+    submissions: [submission(2), submission(1)], decisions: [], listReads: 0,
+    processNotes: { 'sub-2': 'Zq **xv**\n\n<script>window.ran = 1</script>[vb](javascript:alert(1))' },
+  }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await page.getByRole('button', { name: 'Process note for Zq 2' }).click()
+  const note = page.getByRole('region', { name: 'Process note for Zq 2' })
+  await expect(note.locator('strong')).toHaveText('xv')
+  await expect(note.locator('script')).toHaveCount(0)
+  await expect(note).not.toContainText('javascript')
+  expect(await page.evaluate(() => (window as unknown as { ran?: number }).ran)).toBeUndefined()
+  await page.getByRole('button', { name: 'Process note for Zq 1' }).click()
+  await expect(page.getByRole('list', { name: 'Submissions' }).getByRole('listitem').last()).toContainText('No process note.')
+  await page.getByRole('button', { name: 'Process note for Zq 2' }).click()
+  await expect(note).toHaveCount(0)
 })

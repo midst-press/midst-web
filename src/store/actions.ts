@@ -6,10 +6,7 @@ import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
 // TODO: Type def file
 //@ts-ignore
-import marked from 'marked'
-// TODO: Type def file
-//@ts-ignore
-import insane from 'insane'
+import { renderProcessNote } from '../processNote'
 import {
   LOAD_POEM_DATA,
   LOAD_POEM_FAILED,
@@ -61,8 +58,6 @@ interface LoadError {
   reason: PoemLoadFailure
   log?: string
 }
-
-const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']
 
 // The archive's reading (its timeout, and what its errors may log) is in ../archive (#43, #270).
 export { ARCHIVE_READ_TIMEOUT_MS, describeCause } from '../archive'
@@ -131,7 +126,7 @@ const loadPoemData = (poemIndex: number): any =>
       processNote = ''
       if (names.processNote !== null) {
         const note = await body(await get(names.processNote), r => r.text())
-        processNote = insane(marked(note), { allowedTags: NOTE_TAGS })
+        processNote = renderProcessNote(note)
       }
       const archive = await body(await get(names.timelapse), r => r.blob())
       text = await readArchive(archive)
