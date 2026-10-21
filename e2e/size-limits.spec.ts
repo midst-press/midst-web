@@ -32,11 +32,10 @@ const LOAD_TIMEOUT = 300_000
 const PLAY_TIMEOUT = 120_000
 const SCRUB_TIMEOUT = 60_000
 const PLAY_SECONDS = 6
-// An explicit 60 fps override, held deliberately: size limits measure the player
-// at its stress cadence, not the reader's default. DEFAULT_FPS is 11 (GitHub
-// #89, midst-web #327); do not 'fix' this line to match it (river's question,
-// midst-web #328 — the answer is the stress rate stays).
-const SET_FPS = 1000 / 60
+// MidstPlayer.tsx DEFAULT_FPS (11 fps, GitHub #89, midst-web #327): the size-limit
+// run measures at the default rate and records SET_FPS beside achievedFps, so it
+// must move whenever DEFAULT_FPS does (clement-7074f29f, review of #328).
+const SET_FPS = 11
 const SCRUB_POSITIONS = [0.5, 0.1, 0.9, 0.3, 0.7, 0.2]
 const SUBJECT = 'Madeleine_Mori'
 
