@@ -1,3 +1,8 @@
+# 0.12.0
+
+- **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
+  review page shows each submission's note.
+
 # 0.11.0
 
 - **An admin's group change sends the groups the page showed**, so once the API checks them (midst-infra #202), a

@@ -23,9 +23,9 @@ describe('submitPoem', () => {
   it('asks for an upload URL, sends the file there with exactly its headers, then completes', async () => {
     const call = jest.fn(async (path: string) => (path === '/submissions' ? ticket : { submissionId: 's/1', status: 'received' })) as unknown as Call & jest.Mock
     const put = jest.fn(async () => ({ ok: true }))
-    const result = await submitPoem(call, put, { title: 'Zq', author: 'Qz' }, file)
+    const result = await submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq *xv*' }, file)
     expect(call.mock.calls).toEqual([
-      ['/submissions', { method: 'POST', body: { title: 'Zq', author: 'Qz', fileName: 'zq.midst', sizeBytes: 2 } }],
+      ['/submissions', { method: 'POST', body: { title: 'Zq', author: 'Qz', processNote: 'Zq *xv*', fileName: 'zq.midst', sizeBytes: 2 } }],
       ['/submissions/s%2F1/complete', { method: 'POST' }],
     ])
     expect(put).toHaveBeenCalledWith(ticket.uploadUrl, ticket.uploadHeaders, file)
@@ -35,7 +35,7 @@ describe('submitPoem', () => {
   it('does not complete when the upload fails or cannot be sent, and says so', async () => {
     for (const put of [jest.fn(async () => ({ ok: false })), jest.fn(async () => { throw new TypeError('network') })]) {
       const call = jest.fn(async () => ticket) as unknown as Call & jest.Mock
-      await expect(submitPoem(call, put, { title: 'Zq', author: 'Qz' }, file)).rejects.toThrow('could not be uploaded')
+      await expect(submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq' }, file)).rejects.toThrow('could not be uploaded')
       expect(call).toHaveBeenCalledTimes(1)
     }
   })
