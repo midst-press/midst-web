@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[] }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -30,6 +30,18 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (url.origin !== API) return route.abort()
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
+    // A draft poem's process note (#312): the version is bumped on each save, and a stale one is a conflict.
+    const noteOf = /^\/publisher\/poems\/([^/]+)\/process-note$/.exec(url.pathname)
+    if (noteOf && store.notes) {
+      const id = decodeURIComponent(noteOf[1])
+      const note = store.notes[id] ?? { text: null, version: null }
+      if (request.method() === 'GET') return reply(200, { processNote: note.text, noteVersion: note.version })
+      const body = request.postDataJSON()
+      ;(store.noteSaves ??= []).push(body)
+      if (body.noteVersion !== note.version) return reply(409, { error: 'conflict', message: 'The note changed since you loaded it. Load it again.' })
+      store.notes[id] = { text: body.processNote, version: `v${(store.noteSaves.length)}` }
+      return reply(200, { processNote: body.processNote, noteVersion: store.notes[id].version })
+    }
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') {
       // The reload after a saved change fails once (#127): unavailable, or, with reloadStatus 401, a token no
       // longer accepted (#178).
@@ -445,6 +457,46 @@ test('a poem with nothing it could replace shows no Replaces choice', async ({ p
   await page.goto('/publisher')
   await expect(notPublished(page).getByRole('button', { name: 'Publish' })).toBeVisible()
   await expect(page.getByLabel(/^Replaces/)).toHaveCount(0)
+})
+
+test('an unpublished poem\'s process note opens in the editor, is saved on the version loaded, and says so (#312)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(3)], writes: [], notes: { 'id-3': { text: 'Zq xv', version: 'v0' } } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Process note for Zq 3', exact: true }).click()
+  const box = page.getByRole('textbox', { name: 'Process note for Zq 3', exact: true })
+  await expect(box).toHaveValue('Zq xv')
+  const save = page.getByRole('button', { name: 'Save note' })
+  await expect(save).toBeDisabled()
+  await box.evaluate((b: HTMLTextAreaElement) => b.setSelectionRange(3, 5))
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await expect(box).toHaveValue('Zq **xv**')
+  await page.getByRole('button', { name: 'Preview' }).click()
+  await expect(page.getByRole('region', { name: 'Process note for Zq 3 preview' }).locator('strong')).toHaveText('xv')
+  await save.click()
+  await expect(page.getByRole('status')).toHaveText('Note saved.')
+  expect(store.noteSaves).toEqual([{ processNote: 'Zq **xv**', noteVersion: 'v0' }])
+  // Saved again from the version the save answered with.
+  await box.fill('Zq **xv** vb')
+  await save.click()
+  await expect(page.getByRole('status')).toHaveText('Note saved.')
+  expect(store.noteSaves).toEqual([{ processNote: 'Zq **xv**', noteVersion: 'v0' }, { processNote: 'Zq **xv** vb', noteVersion: 'v1' }])
+})
+
+test('a note changed by someone else meanwhile is refused and says so, and a poem with no note starts empty (#312)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(3), poem(4)], writes: [], notes: { 'id-3': { text: 'Zq', version: 'v0' } } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Process note for Zq 4', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Process note for Zq 4', exact: true })).toHaveValue('')
+  await page.getByRole('button', { name: 'Process note for Zq 3', exact: true }).click()
+  store.notes!['id-3'] = { text: 'Vb', version: 'v9' }
+  await page.getByRole('textbox', { name: 'Process note for Zq 3', exact: true }).fill('Zq qz')
+  await page.getByRole('button', { name: 'Save note' }).first().click()
+  await expect(page.getByRole('alert')).toHaveText('The note changed since you opened it. Open it again to see it.')
+  expect(store.notes!['id-3']).toEqual({ text: 'Vb', version: 'v9' })
 })
 
 test('a publish starts from the replaced poem\'s date and highlight, and sends what the publisher changes them to (#305)', async ({ page, baseURL }) => {
