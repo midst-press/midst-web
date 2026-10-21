@@ -1,3 +1,8 @@
+# 0.12.0
+
+- **The Table of Contents opens newest first by publish date.** Readers can still sort by author or title, or reverse
+  any of them. Poems with no publish date come last.
+
 # 0.11.0
 
 - **An admin's group change sends the groups the page showed**, so once the API checks them (midst-infra #202), a

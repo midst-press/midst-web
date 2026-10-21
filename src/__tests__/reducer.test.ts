@@ -12,7 +12,7 @@ import {
 
 // Invented metadata only. Mock order is deliberately different from the author, title and
 // publishDate orders, which also differ from each other:
-//   mock order:   Aa Title, Cc Title, Bb, Ti
+//   mock order:   Aa Title, Cc Title, Bb, Ti   (also the newest-first order the state opens in, and position order)
 //   by author:    Cc Title (Kj, Wm), Aa Title (Mm Nn), Bb, Ti (Zq Xv)
 //   by title:     Aa Title, Bb, Ti, Cc Title
 //   by date:      Bb, Ti (2018), Cc Title (2019), Aa Title (2020)
@@ -48,6 +48,8 @@ jest.mock('../poems', () => ({
 
 const titles = (state: IState) => state.poems.map(poem => poem.title)
 
+// The state opens newest first by publish date (midst-web #309).
+const OPENING_ORDER = ['Aa Title', 'Cc Title', 'Bb, Ti']
 const MOCK_ORDER = ['Aa Title', 'Cc Title', 'Bb, Ti']
 const BY_AUTHOR = ['Cc Title', 'Aa Title', 'Bb, Ti']
 const BY_TITLE = ['Aa Title', 'Bb, Ti', 'Cc Title']
@@ -55,22 +57,27 @@ const BY_DATE = ['Bb, Ti', 'Cc Title', 'Aa Title']
 
 const reverse = <T>(list: T[]) => [...list].reverse()
 
+// The same state with the order flipped to ascending, for tests that are about ascending order or list-order ties.
+const ascending = (state: IState) => reducer(state, { type: REVERSE_SORT_ORDER })
+const byTitle = (state: IState, title: string) => state.poems.find(poem => poem.title === title)!
+
 describe('initialState', () => {
   it('has the expected flags and sort settings', () => {
     expect(initialState.mobileNavOpen).toBe(false)
     expect(initialState.processNoteOpen).toBe(false)
-    expect(initialState.sortOrder).toBe('ASC')
+    expect(initialState.sortOrder).toBe('DESC')
     expect(initialState.sortTerm).toBe('publishDate')
   })
 
-  it('has one poem per mocked entry, in mocked order', () => {
-    expect(titles(initialState)).toEqual(MOCK_ORDER)
+  it('has one poem per mocked entry, newest first by publish date', () => {
+    expect(titles(initialState)).toEqual(OPENING_ORDER)
+    expect(initialState.poems.map(poem => poem.publishDate.format('YYYY-MM-DD'))).toEqual(['2020-03-03', '2019-04-04', '2018-06-06'])
   })
 })
 
 describe('createPoem (via initialState.poems)', () => {
-  const full = initialState.poems[2]
-  const sparse = initialState.poems[0]
+  const full = byTitle(initialState, 'Bb, Ti')
+  const sparse = byTitle(initialState, 'Aa Title')
 
   it('derives author, title, authorId, url, poemId and slug', () => {
     expect(full.author).toBe('Zq Xv')
@@ -82,7 +89,7 @@ describe('createPoem (via initialState.poems)', () => {
   })
 
   it('derives ids for a comma in the author and a plain title', () => {
-    const poem = initialState.poems[1]
+    const poem = byTitle(initialState, 'Cc Title')
     expect(poem.authorId).toBe('kj,-wm')
     expect(poem.url).toBe('cc-title')
     expect(poem.poemId).toBe('kj,-wm--cc-title')
@@ -149,7 +156,7 @@ describe.each([
     const opened = reducer(initialState, { type, payload: true })
     expect(opened).not.toBe(initialState)
     expect(opened[other]).toBe(initialState[other])
-    expect(opened.sortOrder).toBe('ASC')
+    expect(opened.sortOrder).toBe('DESC')
     expect(opened.sortTerm).toBe('publishDate')
     expect(opened.poems).toBe(initialState.poems)
   })
@@ -187,7 +194,7 @@ describe('LOAD_POEM_DATA', () => {
     expect(before?.loaded).toBe(false)
     expect(before?.data).toBeNull()
     expect(before?.processNote).toBe('')
-    expect(titles(initialState)).toEqual(MOCK_ORDER)
+    expect(titles(initialState)).toEqual(OPENING_ORDER)
   })
 
   it('changes nothing for an unknown poemId', () => {
@@ -196,7 +203,7 @@ describe('LOAD_POEM_DATA', () => {
       payload: { ...payload, poemId: 'no-one--nothing' },
     })
     expect(next.poems.every(poem => !poem.loaded)).toBe(true)
-    expect(titles(next)).toEqual(MOCK_ORDER)
+    expect(titles(next)).toEqual(OPENING_ORDER)
     expect(next.poems.map(poem => poem.data)).toEqual([null, null, null])
   })
 })
@@ -241,12 +248,12 @@ describe('LOAD_POEM_FAILED', () => {
 // A sort reorders the poems in the state. It once sorted the list made at start-up instead, so every
 // sort dropped what had been loaded since (#21, #108).
 describe('sorting keeps what has been loaded', () => {
-  const poemId = initialState.poems[1].poemId
+  const poemId = byTitle(initialState, 'Cc Title').poemId
   const loaded = reducer(initialState, {
     type: LOAD_POEM_DATA,
     payload: { poemId, data: { text: 'invented' }, processNote: 'zq note' },
   })
-  const failedId = initialState.poems[2].poemId
+  const failedId = byTitle(initialState, 'Bb, Ti').poemId
   const both = reducer(loaded, { type: LOAD_POEM_FAILED, payload: { poemId: failedId, reason: 'missing' } })
 
   it.each([
@@ -263,40 +270,54 @@ describe('sorting keeps what has been loaded', () => {
 
   it('poems that tie keep the list order, whatever the previous sort was', () => {
     // Every poem has the same `tags`, standing in for poems by one author.
-    const byAuthor = reducer(both, { type: SET_SORT_TERM, payload: 'author' })
+    // Ascending, where ties come out in list order (descending reverses them with the rest).
+    const byAuthor = reducer(ascending(both), { type: SET_SORT_TERM, payload: 'author' })
     expect(titles(reducer(byAuthor, { type: SET_SORT_TERM, payload: 'tags' }))).toEqual(MOCK_ORDER)
   })
 })
 
 describe('SET_SORT_TERM', () => {
+  const asc = ascending(initialState)
+
   it('orders by author ascending', () => {
-    const next = reducer(initialState, { type: SET_SORT_TERM, payload: 'author' })
+    const next = reducer(asc, { type: SET_SORT_TERM, payload: 'author' })
     expect(next.sortTerm).toBe('author')
     expect(titles(next)).toEqual(BY_AUTHOR)
   })
 
   it('orders by title ascending', () => {
-    const next = reducer(initialState, { type: SET_SORT_TERM, payload: 'title' })
+    const next = reducer(asc, { type: SET_SORT_TERM, payload: 'title' })
     expect(next.sortTerm).toBe('title')
     expect(titles(next)).toEqual(BY_TITLE)
   })
 
   it('orders by publishDate ascending', () => {
-    const byTitle = reducer(initialState, { type: SET_SORT_TERM, payload: 'title' })
-    const next = reducer(byTitle, { type: SET_SORT_TERM, payload: 'publishDate' })
+    const next = reducer(reducer(asc, { type: SET_SORT_TERM, payload: 'title' }), { type: SET_SORT_TERM, payload: 'publishDate' })
     expect(next.sortTerm).toBe('publishDate')
     expect(titles(next)).toEqual(BY_DATE)
+  })
+
+  it('from the opening state (descending) orders by author and title in descending order', () => {
+    expect(titles(reducer(initialState, { type: SET_SORT_TERM, payload: 'author' }))).toEqual(['Bb, Ti', 'Aa Title', 'Cc Title'])
+    expect(titles(reducer(initialState, { type: SET_SORT_TERM, payload: 'title' }))).toEqual(['Cc Title', 'Bb, Ti', 'Aa Title'])
   })
 
   it('does not mutate the input state', () => {
     reducer(initialState, { type: SET_SORT_TERM, payload: 'author' })
     expect(initialState.sortTerm).toBe('publishDate')
-    expect(titles(initialState)).toEqual(MOCK_ORDER)
+    expect(titles(initialState)).toEqual(OPENING_ORDER)
   })
 })
 
 describe('REVERSE_SORT_ORDER', () => {
-  const byAuthor = reducer(initialState, { type: SET_SORT_TERM, payload: 'author' })
+  // Ascending by author, set up explicitly: the state opens descending.
+  const byAuthor = reducer(ascending(initialState), { type: SET_SORT_TERM, payload: 'author' })
+
+  it('flips the opening DESC to ASC and puts the oldest publish date first', () => {
+    const next = reducer(initialState, { type: REVERSE_SORT_ORDER })
+    expect(next.sortOrder).toBe('ASC')
+    expect(titles(next)).toEqual(['Bb, Ti', 'Cc Title', 'Aa Title'])
+  })
 
   it('flips ASC to DESC and reverses the current term order', () => {
     const next = reducer(byAuthor, { type: REVERSE_SORT_ORDER })
