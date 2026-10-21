@@ -1,3 +1,8 @@
+# 0.10.0
+
+- **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
+  list, and links to it lead to the new one.
+
 # 0.9.0
 
 - **Each poem's address is the one it was given.** When the published list carries stored addresses, the site uses
