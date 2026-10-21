@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test'
 import { test, expect } from './coverage'
+import { showDraftMarkers } from './draft-markers-on'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import names from '../src/poems/poem-names.js'
@@ -64,6 +65,8 @@ async function openPoem(page: Page, viewport: { width: number, height: number })
   await expect(player.locator('.editable p')).toHaveCount(3)
   // The poems slide into place (.sliding-poems__frame, a 250ms transition); measure once this one has arrived.
   await expect.poll(() => player.evaluate(el => el.getBoundingClientRect().left)).toBe(0)
+  // Only then turn its markers on (#324): a click while the poems are still sliding can land on the wrong one.
+  await showDraftMarkers(player)
   await page.waitForTimeout(300)
   return player
 }
