@@ -14,18 +14,16 @@ default_install_hook_types: [pre-commit, commit-msg, pre-push]
 # The checks run on commit, and in CI by `pre-commit run`. Only the hooks below that name another stage run there:
 # the closing-keyword check on the commit message, the force-push refusal on push.
 default_stages: [pre-commit, manual]
-# content/ is Annelyse's (#281) and arrives from GitHub as she wrote it, so no hook reads or rewrites it: a fixer or
-# formatter here would fail CI on her text, or strip a Markdown line break. The content-owner hook names no files
-# (always_run), so it still runs.
-exclude: '^content/'
 # The vendored build vendor/midst-format/ is byte-exact (its VENDOR.md): no whitespace fixer, line-ending fixer
 # or formatter may touch it, so each of those hooks excludes it. The vendored-format hook guards it by hash.
+# content/ (Annelyse's, #281) is in the same list: it arrives from GitHub as she wrote it, and a fixer would fail CI on
+# her text or strip a Markdown line break. The hooks that only check (poem data, keys, large files, logs) still cover it.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: &vendored '(^vendor/midst-format/|^static/|^etc/|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
+        exclude: &vendored '(^content/|^vendor/midst-format/|^static/|^etc/|^e2e/legacy-player/base64icons/|(^|/)(package-lock\.json|yarn\.lock)$)'
       - id: end-of-file-fixer
         exclude: *vendored
       - id: check-merge-conflict
