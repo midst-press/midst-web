@@ -6,6 +6,7 @@ import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
+import PublisherNote from './PublisherNote'
 import ReplacesChoice, { detailsFor, localToday, publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
@@ -168,6 +169,7 @@ function Publisher(): ReactElement {
                     </>
                   })()}
                 </span>
+                {call && <PublisherNote call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
               </li>
             ))}
           </ul>
