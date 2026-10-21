@@ -81,6 +81,12 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     const body = request.postDataJSON() as { poemId?: string, poemIds?: string[], listEtag: string, publishDate?: string | null, highlighted?: boolean, replaces?: string }
     store.writes.push(`${request.method()} ${url.pathname}`)
     store.bodies?.push(body)
+    // #308: remove changes the poem's record, not the list, so it takes no listEtag; a published poem is refused.
+    if (url.pathname === '/publisher/remove') {
+      if (store.published.some(p => p.poemId === body.poemId)) return reply(409, { error: 'published', message: 'This poem is published. Unpublish it before removing it from the portal.' })
+      store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
+      return reply(200, { removed: body.poemId })
+    }
     // #101, midst-infra #190: a replacement the server refuses (another poet's, say) is a 400 with a brief message.
     if (store.refuseReplaces && url.pathname === '/publisher/publish' && body.replaces) {
       return reply(400, { error: 'invalid', message: store.refuseReplaces })
@@ -513,5 +519,36 @@ test('a publish starts from the replaced poem\'s date and highlight, and sends w
   await notPublished(page).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
   expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: '2026-10-01', highlighted: false, replaces: 'id-1' }])
+  await expect(published(page)).toHaveText(['Zq 2'])
+})
+
+test('remove from portal asks first; dismissed, nothing is sent; accepted, the poem leaves the portal (#308)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2), poem(3)], writes: [], bodies: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const asked: string[] = []
+  page.once('dialog', dialog => { asked.push(dialog.message()); return dialog.dismiss() })
+  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  expect(asked).toEqual(['Remove "Zq 2" from the portal? It will no longer be listed here and can\'t be published from the portal again. Nothing is deleted.'])
+  expect(store.writes).toEqual([])
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  await expect(page.getByRole('status')).toHaveText('Removed Zq 2 from the portal.')
+  expect(store.bodies).toEqual([{ poemId: 'id-2' }])
+  await expect(page.getByRole('list', { name: 'Poems not published' }).locator('strong')).toHaveText(['Zq 3'])
+  await expect(published(page)).toHaveText(['Zq 1'])
+})
+
+test('a remove the server refuses says why, and the poem stays (#308)', async ({ page, baseURL }) => {
+  // Published elsewhere since the page loaded: the server refuses, and the reload shows where it now is.
+  const store: Store = { etag: 1, published: [], unpublished: [poem(2)], writes: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  store.published.push(store.unpublished.pop()!)
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  await expect(page.getByRole('alert')).toHaveText('This poem is published. Unpublish it before removing it from the portal.')
   await expect(published(page)).toHaveText(['Zq 2'])
 })
