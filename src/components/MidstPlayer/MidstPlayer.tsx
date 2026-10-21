@@ -131,7 +131,10 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     const before = editor.state.doc
     // Each adapter entry is a full replacement, so reconstruct just this entry: seeking a long
     // archive must not replay every earlier snapshot on every 60ms tick.
-    editor.commands.setContent(frames[Math.min(step, maxStep)]?.content ?? '', false, { preserveWhitespace: true })
+    editor.commands.setContent(frames[Math.min(step, maxStep)]?.content ?? '', {
+      emitUpdate: false,
+      parseOptions: { preserveWhitespace: true },
+    })
     const after = editor.state.doc
     const changed = after.content.findDiffStart(before.content)
     const scroller = scrollParent(editor.view.dom as HTMLElement)

@@ -159,7 +159,7 @@ function Admin(): ReactElement {
                     <GroupBoxes label={`Groups of ${person.name}`} chosen={chosen} disabled={busy}
                       onChange={groups => setEdits(current => ({ ...current, [person.username]: groups }))} />
                     <button type="button" disabled={busy || !edited}
-                      onClick={() => change(c => setGroups(c, person.username, chosen), `Saved the groups of ${person.name}.`, person.username)}>
+                      onClick={() => change(c => setGroups(c, person.username, chosen, person.groups), `Saved the groups of ${person.name}.`, person.username)}>
                       Save groups
                     </button>
                     {person.status === 'invited' && (

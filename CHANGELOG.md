@@ -1,3 +1,9 @@
+# 0.11.0
+
+- **An admin's group change sends the groups the page showed**, so once the API checks them (midst-infra #202), a
+  change from a page loaded before another admin's is refused and the page shows the groups as they are.
+- **The editor library is TipTap 3.32.0**, with midst-format 0.6.0. Nothing a reader sees changes.
+
 # 0.10.0
 
 - **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
