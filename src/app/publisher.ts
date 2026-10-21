@@ -44,8 +44,6 @@ export const publish = (call: Call, poemId: string, listEtag: string, replaces?:
 export const unpublish = (call: Call, poemId: string, listEtag: string) =>
   call<ListChange>('/publisher/unpublish', { method: 'POST', body: { poemId, listEtag } })
 
-/** Whether a change's answer says withdrawn copies were left in CloudFront's cache. Only an explicit false: an
- *  answer with no field withdrew nothing. */
 /** A draft poem's process note and the version to save it on (#312); both null for a poem with no note. */
 export interface DraftNote { processNote: string | null, noteVersion: string | null }
 
@@ -56,6 +54,8 @@ export const readNote = (call: Call, poemId: string) =>
 export const saveNote = (call: Call, poemId: string, processNote: string, noteVersion: string | null) =>
   call<DraftNote>(`/publisher/poems/${encodeURIComponent(poemId)}/process-note`, { method: 'PUT', body: { processNote, noteVersion } })
 
+/** Whether a change's answer says withdrawn copies were left in CloudFront's cache. Only an explicit false: an
+ *  answer with no field withdrew nothing. */
 export const leftInCache = (result: unknown): boolean =>
   typeof result === 'object' && result !== null && (result as { edgeCleared?: unknown }).edgeCleared === false
 
