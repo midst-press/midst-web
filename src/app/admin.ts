@@ -26,8 +26,10 @@ export const invite = (call: Call, name: string, email: string, groups: string[]
 export const resendInvitation = (call: Call, username: string) =>
   call<Person>(`/admin/users/${encodeURIComponent(username)}/resend`, { method: 'POST' })
 
-export const setGroups = (call: Call, username: string, groups: string[]) =>
-  call<Person>(`/admin/users/${encodeURIComponent(username)}/groups`, { method: 'PUT', body: { groups } })
+// `fromGroups` are the groups the page showed: the API refuses the change with 409 groups_changed if they are no longer
+// the person's, so a page loaded before someone else's change cannot undo it (midst-infra #179).
+export const setGroups = (call: Call, username: string, groups: string[], fromGroups: string[]) =>
+  call<Person>(`/admin/users/${encodeURIComponent(username)}/groups`, { method: 'PUT', body: { groups, fromGroups } })
 
 export const disable = (call: Call, username: string) =>
   call<Person>(`/admin/users/${encodeURIComponent(username)}/disable`, { method: 'POST' })

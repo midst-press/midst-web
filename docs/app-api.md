@@ -43,6 +43,8 @@ Every error has the same body:
 | 409 | `already_registered` | registering an email that already has an account |
 | 409 | `already_signed_in` | resending an invitation to someone who has already set their password |
 | 409 | `disabled` | resending an invitation to someone whose account is disabled: enable them first |
+| 409 | `busy` | another change to a person's groups or enabled state is in progress; try again |
+| 409 | `groups_changed` | the person's groups are no longer the `fromGroups` the page sent: someone else changed them; reload |
 | 409 | `last_admin` | the change would leave nobody in `admin` (removing the group from, or disabling, the last one) |
 | 500 | `server` | anything else; `message` is safe to show and carries no internals |
 | 503 | `unavailable` | the request could not be recorded, so nothing was changed (a change), or nothing returned (a read of unpublished content); try again |
@@ -259,7 +261,8 @@ A submission's status becomes `published` when its poem is published, and `accep
 - `POST /admin/users/{username}/resend` → `Person`. Sends the invitation again, with a new temporary password, to
   anyone still `invited`, whatever their groups: the publisher's resend reaches poets only. 409 `already_signed_in`
   once they have set their password; 409 `disabled` while the account is disabled. Unknown `username`: 404.
-- `PUT /admin/users/{username}/groups` `{ "groups": [...] }` → `Person`
+- `PUT /admin/users/{username}/groups` `{ "groups": [...], "fromGroups": [...] }` → `Person`. `fromGroups` are the
+  groups the page showed; if the person's groups are no longer those, 409 `groups_changed` and nothing changes.
 - `POST /admin/users/{username}/disable` and `/enable` → `Person`
 
 Both answer 409 `last_admin` rather than leave the pool with no admin: with none, nobody could invite anyone or
