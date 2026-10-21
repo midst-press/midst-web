@@ -1,7 +1,10 @@
-# 0.12.0
+# 0.13.0
 
 - **The Table of Contents shows each poem's publish date**, the date it is sorted by and the one the publisher
   edits. A poem published through the publisher page showed no date before.
+
+# 0.12.0
+
 - **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
   review page shows each submission's note.
 
