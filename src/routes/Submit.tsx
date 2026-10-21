@@ -1,4 +1,4 @@
-import React, { FormEvent, ReactElement, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
@@ -7,10 +7,30 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
 import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
-import { MAX_NOTE_CHARACTERS, Markup, applyMarkup, renderPoetNote } from '../processNote'
+import NoteEditor from '../components/NoteEditor'
+import { Link } from 'react-router-dom'
 
-// The poet's page (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21): send a poem as a .midst
-// file, and see where each submission stands. A prototype; the wording is Annelyse's to choose.
+// The Submit page (#326, GitHub midst-press/midst-web#88). Everyone reads Annelyse's text about submitting; a signed-in poet
+// also gets, under it, the form to send a poem as a .midst file and the list of where each submission stands
+// (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21).
+
+// Annelyse's words, as she wrote them (GitHub #88, 21 Oct). They move to her content/ folder once #281 has landed.
+function SubmissionsText(): ReactElement {
+  return (
+    <div className="submit-text">
+      <p>Midst is currently <strong>closed</strong> to submissions.</p>
+      <p>
+        Please note that we <em>only</em> consider .midst files—poems written and edited with <Link to="/app">the Midst app</Link>.
+        We do not accept poems in any other format made with any other software (.doc, .docx, .pdf, .txt, etc.).
+      </p>
+      <p>
+        The app is free to download and free to use, built by and for writers. Everything you write with it is completely
+        private and belongs 100% to you. It works on Mac, Windows, and Linux. <Link to="/app">Download it here</Link>.
+      </p>
+      <p><a href="#newsletter">Sign up to our newsletter</a> to find out about open submission windows and other opportunities.</p>
+    </div>
+  )
+}
 
 const putFile = async (url: string, headers: Record<string, string>, file: Blob) => {
   const response = await fetch(url, { method: 'PUT', headers, body: file })
@@ -24,11 +44,8 @@ function Submit(): ReactElement {
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  // The process note (#292): Markdown, with buttons that wrap the selection, and a preview rendered as the poem page will.
+  // The process note (#292), in Markdown.
   const [processNote, setProcessNote] = useState('')
-  const [previewing, setPreviewing] = useState(false)
-  const noteBox = useRef<HTMLTextAreaElement>(null)
-  const [selection, setSelection] = useState<{ start: number, end: number } | null>(null)
   const [formKey, setFormKey] = useState(0) // remakes the file input after a submission
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -36,23 +53,6 @@ function Submit(): ReactElement {
   // Which control the problem is about, so it is shown beside it (#253): the file chosen, or the sending of it.
   // null: neither, such as the list failing to load; shown above the form.
   const [problemAt, setProblemAt] = useState<'file' | 'send' | null>(null)
-
-  // After a button has changed the note, put the selection where applyMarkup says, once the text is in the box.
-  useLayoutEffect(() => {
-    if (!selection || !noteBox.current) return
-    noteBox.current.focus()
-    noteBox.current.setSelectionRange(selection.start, selection.end)
-    setSelection(null)
-  }, [selection])
-
-  const markUp = (kind: Markup) => {
-    const box = noteBox.current
-    if (!box) return
-    const edit = applyMarkup(processNote, box.selectionStart, box.selectionEnd, kind)
-    if (edit.text.length > MAX_NOTE_CHARACTERS) return
-    setProcessNote(edit.text)
-    setSelection({ start: edit.start, end: edit.end })
-  }
 
   const call = session && isPoet ? callerFor(APP_API_URL, session.idToken) : null
   const failed = (error: unknown, fallback: string, at: 'send' | null = null) => {
@@ -80,7 +80,6 @@ function Submit(): ReactElement {
       setNotice(`Thank you. We have received “${sent.title}”. You will get an email to say so.`)
       setTitle('')
       setProcessNote('')
-      setPreviewing(false)
       setFile(null)
       setFormKey(k => k + 1)
     } catch (error) {
@@ -103,9 +102,10 @@ function Submit(): ReactElement {
 
   const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/submit'))
 
-  let content: ReactElement
+  // Under her text: nothing on a site without the app; otherwise sign-in, or the poet's form.
+  let content: ReactElement | null
   if (!APP_AVAILABLE) {
-    content = <p>Submitting is not available on this site.</p>
+    content = null
   } else if (!session) {
     content = (
       <>
@@ -123,21 +123,7 @@ function Submit(): ReactElement {
         <form className="submit-form" onSubmit={send} key={formKey}>
           <p><label>Title <input type="text" required value={title} onChange={e => setTitle(e.target.value)} disabled={busy} /></label></p>
           <p><label>Your name as it should appear <input type="text" required value={author} onChange={e => setAuthor(e.target.value)} disabled={busy} /></label></p>
-          <div className="process-note-field">
-            <label htmlFor="process-note">Process Note</label>
-            <div className="process-note-toolbar" role="toolbar" aria-label="Process Note formatting">
-              <button type="button" className="app-button" onClick={() => markUp('bold')} disabled={busy}>Bold</button>
-              <button type="button" className="app-button" onClick={() => markUp('italic')} disabled={busy}>Italic</button>
-              <button type="button" className="app-button" onClick={() => markUp('link')} disabled={busy}>Link</button>
-              <button type="button" className="app-button" aria-pressed={previewing} onClick={() => setPreviewing(p => !p)} disabled={busy}>Preview</button>
-            </div>
-            {/* The preview shows below the box rather than replacing it, so the box stays in reach of `required`. */}
-            <textarea id="process-note" ref={noteBox} required maxLength={MAX_NOTE_CHARACTERS} rows={10} value={processNote}
-              onChange={e => setProcessNote(e.target.value)} disabled={busy} />
-            {/* The note is the poet's own Markdown, shown as the review page will show it. */}
-            {previewing && <div className="process-note-preview" aria-label="Process Note preview" role="region"
-              dangerouslySetInnerHTML={{ __html: renderPoetNote(processNote) }} />}
-          </div>
+          <NoteEditor id="process-note" label="Process Note" value={processNote} onChange={setProcessNote} disabled={busy} />
           <p><label>The poem, as a Midst file (.midst) <input type="file" accept=".midst" required onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={busy} /></label></p>
           {problem && problemAt === 'file' && <p role="alert" className="publisher-problem">{problem}</p>}
           <p><button type="submit" className="app-button" disabled={busy || !file}>{busy ? 'Sending…' : 'Submit poem'}</button></p>
@@ -162,11 +148,16 @@ function Submit(): ReactElement {
   return (
     <div className="app-account-page submit-page">
       <Helmet>
-        <title>{BASE_SITE_PAGE_TITLE} Submit a poem</title>
+        <title>{BASE_SITE_PAGE_TITLE} Submit</title>
       </Helmet>
       <section className="heroine heroine--normal">
-        <h2>Submit a poem</h2>
-        {content}
+        <SubmissionsText />
+        {content && (
+          <>
+            <h2>Submit a poem</h2>
+            {content}
+          </>
+        )}
       </section>
     </div>
   )

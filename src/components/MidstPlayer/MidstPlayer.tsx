@@ -10,7 +10,6 @@ import './player.css'
 import { installFonts } from '../../fonts'
 import { ensureLocale, i18n } from '../../i18n'
 import { LocaleContext } from '../../locale'
-import { setShowDraftMarkers, useShowDraftMarkers } from '../../draft-markers-preference'
 
 // Lato and Helvetica Neue for the player, wherever it is mounted (the site entry also calls this).
 installFonts()
@@ -19,7 +18,7 @@ ensureLocale()
 
 const MIN_FPS = 1
 const MAX_FPS = 60
-const DEFAULT_FPS = 1000 / 60
+const DEFAULT_FPS = 11 // the web player opens at 11 fps (Annelyse, GitHub #89; midst-web #327)
 const displayFPS = (fps: number) => String(Math.round(fps * 10) / 10)
 
 interface Props {
@@ -39,8 +38,10 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   const maxStep = Math.max(0, frames.length - 1)
   const canPlay = activePlayer && frames.length >= 2
   const markers = useMemo(() => draftMarkers(data, frames.length), [data, frames.length])
-  // The reader's show-or-hide choice, shared by every player on the page (#296).
-  const showMarkers = useShowDraftMarkers()
+  // Off by default. The switch shows them for this poem only, and only until the page is left or reloaded: nothing is
+  // remembered, and another poem starts with them off (Annelyse, GitHub #85; midst-web #324).
+  const [showMarkers, setShowMarkers] = useState(false)
+  useEffect(() => setShowMarkers(false), [data])
   // A label is centred over its marker, which would push one near either end of the timeline past
   // the end of the control bar. Slide only the label back inside; its pointer stays on the marker.
   const markerRow = useRef<HTMLDivElement | null>(null)
@@ -380,12 +381,21 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
               )}
             </div>
             {markers.length > 0 && (
-              // Shows or hides the draft markers in every poem, remembered in this browser (#296).
+              // Shows or hides this poem's draft markers (#324). Space never works it: once it has been clicked it keeps
+              // focus, and Space there plays and pauses like everywhere else in the player (GitHub #87; midst-web #325).
+              // Enter, and a click, still switch it.
               <button type="button" role="switch" aria-checked={showMarkers} className="control-button draft-markers-switch"
                 aria-label={i18n._('player.showDraftMarkers')} title={i18n._('player.showDraftMarkers')}
-                onClick={() => setShowDraftMarkers(!showMarkers)}>
+                onClick={() => setShowMarkers(!showMarkers)}
+                onKeyDown={event => {
+                  if (event.key !== ' ') return
+                  event.preventDefault() // a button clicks itself on Space's keyup unless its keydown is cancelled
+                  if (!canPlay || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+                  playPause()
+                }}>
+                {/* The editor's Bookmarks icon (Material Icons, @mui/icons-material, MIT), as the editor shows drafts. */}
                 <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M3 18h18M7 18V9M12 18V6M17 18v-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path fill="currentColor" d="m19 18 2 1V3c0-1.1-.9-2-2-2H8.99C7.89 1 7 1.9 7 3h10c1.1 0 2 .9 2 2zM15 5H5c-1.1 0-2 .9-2 2v16l7-3 7 3V7c0-1.1-.9-2-2-2" />
                 </svg>
               </button>
             )}

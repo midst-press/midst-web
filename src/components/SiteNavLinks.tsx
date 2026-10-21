@@ -12,6 +12,7 @@ function SiteNavLinks(): ReactElement {
     <div className={`nav-links-wrapper nav-links-wrapper--${wrapperClassName}`}>
       <NavLink to="/read">Read</NavLink>
       <NavLink to="/nominate">Nominate</NavLink>
+      <NavLink to="/submit">Submit</NavLink>
       <NavLink to="/app">App</NavLink>
       <NavLink to="/funding" style={{ fontSize: '26px' }}>$</NavLink>
       <NavLink

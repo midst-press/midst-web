@@ -27,9 +27,10 @@ export const decide = (call: Call, submissionId: string, decision: Decision, not
 export const waitingCount = (submissions: Pick<Submission, 'status'>[]): number =>
   submissions.filter(s => s.status === 'received').length
 
-/** The ids of the publisher's poems, published or not. A poem's id is the id of the submission it was made from. */
-export const poemIdsOf = (list: Pick<PublisherList, 'published' | 'unpublished'>): Set<string> =>
-  new Set([...list.published, ...list.unpublished].map(p => p.poemId))
+/** The ids of the publisher's poems, published, not published, or removed from the portal (#308): a removed poem was
+ *  made, so its submission must not be offered for finishing. A poem's id is the id of the submission it was made from. */
+export const poemIdsOf = (list: Pick<PublisherList, 'published' | 'unpublished' | 'removed'>): Set<string> =>
+  new Set([...list.published, ...list.unpublished].map(p => p.poemId).concat(list.removed ?? []))
 
 /** The poem list as the review page holds it: the ids, 'loading' while it is being read, or null when it could not be. */
 export type PoemIds = Set<string> | 'loading' | null
