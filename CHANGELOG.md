@@ -2,6 +2,8 @@
 
 - **An admin's group change sends the groups the page showed**, so once the API checks them (midst-infra #202), a
   change from a page loaded before another admin's is refused and the page shows the groups as they are.
+- **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview that
+  shows it as the poem page will. The review page shows each submission's note.
 - **The editor library is TipTap 3.32.0**, with midst-format 0.6.0. Nothing a reader sees changes.
 
 # 0.10.0
