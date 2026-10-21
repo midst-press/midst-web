@@ -1,6 +1,6 @@
 import { test, expect } from './coverage'
 import { Page } from '@playwright/test'
-import { published, unpublished, route, scope, pathOf, hermetic } from './published-sequence'
+import { opening, published, unpublished, route, scope, pathOf, hermetic } from './published-sequence'
 import { NO_POEM_HERE } from '../src/routes/Poem'
 
 // Previous and next poem (PoemNav.tsx). Midst-web #100, item 3. The risks: navigation that skips or
@@ -20,25 +20,25 @@ test('the sequence under test is the published poems, more than two of them', ()
 
 test('at the first poem: back goes nowhere, forward goes to the second', async ({ page, baseURL }) => {
   const seen = await hermetic(page, baseURL!)
-  await page.goto(route(published[0]))
+  await page.goto(route(opening[0]))
   await expect(back(page)).toHaveClass(/disabled/)
   await expect(back(page)).not.toHaveAttribute('href')
-  await expect(forward(page)).toHaveAttribute('href', route(published[1]))
+  await expect(forward(page)).toHaveAttribute('href', route(opening[1]))
 })
 
 test('at the last poem: forward goes nowhere, back goes to the one before', async ({ page, baseURL }) => {
   const seen = await hermetic(page, baseURL!)
-  const last = published.length - 1
-  await page.goto(route(published[last]))
+  const last = opening.length - 1
+  await page.goto(route(opening[last]))
   await expect(forward(page)).toHaveClass(/disabled/)
   await expect(forward(page)).not.toHaveAttribute('href')
-  await expect(back(page)).toHaveAttribute('href', route(published[last - 1]))
+  await expect(back(page)).toHaveAttribute('href', route(opening[last - 1]))
 })
 
 test('forward from the first poem and back from the last visits every published poem once, in order', async ({ page, baseURL }) => {
   const seen = await hermetic(page, baseURL!)
   test.setTimeout(300_000)
-  const expected = published.map(route)
+  const expected = opening.map(route)
 
   await page.goto(expected[0])
   const visited = [pathOf(page.url())]

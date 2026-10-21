@@ -2,7 +2,7 @@ import { Page } from '@playwright/test'
 import { test, expect } from './coverage'
 import { readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
-import { sortBy } from 'lodash'
+import { orderBy, sortBy } from 'lodash'
 import moment from 'moment'
 import { slugify } from 'voca'
 import names from '../src/poems/poem-names.js'
@@ -21,17 +21,29 @@ const records = readdirSync(poemsDir)
   .map(file => JSON.parse(readFileSync(join(poemsDir, file), 'utf8')))
 const hrefOf = (poem: { title: string }) => `/poem/${names.poemUrl(poem.title)}/`
 
-// What the reducer sorts on, derived the same way (src/store/reducer.ts, createPoem).
-const keyed = published.map((poem: any) => ({
-  href: hrefOf(poem),
-  authorId: names.authorId(poem.author),
-  slug: slugify(poem.title),
-  publishDate: moment(poem.publishDate).valueOf(),
-}))
-const expectedOrder = (term: 'authorId' | 'slug' | 'publishDate', order: 'ASC' | 'DESC') => {
-  const sorted = sortBy(keyed, term).map(poem => poem.href)
-  return order === 'DESC' ? sorted.reverse() : sorted
+// What the reducer sorts on, derived the same way (src/store/reducer.ts, createPoem and sortPoems): a date is
+// YYYY-MM-DD, parsed strictly, and a poem without one comes last in either order; ties keep list order, since only
+// the term is reversed.
+const keyed = published.map((poem: any, position: number) => {
+  const date = moment(typeof poem.publishDate === 'string' ? poem.publishDate : null, 'YYYY-MM-DD', true)
+  return {
+    href: hrefOf(poem),
+    id: poem.id as string,
+    authorId: names.authorId(poem.author),
+    slug: slugify(poem.title),
+    publishDate: date.isValid() ? date.valueOf() : null,
+    position,
+  }
+})
+const orderedBy = (term: 'authorId' | 'slug' | 'publishDate', order: 'ASC' | 'DESC') => {
+  const undated = term === 'publishDate' ? keyed.filter(poem => poem.publishDate === null) : []
+  const rest = term === 'publishDate' ? keyed.filter(poem => poem.publishDate !== null) : keyed
+  return [...orderBy(rest, [term, 'position'], [order === 'DESC' ? 'desc' : 'asc', 'asc']), ...sortBy(undated, 'position')]
 }
+const expectedOrder = (term: 'authorId' | 'slug' | 'publishDate', order: 'ASC' | 'DESC') =>
+  orderedBy(term, order).map(poem => poem.href)
+// The page opens newest first by publish date (midst-web #309).
+const opening = orderedBy('publishDate', 'DESC')
 
 async function listed(page: Page): Promise<string[]> {
   return page.locator('.table-of-contents a.poem-line').evaluateAll(links => links.map(a => a.getAttribute('href') || ''))
@@ -63,7 +75,7 @@ test.beforeEach(async ({ page, baseURL }) => {
   await expect(page.locator('.table-of-contents a.poem-line').first()).toBeVisible()
 })
 
-test('every published poem is listed once, in the editor\'s order, and links to its own page', async ({ page }) => {
+test('every published poem is listed once, newest first, and links to its own page', async ({ page }) => {
   // Controls on the data: there are unpublished records, some of them share an address with a published
   // poem (so the address cannot be the test of which record a row shows), and every published poem has
   // its own id (so the id can be).
@@ -77,36 +89,36 @@ test('every published poem is listed once, in the editor\'s order, and links to 
   expect(new Set(publishedIds).size).toBe(published.length)
   const unpublishedIds = unpublishedRecords.map(poem => poem.id).filter(Boolean)
 
-  // Which records are listed, by id: every published one, once, in the editor's order, and nothing else.
+  // Which records are listed, by id: every published one, once, newest first, and nothing else.
   const ids = await listedIds(page)
   expect(ids.length).toBe(published.length)
-  expect(positions(ids, publishedIds)).toEqual(inOrder(published.length))
+  expect(positions(ids, opening.map(poem => poem.id))).toEqual(inOrder(published.length))
   expect(ids.filter(id => unpublishedIds.includes(id)).length).toBe(0)
 
   // And each row links to that poem's own address.
   const hrefs = await listed(page)
-  expect(positions(hrefs, published.map(hrefOf))).toEqual(inOrder(published.length))
+  expect(positions(hrefs, opening.map(poem => poem.href))).toEqual(inOrder(published.length))
 })
 
 test('a listed poem opens its own page', async ({ page }) => {
-  // The page starts in the editor's order, which is the order of `published`.
+  // The page opens newest first: `opening`.
   const choice = Math.floor(published.length / 2)
   await page.locator('.table-of-contents a.poem-line').nth(choice).click()
   // Compared as a position in the list, so a failure prints a number, not the poem's address.
   const at = async () => {
     const path = decodeURI(new URL(page.url()).pathname)
     // Against the addresses the metadata says each poem has, not the links the page rendered.
-    return published.map(hrefOf).findIndex(href => decodeURI(href) === path || decodeURI(href) === `${path}/`)
+    return opening.map(poem => poem.href).findIndex(href => decodeURI(href) === path || decodeURI(href) === `${path}/`)
   }
   await expect.poll(at).toBe(choice)
 })
 
 for (const [column, term] of [['poem-author', 'authorId'], ['poem-title', 'slug'], ['poem-date', 'publishDate']] as const) {
   test(`the ${column.replace('poem-', '')} arrow sorts by ${term}, and a second press reverses it`, async ({ page }) => {
-    // The page starts with publishDate ascending as its sort state, so the date arrow's first press
-    // reverses; the other two set their term and keep ascending.
-    const first = term === 'publishDate' ? 'DESC' : 'ASC'
-    const second = first === 'ASC' ? 'DESC' : 'ASC'
+    // The page opens newest first, so the date arrow's first press reverses it to oldest first; the other two
+    // start their term A to Z. Either way the first press is ascending.
+    const first = 'ASC'
+    const second = 'DESC'
     const control = await arrow(page, column)
 
     await control.click()
