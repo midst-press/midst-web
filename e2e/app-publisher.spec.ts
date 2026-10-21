@@ -515,3 +515,23 @@ test('a publish starts from the replaced poem\'s date and highlight, and sends w
   expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: '2026-10-01', highlighted: false, replaces: 'id-1' }])
   await expect(published(page)).toHaveText(['Zq 2'])
 })
+
+// #305: when the poet last edited each poem, read-only, in both lists; nothing where it is not known.
+test('each poem shows when the poet last edited it, where that is known', async ({ page, baseURL }) => {
+  const at = '2021-01-07T08:00:00.000Z'
+  const store: Store = {
+    etag: 1, writes: [],
+    published: [{ ...poem(1), lastEdited: at } as ReturnType<typeof poem>, poem(2)],
+    unpublished: [{ ...poem(3), lastEdited: '2026-09-30T12:00:00.000Z' } as ReturnType<typeof poem>],
+  }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const day = (iso: string) => page.evaluate(value => new Date(value).toLocaleDateString(), iso)
+  const item = (list: string, title: string) => page.getByRole('list', { name: list }).getByRole('listitem').filter({ hasText: title })
+  await expect(item('Published poems', 'Zq 1')).toContainText(`by Qz 1, last edited ${await day(at)}`)
+  await expect(item('Poems not published', 'Zq 3')).toContainText(`by Qz 3, last edited ${await day('2026-09-30T12:00:00.000Z')}`)
+  await expect(item('Published poems', 'Zq 2')).not.toContainText('last edited')
+  // Shown, never sent: nothing on the page edits it.
+  expect(store.writes).toEqual([])
+})

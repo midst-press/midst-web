@@ -13,6 +13,16 @@ export interface Poem {
   processNoteKey: string | null
   publishDate: string | null
   highlighted: boolean
+  /** When the poet last edited it, an ISO instant (#305; midst-infra #208): in `GET /publisher/poems` only, null when
+   *  unknown, absent from a list change's answer and from an API before that. Shown on this page, never on the site. */
+  lastEdited?: string | null
+}
+
+/** "last edited <date>" in the reader's own format, or null when it is not known. */
+export const lastEditedWords = (lastEdited: string | null | undefined): string | null => {
+  if (typeof lastEdited !== 'string') return null
+  const when = new Date(lastEdited)
+  return Number.isNaN(when.getTime()) ? null : `last edited ${when.toLocaleDateString()}`
 }
 
 export interface PublisherList {
