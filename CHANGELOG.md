@@ -1,7 +1,10 @@
-# 0.12.0
+# 0.13.0
 
 - **A poem's address under /read opens the poem.** `/read/<poem>` goes to the poem's page, the same full player the
   Table of Contents opens; it used to show a blank page.
+
+# 0.12.0
+
 - **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
   review page shows each submission's note.
 
