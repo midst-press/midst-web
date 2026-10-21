@@ -33,13 +33,13 @@ describe('the calls', () => {
   it('use the contract’s routes, methods and bodies, each carrying the listEtag', async () => {
     const call = jest.fn(async () => ({})) as unknown as Call & jest.Mock
     await loadList(call)
-    await publish(call, 'p1', 'e1')
+    await publish(call, 'p1', 'e1', { publishDate: '2026-10-21', highlighted: false })
     await unpublish(call, 'p1', 'e2')
     await saveOrder(call, ['p2', 'p1'], 'e3')
     await saveDetails(call, 'p/1', { publishDate: '2026-10-20', highlighted: true }, 'e4')
     expect(call.mock.calls).toEqual([
       ['/publisher/poems'],
-      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1' } }],
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false } }],
       ['/publisher/unpublish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e2' } }],
       ['/publisher/order', { method: 'PUT', body: { poemIds: ['p2', 'p1'], listEtag: 'e3' } }],
       ['/publisher/poems/p%2F1', { method: 'PUT', body: { publishDate: '2026-10-20', highlighted: true, listEtag: 'e4' } }],
@@ -50,13 +50,13 @@ describe('the calls', () => {
 describe('publish with a poem it replaces (#101; midst-infra #190)', () => {
   it('sends replaces when one is named, and no replaces key when none is', async () => {
     const call = jest.fn(async () => ({})) as unknown as Call & jest.Mock
-    await publish(call, 'p1', 'e1', 'p0')
-    await publish(call, 'p1', 'e1', undefined)
-    await publish(call, 'p1', 'e1', '')
+    await publish(call, 'p1', 'e1', { publishDate: '2026-10-21', highlighted: false }, 'p0')
+    await publish(call, 'p1', 'e1', { publishDate: '2026-10-21', highlighted: false }, undefined)
+    await publish(call, 'p1', 'e1', { publishDate: '2026-10-21', highlighted: false }, '')
     expect(call.mock.calls).toEqual([
-      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', replaces: 'p0' } }],
-      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1' } }],
-      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1' } }],
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false, replaces: 'p0' } }],
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false } }],
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false } }],
     ])
     for (const [, init] of call.mock.calls.slice(1)) expect(Object.keys(init.body)).not.toContain('replaces')
   })

@@ -37,12 +37,25 @@ export interface ListChange {
   edgeCleared?: boolean
 }
 
+/** The date the Table of Contents shows and the highlight, set when publishing (#305). */
+export interface PublishDetails { publishDate: string, highlighted: boolean }
+
 /** `replaces` names the published poem this one replaces (midst-infra #190); the key is sent only when there is one. */
-export const publish = (call: Call, poemId: string, listEtag: string, replaces?: string) =>
-  call<ListChange>('/publisher/publish', { method: 'POST', body: replaces ? { poemId, listEtag, replaces } : { poemId, listEtag } })
+export const publish = (call: Call, poemId: string, listEtag: string, details: PublishDetails, replaces?: string) =>
+  call<ListChange>('/publisher/publish', { method: 'POST', body: { poemId, listEtag, ...details, ...(replaces ? { replaces } : {}) } })
 
 export const unpublish = (call: Call, poemId: string, listEtag: string) =>
   call<ListChange>('/publisher/unpublish', { method: 'POST', body: { poemId, listEtag } })
+
+/** A draft poem's process note and the version to save it on (#312); both null for a poem with no note. */
+export interface DraftNote { processNote: string | null, noteVersion: string | null }
+
+export const readNote = (call: Call, poemId: string) =>
+  call<DraftNote>(`/publisher/poems/${encodeURIComponent(poemId)}/process-note`)
+
+/** Save an edit, on the version it was loaded at. Refused while the poem is published. */
+export const saveNote = (call: Call, poemId: string, processNote: string, noteVersion: string | null) =>
+  call<DraftNote>(`/publisher/poems/${encodeURIComponent(poemId)}/process-note`, { method: 'PUT', body: { processNote, noteVersion } })
 
 /** Whether a change's answer says withdrawn copies were left in CloudFront's cache. Only an explicit false: an
  *  answer with no field withdrew nothing. */

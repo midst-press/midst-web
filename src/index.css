@@ -37,6 +37,11 @@ q:before, q:after {
 	outline: 0;
 }
 
+:focus-visible {
+	outline: 2px solid #690000;
+	outline-offset: 2px;
+}
+
 /* remember to highlight inserts somehow! */
 ins {
 	text-decoration: none;
