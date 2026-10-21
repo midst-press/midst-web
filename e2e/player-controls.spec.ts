@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test'
 import { test, expect } from './coverage'
+import { showDraftMarkers } from './draft-markers-on'
 
 const player = '#player-options-control'
 const options = { activePlayer: true, cursorFollowing: false, hasScrollbar: true }
@@ -495,6 +496,7 @@ for (const width of [600, 1024]) {
     data.meta.editorDraftMarkers.forEach(marker => { marker.name = 'zq '.repeat(60).trim() })
     await mount(page, data)
     const root = page.locator(player)
+    await showDraftMarkers(root)
     await root.getByRole('button', { name: 'Playback speed' }).click()
     const bounds = await root.locator('.controls').boundingBox()
     const cluster = await root.locator('.playback-controls').boundingBox()
