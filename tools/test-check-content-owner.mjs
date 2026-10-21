@@ -76,6 +76,30 @@ test("staged: in her own clone (midst.contentOwner true) her change passes", t =
   assert.equal(stagedAllowed(root), true)
 })
 
+test("staged: putting main's content/ back after a commit that changed it passes", t => {
+  const { root, run, write, commit } = repo(t)
+  run('update-ref', 'refs/remotes/origin/main', 'main')
+  run('switch', '-q', '-c', 'work')
+  write('content/submit.md', 'Our words.\n')
+  commit('oops, made without the hook')
+  write('content/submit.md', 'Her words.\n')
+  run('add', 'content')
+  assert.equal(stagedAllowed(root), true, 'back to main')
+  write('content/submit.md', 'Other words.\n')
+  run('add', 'content')
+  assert.equal(stagedAllowed(root), false, 'neither HEAD nor main')
+})
+
+test("staged: without origin/main, only HEAD's content/ passes", t => {
+  const { root, run, write, commit } = repo(t)
+  run('switch', '-q', '-c', 'work')
+  write('content/submit.md', 'Our words.\n')
+  commit('oops, made without the hook')
+  write('content/submit.md', 'Her words.\n')
+  run('add', 'content')
+  assert.equal(stagedAllowed(root), false)
+})
+
 test('staged: an edit to content/ in the working tree that is not staged passes', t => {
   const { root, write } = repo(t)
   write('content/submit.md', 'Our words.\n')

@@ -6,7 +6,8 @@
 //   node tools/check-content-owner.mjs --range <base> <head> <head-ref> a pull request (CI)
 //
 // --staged: the index's content/ must equal HEAD's, or MERGE_HEAD's while a merge is being committed (a merge of
-// main that brings her text in). --range: the head's content/ must equal content/ at some commit of <base>'s
+// main that brings her text in), or origin/main's at some commit since this branch's merge base with it (putting
+// her text back after a commit that changed it). --range: the head's content/ must equal content/ at some commit of <base>'s
 // first-parent history back to the merge base, so a branch that merged main in passes. A head ref of github-main
 // passes: that is the return path. While HEAD (or <base>) has no content/ at all, anything passes: the change that
 // creates the folder. In a clone where midst.contentOwner is true (hers), --staged passes everything.
@@ -20,6 +21,7 @@ import { spawnSync } from 'node:child_process'
 import { isMain } from './is-main.mjs'
 
 export const RETURN_PATH_BRANCH = 'github-main'
+const MAIN_REF = 'origin/main'
 const ABSENT = 'absent'
 
 const REFUSAL =
@@ -59,7 +61,17 @@ export function stagedAllowed(cwd) {
   const ok = [contentTree(cwd, 'HEAD')]
   if (ok[0] === ABSENT) return true
   if (git(cwd, ['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'], { allowFail: true })) ok.push(contentTree(cwd, 'MERGE_HEAD'))
+  // Main's content/ since this branch left it, as --range allows: so putting her text back after a commit that
+  // changed it is never refused. Only where this clone has origin/main.
+  if (git(cwd, ['rev-parse', '--verify', '--quiet', `${MAIN_REF}^{commit}`], { allowFail: true })) ok.push(...mainTrees(cwd, MAIN_REF, 'HEAD'))
   return ok.includes(stagedContentTree(cwd))
+}
+
+/** content/ at each commit of `base`'s first-parent history back to its merge base with `head`, inclusive. */
+function mainTrees(cwd, base, head) {
+  const mergeBase = git(cwd, ['merge-base', base, head])
+  const history = git(cwd, ['rev-list', '--first-parent', `${mergeBase}..${base}`]).split('\n').filter(Boolean)
+  return [...history, mergeBase].map(rev => contentTree(cwd, rev))
 }
 
 /** Whether a pull request from `headRef` at `head` into `base` may have the content/ it has. */
@@ -69,9 +81,7 @@ export function rangeAllowed(cwd, base, head, headRef) {
   if (baseTree === ABSENT) return true
   const headTree = contentTree(cwd, head)
   if (headTree === baseTree) return true
-  const mergeBase = git(cwd, ['merge-base', base, head])
-  const history = git(cwd, ['rev-list', '--first-parent', `${mergeBase}..${base}`]).split('\n').filter(Boolean)
-  return [...history, mergeBase].some(rev => contentTree(cwd, rev) === headTree)
+  return mainTrees(cwd, base, head).includes(headTree)
 }
 
 export function main(argv, cwd = process.cwd()) {
