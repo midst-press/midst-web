@@ -7,7 +7,7 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
 import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
-import { MAX_NOTE_CHARACTERS, Markup, applyMarkup, renderProcessNote } from '../processNote'
+import { MAX_NOTE_CHARACTERS, Markup, applyMarkup, renderPoetNote } from '../processNote'
 
 // The poet's page (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21): send a poem as a .midst
 // file, and see where each submission stands. A prototype; the wording is Annelyse's to choose.
@@ -134,9 +134,9 @@ function Submit(): ReactElement {
             {/* The preview shows below the box rather than replacing it, so the box stays in reach of `required`. */}
             <textarea id="process-note" ref={noteBox} required maxLength={MAX_NOTE_CHARACTERS} rows={10} value={processNote}
               onChange={e => setProcessNote(e.target.value)} disabled={busy} />
-            {/* The note is the poet's own Markdown, shown through the same sanitiser as the poem page. */}
+            {/* The note is the poet's own Markdown, shown as the review page will show it. */}
             {previewing && <div className="process-note-preview" aria-label="Process Note preview" role="region"
-              dangerouslySetInnerHTML={{ __html: renderProcessNote(processNote) }} />}
+              dangerouslySetInnerHTML={{ __html: renderPoetNote(processNote) }} />}
           </div>
           <p><label>The poem, as a Midst file (.midst) <input type="file" accept=".midst" required onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={busy} /></label></p>
           {problem && problemAt === 'file' && <p role="alert" className="publisher-problem">{problem}</p>}

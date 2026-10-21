@@ -1,4 +1,4 @@
-import { MAX_NOTE_CHARACTERS, applyMarkup, renderProcessNote } from '../processNote'
+import { MAX_NOTE_CHARACTERS, applyMarkup, renderPoetNote, renderProcessNote } from '../processNote'
 
 // The process note (#292): the Markdown buttons, and the one rendering the poem page, the review page and the preview share.
 
@@ -42,6 +42,27 @@ describe('renderProcessNote', () => {
     const html = renderProcessNote('<script>x()</script><p onclick="x()">zq</p>\n\n[a](javascript:x())')
     expect(html).not.toContain('<script')
     expect(html).not.toContain('onclick')
+    expect(html).not.toContain('javascript:')
+  })
+})
+
+describe('renderPoetNote', () => {
+  it('keeps what the form\'s buttons make', () => {
+    expect(renderPoetNote('Zq **xv**\n\n*vb* [qz](https://example.invalid/)')).toBe(renderProcessNote('Zq **xv**\n\n*vb* [qz](https://example.invalid/)'))
+  })
+
+  it('drops img and iframe, which load another server\'s content for whoever reads the note (review of #314)', () => {
+    const html = renderPoetNote('<img src="https://example.invalid/t.png"><iframe src="https://example.invalid/"></iframe>\n\n![zq](https://example.invalid/t.png)')
+    expect(html).not.toContain('<img')
+    expect(html).not.toContain('<iframe')
+    // The archive's list still has both, for the poem page's existing notes.
+    expect(renderProcessNote('<img src="https://example.invalid/t.png">')).toContain('<img')
+  })
+
+  it('keeps a link\'s address only, and no other scheme', () => {
+    const html = renderPoetNote('<a href="https://example.invalid/" target="_blank" title="zq">xv</a>\n\n[vb](javascript:x())')
+    expect(html).toContain('<a href="https://example.invalid/">xv</a>')
+    expect(html).not.toContain('target')
     expect(html).not.toContain('javascript:')
   })
 })

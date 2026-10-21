@@ -4,8 +4,6 @@ import { parseMidstFile } from './midst-file'
 import { ArchiveError, describeCause, readFirstEntry } from '../archive'
 import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
 import { AnyAction } from 'redux'
-// TODO: Type def file
-//@ts-ignore
 import { renderProcessNote } from '../processNote'
 import {
   LOAD_POEM_DATA,

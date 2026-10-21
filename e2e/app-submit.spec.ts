@@ -110,6 +110,7 @@ test('Bold, Italic and Link wrap the selection, and Preview shows the note as th
   await expect(preview.locator('em')).toHaveText('vb')
   await expect(preview.locator('a')).toHaveAttribute('href', 'https://example.invalid/')
   await expect(preview.locator('script')).toHaveCount(0)
+  await expect(preview.locator('img')).toHaveCount(0)
   await page.getByRole('button', { name: 'Preview' }).click()
   await expect(preview).toHaveCount(0)
 })

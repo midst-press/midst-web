@@ -9,7 +9,7 @@ import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor, loadList } from '../app/publisher'
 import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
 import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, processNoteOf, reviewSubmissions, timelapseTicket } from '../app/review'
-import { renderProcessNote } from '../processNote'
+import { renderPoetNote } from '../processNote'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 
@@ -164,16 +164,16 @@ function Review(): ReactElement {
           <ul className="publisher-list" aria-label="Submissions">
             {submissions.map(s => (
               <li key={s.submissionId}>
-                <span className="publisher-poem">
+                <div className="publisher-poem">
                   <strong>{s.title}</strong> <span className="publisher-author">{reviewByline(s)}</span>
                   <br />
                   {STATUS_WORDS[s.status]}{s.note ? `: ${s.note}` : ''}
                   {s.submissionId in processNotes && (processNotes[s.submissionId] === null
-                    ? <span className="review-process-note">No process note.</span>
-                    // The poet's Markdown, through the same sanitiser as the poem page.
-                    : <span className="review-process-note" role="region" aria-label={`Process note for ${s.title}`}
-                      dangerouslySetInnerHTML={{ __html: renderProcessNote(processNotes[s.submissionId] as string) }} />)}
-                </span>
+                    ? <div className="review-process-note">No process note.</div>
+                    // The poet's Markdown, with the narrow list: this page holds a publisher's session.
+                    : <div className="review-process-note" role="region" aria-label={`Process note for ${s.title}`}
+                      dangerouslySetInnerHTML={{ __html: renderPoetNote(processNotes[s.submissionId] as string) }} />)}
+                </div>
                 <span className="publisher-actions">
                   {/* An upload that never completed has no review copy to play, and nor does an archive record. */}
                   {canPlay(s) && <button type="button" disabled={busy} onClick={event => play(s, event.currentTarget)} aria-label={`Play ${s.title}`}>Play</button>}

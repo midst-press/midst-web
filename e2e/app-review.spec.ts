@@ -351,7 +351,7 @@ test('when the poem list cannot be loaded, Finish accepting is disabled and says
 test('Process note shows the poet\'s note rendered and sanitised, says when there is none, and hides again (#292)', async ({ page, baseURL }) => {
   const store: Store = {
     submissions: [submission(2), submission(1)], decisions: [], listReads: 0,
-    processNotes: { 'sub-2': 'Zq **xv**\n\n<script>window.ran = 1</script>[vb](javascript:alert(1))' },
+    processNotes: { 'sub-2': 'Zq **xv**\n\n<iframe src="https://example.invalid/"></iframe><script>window.ran = 1</script>[vb](javascript:alert(1))' },
   }
   await signedInAs(page, ['publisher'])
   await standIn(page, baseURL!, store)
@@ -360,6 +360,7 @@ test('Process note shows the poet\'s note rendered and sanitised, says when ther
   const note = page.getByRole('region', { name: 'Process note for Zq 2' })
   await expect(note.locator('strong')).toHaveText('xv')
   await expect(note.locator('script')).toHaveCount(0)
+  await expect(note.locator('iframe')).toHaveCount(0)
   // The link may stay as words; it must never be a link.
   await expect(note.locator('a[href^="javascript"]')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { ran?: number }).ran)).toBeUndefined()

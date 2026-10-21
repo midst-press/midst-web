@@ -1,17 +1,29 @@
 /*
- * A process note (#292): the poet's Markdown, written in the submit form and shown on the poem page, the review page and
- * the form's own preview. All three render it here, so a poet's preview is what readers will see.
+ * A process note (#292): Markdown, rendered here for the poem page, the review page and the submit form's preview. A
+ * poet's note from the form is rendered with the narrow list wherever someone else reads it.
  */
 import marked from 'marked'
 // TODO: Type def file
 //@ts-ignore
 import insane from 'insane'
 
-// The tags a note may use. insane's default schemes (http, https, mailto) and attributes apply.
+// The tags a published note may use, from the archive's notes. insane's default schemes (http, https, mailto) and
+// attributes apply.
 export const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']
+
+// A note a poet wrote in the submit form, wherever someone else reads it (#292; cora-2f1e43dc, review of #314): no
+// iframe, which could put another site's page (a fake sign-in) inside the publisher's signed-in review page, and no
+// img, which would tell another server who opened it and when. What the form's buttons make, and line breaks. A link
+// keeps only its address.
+export const POET_NOTE_TAGS = ['p', 'em', 'strong', 'i', 'b', 'a', 'br']
+const POET_NOTE_ATTRIBUTES = { a: ['href'] }
 
 /** A note's Markdown as the sanitised HTML the poem page shows. */
 export const renderProcessNote = (markdown: string): string => insane(marked(markdown), { allowedTags: NOTE_TAGS })
+
+/** A poet's note from the submit form, as the review page and the form's preview show it. */
+export const renderPoetNote = (markdown: string): string =>
+  insane(marked(markdown), { allowedTags: POET_NOTE_TAGS, allowedAttributes: POET_NOTE_ATTRIBUTES, allowedSchemes: ['http', 'https', 'mailto'] })
 
 // The most the API accepts (docs/app-api.md, POST /submissions), counted as a textarea's maxlength counts.
 export const MAX_NOTE_CHARACTERS = 20000
