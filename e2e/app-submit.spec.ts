@@ -1,5 +1,6 @@
 import { Page, Route } from '@playwright/test'
 import { test, expect } from './coverage'
+import { SUBMIT_TEXT, renderContent } from '../src/content'
 
 // The poet's page (docs/app-api.md, "Poet"; #110) against stand-ins for the API and for the bucket the
 // file is uploaded to. Synthetic poems, files and people only.
@@ -244,21 +245,31 @@ test('someone who is not a poet is told so, and nothing is asked for', async ({ 
 })
 
 // #326 (Annelyse, GitHub #88): the Submit page is her text, for everyone, in the main nav; the form is for signed-in poets.
-test('anyone reading Submit sees her text, its links to the app and the newsletter, and no form', async ({ page, baseURL }) => {
+// Her text is content/submit.md (#281), hers to change on GitHub, so the page is compared with what that file renders
+// to rather than with her words: an edit of hers must not turn this red when the return path brings it in.
+test('anyone reading Submit sees her text from content/, and no form', async ({ page, baseURL }) => {
   await standIn(page, baseURL!, { submissions: [], uploaded: [] })
   await page.goto('/')
   await page.locator('.nav-links-wrapper').getByRole('link', { name: 'Submit', exact: true }).click()
   await expect(page).toHaveURL(/\/submit$/)
   const text = page.locator('.submit-text')
-  await expect(text).toContainText('Midst is currently closed to submissions.')
-  await expect(text.locator('strong')).toHaveText('closed')
-  await expect(text.locator('em')).toHaveText('only')
-  await expect(text.getByRole('link', { name: 'the Midst app' })).toHaveAttribute('href', '/app')
-  await expect(text.getByRole('link', { name: 'Download it here' })).toHaveAttribute('href', '/app')
-  await expect(text.getByRole('link', { name: 'Sign up to our newsletter' })).toHaveAttribute('href', '#newsletter')
+  expect(SUBMIT_TEXT.trim()).not.toBe('')
+  expect(await text.innerHTML()).toBe(renderContent(SUBMIT_TEXT))
   await expect(page.locator('#newsletter .campaign-monitor-form')).toHaveCount(1)
   await expect(page.locator('form.submit-form')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+})
+
+test("a link in her text to one of the site's pages goes through the router, without reloading the site", async ({ page, baseURL }) => {
+  await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+  await page.goto('/submit')
+  const own = page.locator('.submit-text a[href^="/"]:not([href^="//"])')
+  test.skip((await own.count()) === 0, "her text has no link to one of the site's own pages just now")
+  const href = await own.first().getAttribute('href')
+  await page.evaluate(() => { (window as unknown as { zqStayed: boolean }).zqStayed = true })
+  await own.first().click()
+  await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  expect(await page.evaluate(() => (window as unknown as { zqStayed?: boolean }).zqStayed)).toBe(true)
 })
 
 test('a signed-in poet sees her text first and the form under it', async ({ page, baseURL }) => {

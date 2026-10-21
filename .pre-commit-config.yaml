@@ -104,6 +104,18 @@ repos:
         entry: node --test tools/test-still-head.mjs
         pass_filenames: false
         files: '^(\.gitea/scripts/still_head\.sh|tools/test-still-head\.mjs)$'
+      - id: content-owner
+        name: content/ is Annelyse's; only the return path changes it (#281)
+        language: system
+        entry: node tools/check-content-owner.mjs --staged
+        pass_filenames: false
+        always_run: true
+      - id: content-owner-self-test
+        name: the content/ guard refuses what it should and passes the return path
+        language: system
+        entry: node --test tools/test-check-content-owner.mjs
+        pass_filenames: false
+        files: '^tools/(test-)?check-content-owner\.mjs$'
       - id: forbid-poem-data
         name: poem data must never be committed
         language: fail

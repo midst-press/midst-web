@@ -1,0 +1,43 @@
+# content/ is Annelyse's (#281): a pull request may change it only if it is the return path's, from github-main
+# (midst-infra tools/return_path.sh). The pre-commit hook catches the same mistake at commit time; this catches a
+# commit made without the hook, or a branch pushed from somewhere else.
+#
+# Its own workflow, not a step of ci.yml, so it runs on every pull request event without the build and the tests.
+# Only a push allowlist on github-main stops someone naming their branch that; the guard is for the honest mistake.
+name: content-owner
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+concurrency:
+  group: content-owner-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: /opt/homebrew/bin/bash -eo pipefail {0}
+jobs:
+  check:
+    runs-on: stuart-m3ultra-canary
+    steps:
+      - name: Homebrew first on PATH
+        run: |
+          echo /opt/homebrew/sbin >> "$GITHUB_PATH"
+          echo /opt/homebrew/bin >> "$GITHUB_PATH"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the merge base and main's history since it
+      - name: the guard's own tests (a pass below means nothing if they fail)
+        run: node --test tools/test-check-content-owner.mjs
+      - name: content/ is unchanged by this pull request, or this is the return path
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+        # Against the base branch as it is now: a branch that merged main in carries her newer text, and passes.
+        run: |
+          if [ -z "$HEAD_REF" ]; then
+            echo "no head ref for this pull request, so the return path cannot be told from any other branch" >&2
+            exit 1
+          fi
+          node tools/check-content-owner.mjs --range "origin/$BASE_REF" "$HEAD_SHA" "$HEAD_REF"
