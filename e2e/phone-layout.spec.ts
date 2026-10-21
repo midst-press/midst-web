@@ -63,9 +63,10 @@ async function openPoem(page: Page, viewport: { width: number, height: number })
   if (viewport.width < 600) await page.locator('.window-size-popup').click()
   const player = page.locator(scope)
   await expect(player.locator('.editable p')).toHaveCount(3)
-  await showDraftMarkers(player)
   // The poems slide into place (.sliding-poems__frame, a 250ms transition); measure once this one has arrived.
   await expect.poll(() => player.evaluate(el => el.getBoundingClientRect().left)).toBe(0)
+  // Only then turn its markers on (#324): a click while the poems are still sliding can land on the wrong one.
+  await showDraftMarkers(player)
   await page.waitForTimeout(300)
   return player
 }
