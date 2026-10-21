@@ -1,8 +1,3 @@
-# 0.15.0
-
-- **The publisher page shows when the poet last edited each poem**: the end of its timelapse, read-only. The site
-  does not show it.
-
 # 0.14.0
 
 - **The publisher can edit an unpublished poem's process note**, to house style, with the same buttons and Preview
