@@ -52,9 +52,16 @@ test.describe('the published list', () => {
     expect(entries.filter(entry => entry.processNote === null)).toHaveLength(1)
   })
 
-  test('the Table of Contents lists the poems in the list\'s order, fetching the list once', async ({ page }) => {
+  test('the Table of Contents lists the list\'s poems newest first, fetching the list once', async ({ page }) => {
+    // The page sorts by publish date, newest first (midst-web #309). Served with dates that make the list's own
+    // order newest first, and so differ from the bundled poems' dates (the next test), the order on the page can
+    // only have come from the list.
+    const entries = published().map((entry, i) => ({ ...entry, publishDate: `2030-01-${String(20 - i).padStart(2, '0')}` }))
+    await page.route('**' + LIST_PATH, route => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ version: 1, poems: entries }),
+    }))
     await page.goto('/read')
-    const expected = published().map(routeOf)
+    const expected = entries.map(routeOf)
     const links = page.locator('a.poem-line')
     await expect(links).toHaveCount(expected.length)
     expect(await links.evaluateAll(anchors => anchors.map(anchor => new URL((anchor as HTMLAnchorElement).href).pathname))).toEqual(expected)
@@ -63,13 +70,17 @@ test.describe('the published list', () => {
   })
 
   test('the list\'s order is not the bundle\'s', () => {
-    // Guards the premise of the test above: if the fixtures listed the poems in an order a bundled site
-    // also produces, that test could pass without the list being read at all.
+    // Guards the premise of the test above: if a bundled site opened on the same order, newest first by the
+    // poems' own dates, that test could pass without the list being read at all.
     const listed = published().map(entry => entry.poemId)
     const bundled = ['Margaret_Yapp', 'Madeleine_Mori', 'Jared_Harél', 'Mónica_de_la_Torre']
-      .map(file => JSON.parse(readFileSync(join(__dirname, '..', 'src', 'poems', `${file}.json`), 'utf8')).id)
-    expect(listed).not.toEqual(bundled)
-    expect([...listed].sort()).toEqual([...bundled].sort())
+      .map(file => JSON.parse(readFileSync(join(__dirname, '..', 'src', 'poems', `${file}.json`), 'utf8')))
+    const bundledNewestFirst = bundled
+      .map((poem, position) => ({ id: poem.id, date: String(poem.publishDate ?? ''), position }))
+      .sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : x.position - y.position))
+      .map(poem => poem.id)
+    expect(listed).not.toEqual(bundledNewestFirst)
+    expect([...listed].sort()).toEqual(bundled.map(poem => poem.id).sort())
   })
 
   test('a poem plays through its recorded key, and asks for nothing derived', async ({ page }) => {
