@@ -299,6 +299,13 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
           <input type="range" aria-label={i18n._('player.timeline')} aria-valuetext={labelText ?? undefined} className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
+            onKeyDown={event => {
+              // Scrubbing leaves this range focused; its controls bar stops the document shortcut.
+              if (!canPlay || event.key !== ' ' || event.repeat || event.defaultPrevented) return
+              if (event.altKey || event.ctrlKey || event.metaKey) return
+              event.preventDefault()
+              playPause()
+            }}
             onChange={event => seekTo(Number(event.target.value))} />
             <div className="draft-markers" ref={markerRow}>
               {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"

@@ -2,6 +2,8 @@
 
 - **A poem can be published as the replacement for one of its poet's published poems.** The old one leaves the
   list, and links to it lead to the new one.
+- **Space plays and pauses after dragging the timeline.** Scrubbing no longer swallows the spacebar; the playhead
+  keeps focus and Space toggles playback as it does everywhere else.
 
 # 0.9.0
 
