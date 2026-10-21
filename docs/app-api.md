@@ -78,12 +78,16 @@ A 429 means wait and try again.
   "timelapseKey": "poems/3f6c2b1e-8a4d-4c55-9b0e-2d7a1c9e4f10/timelapse.midst.zip",
   "processNoteKey": null,
   "publishDate": "2026-10-20",
-  "highlighted": false
+  "highlighted": false,
+  "lastEdited": "2026-10-19T21:14:03.512Z"
 }
 ```
 
 `poemId` is the opaque id minted when a submission arrives (#41). Names never appear in a key; keys are
 recorded, not derived. `publishDate` and `highlighted` are `null` / `false` until the publisher sets them.
+`lastEdited` is when the poet last edited the poem: the latest time in its timelapse, recorded when it is accepted
+(#305; midst-infra #208). Only `GET /publisher/poems` carries it, `null` where it is not known. The publisher's page
+shows it and nothing sets it; it is never written to the published list, so the site never shows it.
 
 A list entry also carries `firstPublishedAt`, the ISO time of the poem's first publication. It is kept across an
 unpublish and a republish, and a revision takes it over from the version it replaces (midst-infra #83). Entries
