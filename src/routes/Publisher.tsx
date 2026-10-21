@@ -6,12 +6,12 @@ import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
+import ReplacesChoice, { publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
 import {
-  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder,
-  unpublish,
+  Call, Poem, PublisherList, callerFor, leftInCache, loadList, moved, orderChanged, saveDetails, saveOrder, unpublish,
 } from '../app/publisher'
 
 // The publisher's page (docs/app-api.md, "Publisher"; #12, #110): publish, unpublish, reorder, and set a
@@ -39,6 +39,8 @@ function Publisher(): ReactElement {
   const [dragging, setDragging] = useState<number | null>(null)
   // Bumped on every failed change, so fields typed into are remade from the server's values (see the date input).
   const [failures, setFailures] = useState(0)
+  // For each unpublished poem, the published poem it is to replace, if one was chosen.
+  const [replacing, setReplacing] = useState<Record<string, string>>({})
   // Submissions waiting on the review page (#289); null until read, or when they could not be.
   const [waiting, setWaiting] = useState<number | null>(null)
 
@@ -136,7 +138,10 @@ function Publisher(): ReactElement {
               <li key={poem.poemId}>
                 <PoemLine poem={poem} />
                 <span className="publisher-actions">
-                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publish(c, poem.poemId, etag), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
+                  <ReplacesChoice poem={poem} published={list.published} value={replacing[poem.poemId] ?? ''} disabled={busy || reordered}
+                    onChange={poemId => setReplacing(chosen => ({ ...chosen, [poem.poemId]: poemId }))} />
+                  <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => publishWithChoice(c, etag, poem, list.published, replacing[poem.poemId],
+                    poemId => setReplacing(({ [poemId]: _done, ...rest }) => rest)), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
                     Publish
                   </button>
                 </span>
