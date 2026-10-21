@@ -2,6 +2,8 @@
 
 - **The publisher can edit an unpublished poem's process note**, to house style, with the same buttons and Preview
   as the submit form. The poet's own note is kept.
+- **The publisher can remove an unpublished poem from the portal.** It asks first. The poem is no longer listed and
+  can't be published from the portal again; nothing is deleted.
 
 # 0.13.0
 

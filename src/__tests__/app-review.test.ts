@@ -56,6 +56,9 @@ describe('needsFinishing', () => {
   it('does not offer it when the poem is unpublished or published', () => {
     expect(needsFinishing(sub('accepted'), new Set(['sub-1']))).toEqual({ offer: false })
     expect(needsFinishing(sub('accepted'), poemIdsOf({ published: [poem('sub-1')], unpublished: [] }))).toEqual({ offer: false })
+    // Removed from the portal (#308): made, so not offered; an API without the field still works.
+    expect(needsFinishing(sub('accepted'), poemIdsOf({ published: [], unpublished: [], removed: ['sub-1'] }))).toEqual({ offer: false })
+    expect(needsFinishing(sub('accepted'), poemIdsOf({ published: [], unpublished: [] }))).toEqual({ offer: true, enabled: true })
   })
 
   it.each(['published', 'received', 'declined', 'uploading'])('does not offer it for status %s', status => {
