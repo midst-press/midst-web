@@ -1,7 +1,12 @@
-# 0.13.0
+# 0.14.0
 
 - **The publisher can edit an unpublished poem's process note**, to house style, with the same buttons and Preview
   as the submit form. The poet's own note is kept.
+
+# 0.13.0
+
+- **A poem is published with its date and highlight**, set beside the Publish button: the date starts as today, or
+  as the date of the poem it replaces, and either can be changed before publishing.
 
 # 0.12.0
 

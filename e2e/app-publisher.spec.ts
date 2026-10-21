@@ -99,7 +99,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       store.published[at] = store.unpublished.find(p => p.poemId === body.poemId)!
       store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
     } else if (url.pathname === '/publisher/publish') {
-      store.published.push(store.unpublished.find(p => p.poemId === body.poemId)!)
+      store.published.push(Object.assign(store.unpublished.find(p => p.poemId === body.poemId)!,
+        body.publishDate === undefined ? {} : { publishDate: body.publishDate, highlighted: body.highlighted }))
       store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
     } else if (url.pathname === '/publisher/unpublish') {
       store.unpublished.unshift(store.published.find(p => p.poemId === body.poemId)!)
@@ -408,6 +409,8 @@ test('someone who is not a publisher is told so, and the list is not asked for',
 
 // #101 (Stuart, 21 Oct): a poem can be published as the replacement for a published poem by the same poet.
 const byPoet = (n: number, author: string) => ({ ...poem(n), author })
+// Today where the browser is, as the page fills a new poem's date in (#305).
+const TODAY = (() => { const d = new Date(); const two = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}` })()
 const notPublished = (page: Page) => page.getByRole('list', { name: 'Poems not published' })
 
 test('a chosen replacement is sent, and the new poem takes the old one\'s place', async ({ page, baseURL }) => {
@@ -418,7 +421,7 @@ test('a chosen replacement is sent, and the new poem takes the old one\'s place'
   await notPublished(page).getByLabel('Replaces, for Zq 4').selectOption('id-3')
   await notPublished(page).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 4.')
-  expect(store.bodies).toEqual([{ poemId: 'id-4', listEtag: 'e1', replaces: 'id-3' }])
+  expect(store.bodies).toEqual([{ poemId: 'id-4', listEtag: 'e1', publishDate: TODAY, highlighted: false, replaces: 'id-3' }])
   await expect(published(page)).toHaveText(['Zq 1', 'Zq 2', 'Zq 4'])
 })
 
@@ -430,7 +433,7 @@ test('with None, publish sends no replaces key', async ({ page, baseURL }) => {
   await expect(notPublished(page).getByLabel('Replaces, for Zq 2')).toHaveValue('')
   await notPublished(page).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
-  expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1' }])
+  expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: TODAY, highlighted: false }])
   await expect(published(page)).toHaveText(['Zq 1', 'Zq 2'])
 })
 
@@ -494,4 +497,21 @@ test('a note changed by someone else meanwhile is refused and says so, and a poe
   await page.getByRole('button', { name: 'Save note' }).first().click()
   await expect(page.getByRole('alert')).toHaveText('The note changed since you opened it. Open it again to see it.')
   expect(store.notes!['id-3']).toEqual({ text: 'Vb', version: 'v9' })
+})
+
+test('a publish starts from the replaced poem\'s date and highlight, and sends what the publisher changes them to (#305)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [{ ...byPoet(1, 'Qz Vel'), publishDate: '2019-05-06', highlighted: true }], unpublished: [byPoet(2, 'Qz Vel')], writes: [], bodies: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(notPublished(page).getByLabel('Publish date of Zq 2')).toHaveValue(TODAY)
+  await notPublished(page).getByLabel('Replaces, for Zq 2').selectOption('id-1')
+  await expect(notPublished(page).getByLabel('Publish date of Zq 2')).toHaveValue('2019-05-06')
+  await expect(notPublished(page).getByLabel('Highlighted, for Zq 2')).toBeChecked()
+  await notPublished(page).getByLabel('Publish date of Zq 2').fill('2026-10-01')
+  await notPublished(page).getByLabel('Highlighted, for Zq 2').uncheck()
+  await notPublished(page).getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
+  expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: '2026-10-01', highlighted: false, replaces: 'id-1' }])
+  await expect(published(page)).toHaveText(['Zq 2'])
 })

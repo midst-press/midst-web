@@ -37,9 +37,12 @@ export interface ListChange {
   edgeCleared?: boolean
 }
 
+/** The date the Table of Contents shows and the highlight, set when publishing (#305). */
+export interface PublishDetails { publishDate: string, highlighted: boolean }
+
 /** `replaces` names the published poem this one replaces (midst-infra #190); the key is sent only when there is one. */
-export const publish = (call: Call, poemId: string, listEtag: string, replaces?: string) =>
-  call<ListChange>('/publisher/publish', { method: 'POST', body: replaces ? { poemId, listEtag, replaces } : { poemId, listEtag } })
+export const publish = (call: Call, poemId: string, listEtag: string, details: PublishDetails, replaces?: string) =>
+  call<ListChange>('/publisher/publish', { method: 'POST', body: { poemId, listEtag, ...details, ...(replaces ? { replaces } : {}) } })
 
 export const unpublish = (call: Call, poemId: string, listEtag: string) =>
   call<ListChange>('/publisher/unpublish', { method: 'POST', body: { poemId, listEtag } })

@@ -148,8 +148,12 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
-- `POST /publisher/publish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared"? }`
-  Copies the poem into the publishing bucket and adds it at the end of the list. A revision replaces the version
+- `POST /publisher/publish` `{ "poemId", "listEtag", "publishDate", "highlighted" }` → `{ "listEtag", "published", "edgeCleared"? }`
+  Copies the poem into the publishing bucket and adds it at the end of the list. `publishDate` (YYYY-MM-DD) and
+  `highlighted` are the date the Table of Contents shows and the highlight (#305): sent together, both valid, and
+  they win over what a republish kept or a revision inherits; both absent, the poem keeps what it had. One without
+  the other is 400 `invalid`. The page fills them in: the replaced poem's, else a same-titled published poem's by the
+  same author, else what the poem had, else today and not highlighted. A revision replaces the version
   it revises; that version's copies are deleted and cleared from CloudFront, and `edgeCleared` says whether
   CloudFront took the request.
 - `POST /publisher/unpublish` `{ "poemId", "listEtag" }` → `{ "listEtag", "published", "edgeCleared" }`
