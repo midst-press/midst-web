@@ -47,6 +47,21 @@ describe('the calls', () => {
   })
 })
 
+describe('publish with a poem it replaces (#101; midst-infra #190)', () => {
+  it('sends replaces when one is named, and no replaces key when none is', async () => {
+    const call = jest.fn(async () => ({})) as unknown as Call & jest.Mock
+    await publish(call, 'p1', 'e1', 'p0')
+    await publish(call, 'p1', 'e1', undefined)
+    await publish(call, 'p1', 'e1', '')
+    expect(call.mock.calls).toEqual([
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', replaces: 'p0' } }],
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1' } }],
+      ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1' } }],
+    ])
+    for (const [, init] of call.mock.calls.slice(1)) expect(Object.keys(init.body)).not.toContain('replaces')
+  })
+})
+
 // #239: the page warns only on an explicit false. No field means nothing was withdrawn.
 describe('leftInCache', () => {
   it('is true only for an answer whose edgeCleared is false', () => {
