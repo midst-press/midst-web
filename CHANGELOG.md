@@ -1,7 +1,8 @@
 # 0.12.0
 
 - **The Table of Contents opens newest first by publish date.** Readers can still sort by author or title, or reverse
-  any of them. Poems with no publish date come last.
+  any of them. Poems with no publish date come last. A poem's next arrow follows the same order, so from the opening
+  order it goes to the next older poem.
 
 # 0.11.0
 

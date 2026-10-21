@@ -270,8 +270,8 @@ describe('sorting keeps what has been loaded', () => {
 
   it('poems that tie keep the list order, whatever the previous sort was', () => {
     // Every poem has the same `tags`, standing in for poems by one author.
-    // Ascending, where ties come out in list order (descending reverses them with the rest).
-    const byAuthor = reducer(ascending(both), { type: SET_SORT_TERM, payload: 'author' })
+    // In the opening (descending) order: ties come out in list order either way, since only the term is reversed.
+    const byAuthor = reducer(both, { type: SET_SORT_TERM, payload: 'author' })
     expect(titles(reducer(byAuthor, { type: SET_SORT_TERM, payload: 'tags' }))).toEqual(MOCK_ORDER)
   })
 })
