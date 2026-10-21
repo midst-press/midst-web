@@ -4,6 +4,8 @@
   list, and links to it lead to the new one.
 - **Space plays and pauses after dragging the timeline.** Scrubbing no longer swallows the spacebar; the playhead
   keeps focus and Space toggles playback as it does everywhere else.
+- **The player has a switch to show or hide the draft markers**, beside the playback controls, for a poem that has
+  them. They are shown unless the reader turns them off, and the choice is kept in that browser, as the language is.
 
 # 0.9.0
 

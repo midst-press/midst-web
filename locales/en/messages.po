@@ -95,6 +95,12 @@ msgstr "Poem replay"
 #. js-lingui-explicit-id
 #: src/components/MidstPlayer/MidstPlayer.tsx
 #, fuzzy
+msgid "player.showDraftMarkers"
+msgstr "Show draft markers"
+
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
 msgid "player.skipToEnd"
 msgstr "Skip to end"
 
