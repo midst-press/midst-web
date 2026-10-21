@@ -1588,6 +1588,22 @@ background-size: contain;
   opacity: 0.75;
 }
 
+/* A tag's mark (#310): its own colour, with black or white text, whichever reads (src/app/tags.ts). */
+.tag-mark {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.publisher-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .publisher-notice,
 .publisher-problem,
 .publisher-hint {
