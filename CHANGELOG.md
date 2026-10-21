@@ -7,6 +7,8 @@
 
 - **A poet writes a Process Note when submitting a poem**, with Bold, Italic and Link buttons and a Preview. The
   review page shows each submission's note.
+- **Keyboard focus is visible:** the link, button or field reached with the keyboard has a dark red outline, the
+  player's own colour.
 
 # 0.11.0
 
