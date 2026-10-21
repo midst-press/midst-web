@@ -1,3 +1,15 @@
+# 0.15.0
+
+- **The Table of Contents opens newest first**, by publish date. Readers can still sort by author or title, and a
+  new sort starts at A.
+- **A poem's address under /read opens the poem**, so links shared from the old site still work.
+- **Draft markers are off by default.** The switch turns them on for that poem and that visit only, and Space on the
+  switch plays and pauses instead of toggling it.
+- **The player's default speed is 11 frames a second**, down from about 17.
+- **A Submit page**, with Annelyse's text for everyone and, for a signed-in poet, the submission form under it.
+- **The publisher page shows when the poet last edited each poem**, the end of its timelapse.
+- **An admin sees a link to the admin page from the publisher page.**
+
 # 0.14.0
 
 - **The publisher can edit an unpublished poem's process note**, to house style, with the same buttons and Preview
