@@ -16,6 +16,9 @@ export interface Poem {
   /** When the poet last edited it, an ISO instant (#305; midst-infra #208): in `GET /publisher/poems` only, null when
    *  unknown, absent from a list change's answer and from an API before that. Shown on this page, never on the site. */
   lastEdited?: string | null
+  /** The tag ids a published poem has (#310; midst-infra #217), or a legacy entry's own words, which match no tag.
+   *  Absent from an API before that, and for a poem not published. */
+  tags?: string[]
 }
 
 /** "last edited <date>" in the reader's own format, or null when it is not known. */
@@ -82,7 +85,8 @@ export const leftInCache = (result: unknown): boolean =>
 export const saveOrder = (call: Call, poemIds: string[], listEtag: string) =>
   call('/publisher/order', { method: 'PUT', body: { poemIds, listEtag } })
 
-export const saveDetails = (call: Call, poemId: string, details: { publishDate: string | null, highlighted: boolean }, listEtag: string) =>
+/** Without `tags`, the poem keeps the tags it has (midst-infra #214). */
+export const saveDetails = (call: Call, poemId: string, details: { publishDate: string | null, highlighted: boolean, tags?: string[] }, listEtag: string) =>
   call(`/publisher/poems/${encodeURIComponent(poemId)}`, { method: 'PUT', body: { ...details, listEtag } })
 
 /** The list with the item at `from` moved to `to`. Out-of-range moves return the list unchanged. */

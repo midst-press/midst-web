@@ -7,6 +7,8 @@ import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
 import PublisherNote from './PublisherNote'
+import PublisherTags, { TagMark } from './PublisherTags'
+import { Tag, tagsAfterToggle } from '../app/tags'
 import ReplacesChoice, { detailsFor, localToday, publishWithChoice } from './PublisherReplaces'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
@@ -17,7 +19,7 @@ import {
 } from '../app/publisher'
 
 // The publisher's page (docs/app-api.md, "Publisher"; #12, #110): publish, unpublish, reorder, and set a
-// published poem's date and highlight. A prototype for Annelyse to react to.
+// published poem's date, highlight and tags (#310). A prototype for Annelyse to react to.
 
 const SAVED_NOT_RELOADED = 'The change was saved, but the list could not be refreshed. Reload the page to see it.'
 // When CloudFront did not take the request to clear withdrawn copies (#239). The copies are kept for a day.
@@ -56,6 +58,8 @@ function Publisher(): ReactElement {
   const [publishing, setPublishing] = useState<Record<string, { publishDate?: string, highlighted?: boolean }>>({})
   // Submissions waiting on the review page (#289); null until read, or when they could not be.
   const [waiting, setWaiting] = useState<number | null>(null)
+  // The tags, as the Tags section last loaded or saved them (#310); null until then.
+  const [tags, setTags] = useState<Tag[] | null>(null)
 
   // Only a publisher's page asks for the list; the API would refuse anyone else anyway.
   const call: Call | null = session && session.groups.includes('publisher') ? callerFor(APP_API_URL, session.idToken) : null
@@ -231,6 +235,23 @@ function Publisher(): ReactElement {
                         event.target.checked ? `Highlighted ${poem.title}.` : `${poem.title} is no longer highlighted.`)} />
                     {' '}Highlighted
                   </label>
+                  {tags && tags.length > 0 && (
+                    <span className="publisher-tags" role="group" aria-label={`Tags of ${poem.title}`}>
+                      {tags.map(tag => {
+                        const has = (poem.tags ?? []).includes(tag.id)
+                        const next = tagsAfterToggle(tags, poem.tags, tag.id)
+                        return (
+                          <label key={tag.id}>
+                            <input type="checkbox" disabled={busy || reordered} checked={has}
+                              aria-label={`${tag.name}, for ${poem.title}`}
+                              onChange={() => change((c, etag) => saveDetails(c, poem.poemId, { publishDate: poem.publishDate, highlighted: poem.highlighted, tags: next }, etag),
+                                has ? `Took ${tag.name} off ${poem.title}.` : `Tagged ${poem.title} ${tag.name}.`)} />
+                            {' '}<TagMark name={tag.name} colour={tag.colour} />
+                          </label>
+                        )
+                      })}
+                    </span>
+                  )}
                   <button type="button" disabled={busy || reordered} onClick={() => change((c, etag) => unpublish(c, poem.poemId, etag), `Unpublished ${poem.title}.`, LEFT_IN_CACHE.unpublish)}>
                     Unpublish
                   </button>
@@ -249,6 +270,7 @@ function Publisher(): ReactElement {
           </p>
         )}
 
+        {call && <PublisherTags call={call} onExpired={expired} onTags={list => setTags(list.tags)} />}
         {call && <PublisherPoets call={call} onExpired={expired} />}
         {call && <PublisherPatrons call={call} onExpired={expired} />}
       </>

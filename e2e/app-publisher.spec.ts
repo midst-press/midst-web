@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[] }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[], tags?: Array<{ id: string, name: string, colour: string }> }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -60,6 +60,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     }
     // The patrons section loads too (docs/app-api.md, "Patrons"); this spec does not edit it.
     if (request.method() === 'GET' && url.pathname === '/publisher/patrons') return reply(200, { patronsEtag: 'none', patrons: [], closing: null })
+    // And the tags section (docs/app-api.md, "Tags"; #310).
+    if (request.method() === 'GET' && url.pathname === '/publisher/tags') return reply(200, { tagsEtag: store.tags ? '"t1"' : 'none', tags: store.tags ?? [] })
     // The poet routes (docs/app-api.md, "Poets").
     const poets = store.poets ?? (store.poets = [])
     if (request.method() === 'GET' && url.pathname === '/publisher/poets') return reply(200, { poets })
@@ -115,7 +117,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
       store.published = body.poemIds!.map(id => store.published.find(p => p.poemId === id)!)
     } else if (url.pathname.startsWith('/publisher/poems/')) {
       const target = store.published.find(p => p.poemId === decodeURIComponent(url.pathname.split('/').pop()!))!
-      Object.assign(target, { publishDate: body.publishDate, highlighted: body.highlighted })
+      Object.assign(target, { publishDate: body.publishDate, highlighted: body.highlighted },
+        (body as { tags?: string[] }).tags === undefined ? {} : { tags: (body as { tags?: string[] }).tags })
     }
     // Publish and unpublish say whether withdrawn copies were cleared from CloudFront (#239); the others never do.
     // edgeClearedEverywhere sends it on every route, so a test can show the page itself keeps the note off a change
@@ -611,4 +614,38 @@ test('a remove the server refuses says why, and the poem stays (#308)', async ({
   await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
   await expect(page.getByRole('alert')).toHaveText('This poem is published. Unpublish it before removing it from the portal.')
   await expect(published(page)).toHaveText(['Zq 2'])
+})
+
+test('a published poem is tagged and untagged with its boxes, and a date change leaves its tags alone (#310)', async ({ page, baseURL }) => {
+  const store: Store = {
+    etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [], bodies: [],
+    tags: [{ id: 'ta', name: 'Zq Green', colour: '#006400' }, { id: 'tb', name: 'Zq Pale', colour: '#fafad2' }],
+  }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  const box = (tag: string, title: string) => page.getByRole('checkbox', { name: `${tag}, for ${title}` })
+  await expect(box('Zq Green', 'Zq 1')).not.toBeChecked()
+
+  // The boxes show what the server holds, so each changes once the save is answered: clicked, not checked.
+  await box('Zq Pale', 'Zq 1').click()
+  await expect(page.getByRole('status')).toHaveText('Tagged Zq 1 Zq Pale.')
+  await box('Zq Green', 'Zq 1').click()
+  await expect(page.getByRole('status')).toHaveText('Tagged Zq 1 Zq Green.')
+  // In the tags' own order, whatever order they were ticked in.
+  expect(store.bodies!.map(b => (b as { tags?: string[] }).tags)).toEqual([['tb'], ['ta', 'tb']])
+  await expect(box('Zq Green', 'Zq 1')).toBeChecked()
+  await expect(box('Zq Green', 'Zq 2')).not.toBeChecked()
+
+  await box('Zq Pale', 'Zq 1').click()
+  await expect(page.getByRole('status')).toHaveText('Took Zq Pale off Zq 1.')
+  expect((store.bodies!.at(-1) as { tags?: string[] }).tags).toEqual(['ta'])
+
+  // A date change sends no tags, so the poem keeps the ones it has.
+  const date = page.getByLabel('Publish date of Zq 1')
+  await date.fill('2026-10-20')
+  await date.blur()
+  await expect(page.getByRole('status')).toHaveText('Saved the date of Zq 1.')
+  expect('tags' in (store.bodies!.at(-1) as object)).toBe(false)
+  await expect(box('Zq Green', 'Zq 1')).toBeChecked()
 })
