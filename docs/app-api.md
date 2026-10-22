@@ -79,6 +79,7 @@ A 429 means wait and try again.
   "processNoteKey": null,
   "publishDate": "2026-10-20",
   "highlighted": false,
+  "tags": ["7d0f6a2e-3b1c-4e8a-9f25-6c4d8b1a0e37"],
   "lastEdited": "2026-10-19T21:14:03.512Z"
 }
 ```
@@ -88,6 +89,8 @@ recorded, not derived. `publishDate` and `highlighted` are `null` / `false` unti
 `lastEdited` is when the poet last edited the poem: the latest time in its timelapse, recorded when it is accepted
 (#305; midst-infra #208). Only `GET /publisher/poems` carries it, `null` where it is not known. The publisher's page
 shows it and nothing sets it; it is never written to the published list, so the site never shows it.
+`tags` is a published poem's tag ids (#310; midst-infra #217), always a list. A legacy entry's own words may be in it
+too; they match no tag.
 
 A list entry also carries `firstPublishedAt`, the ISO time of the poem's first publication. It is kept across an
 unpublish and a republish, and a revision takes it over from the version it replaces (midst-infra #83). Entries
@@ -178,8 +181,23 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   `conflict`. Each edit is kept beside the poet's own note and every earlier edit, never written over them. A
   published poem is 409 `published`: readers see the copy made when it was published, so unpublish, edit and publish
   again.
-- `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "listEtag" }` → `{ "listEtag", "published" }`
-  For a published poem.
+- `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "tags"?, "listEtag" }` → `{ "listEtag", "published" }`
+  For a published poem. `tags` is a list of tag ids, each a tag and each once (else 400 `invalid`); without it the
+  poem keeps the tags it has.
+
+**Tags** (#310; midst-infra #214): named, coloured marks for a collection, such as a folio.
+
+- The tags are public: `site/tags.json` in the publishing bucket, served at `/site/tags.json` with a one-minute
+  `Cache-Control`, `{ "version": 1, "updated", "tags": [{ "id", "name", "colour" }, ...] }`. A poem names its tags by
+  id in its list entry; the site ignores an id that is not a tag. The Table of Contents reads the file once some poem
+  names a tag, and marks each such poem's line; if the file cannot be read it shows no marks (src/tags.ts).
+- `GET /publisher/tags` → `{ "tagsEtag", "tags": [{ "id", "name", "colour" }, ...] }`. Before the first save:
+  `"tagsEtag": "none"`, no tags.
+- `PUT /publisher/tags` `{ "tagsEtag", "tags": [{ "id"?, "name", "colour" }, ...] }` → the same shape as GET, as
+  saved. Replaces the whole list: add (no `id`; the server makes one), rename or recolour (same `id`), remove (left
+  out). Each name is 1 to 40 characters after trimming, and no two alike ignoring case; a colour is `#rrggbb`, stored
+  in lower case; at most 100 tags; otherwise 400 `invalid`. A changed `tagsEtag` is 409 `conflict`. Removing a tag a
+  published poem names is 409 `in_use`, with its ids as `tagIds`, and nothing is saved.
 
 **Poets** (Stuart, 14 Oct: the publisher registers poets, and never sees a password):
 

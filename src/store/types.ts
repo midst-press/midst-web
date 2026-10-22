@@ -82,6 +82,8 @@ export interface IPoem {
   processNote: string
   slug: string
   tags: string
+  /** A published poem's tag ids (#310; src/tags.ts): the marks it shows, where they are tags. Absent when bundled. */
+  tagIds?: string[]
   title: string
   trigger?: boolean
   url: string

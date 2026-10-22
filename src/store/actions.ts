@@ -1,5 +1,6 @@
 import { KEY_SCHEME, POEMS_URL } from '../config'
 import { fetchRecordedKey, parsePublishedList } from '../poems/poem-list'
+import { entryTagIds } from '../tags'
 import { parseMidstFile } from './midst-file'
 import { ArchiveError, describeCause, readFirstEntry } from '../archive'
 import { fetchPoemAsset, objectNames } from '../poems/key-scheme'
@@ -42,7 +43,10 @@ const loadPoemList = (): any =>
 
     let entries
     try {
-      entries = parsePublishedList(await response.json())
+      const json = await response.json()
+      // Each entry's tag ids (#310), read beside the shared parser, which keeps only what midst-infra uses too.
+      const tagIds = entryTagIds(json)
+      entries = parsePublishedList(json).map((entry: { poemId: string }) => ({ ...entry, tagIds: tagIds.get(entry.poemId) ?? [] }))
     } catch {
       return fail('malformed')
     }

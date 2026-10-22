@@ -88,3 +88,15 @@ describe('lastEditedWords', () => {
     expect(lastEditedWords('not a time')).toBeNull()
   })
 })
+
+describe('saveDetails and tags (#310)', () => {
+  it('sends tags only when given, so a date or highlight change leaves a poem\'s tags alone', async () => {
+    const call = jest.fn(async () => ({})) as unknown as Call & jest.Mock
+    await saveDetails(call, 'p1', { publishDate: null, highlighted: false }, 'e1')
+    await saveDetails(call, 'p1', { publishDate: null, highlighted: false, tags: ['ta'] }, 'e2')
+    expect(call.mock.calls).toEqual([
+      ['/publisher/poems/p1', { method: 'PUT', body: { publishDate: null, highlighted: false, listEtag: 'e1' } }],
+      ['/publisher/poems/p1', { method: 'PUT', body: { publishDate: null, highlighted: false, tags: ['ta'], listEtag: 'e2' } }],
+    ])
+  })
+})

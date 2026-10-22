@@ -69,6 +69,37 @@ test.describe('the published list', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
+  // #310: a poem's tags are marks on its line, in each tag's own colour, from /site/tags.json.
+  test('a tagged poem shows its tags as marks, a word that is not a tag shows nothing, and an untagged poem none', async ({ page }) => {
+    const entries = published().map((entry, i) => ({ ...entry, tags: i === 0 ? ['tz', 'Mexico', 'ta'] : [] }))
+    await page.route('**' + LIST_PATH, route => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ version: 1, poems: entries }),
+    }))
+    await page.route('**/site/tags.json', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ version: 1, tags: [{ id: 'ta', name: 'Zq Green', colour: '#006400' }, { id: 'tz', name: 'Zq Pale', colour: '#fafad2' }] }),
+    }))
+    await page.goto('/read')
+    const line = page.locator(`a.poem-line[data-poem-id="${entries[0].poemId}"]`)
+    await expect(line.locator('.tag-mark')).toHaveText(['Zq Pale', 'Zq Green'])
+    await expect(line.locator('.tag-mark').nth(1)).toHaveCSS('background-color', 'rgb(0, 100, 0)')
+    await expect(line.locator('.tag-mark').nth(1)).toHaveCSS('color', 'rgb(255, 255, 255)')
+    await expect(line.locator('.tag-mark').nth(0)).toHaveCSS('color', 'rgb(0, 0, 0)')
+    await expect(page.locator('a.poem-line .tag-mark')).toHaveCount(2)
+  })
+
+  test('when tags.json cannot be read, the Table of Contents is shown as ever, with no marks', async ({ page }) => {
+    const entries = published().map(entry => ({ ...entry, tags: ['ta'] }))
+    await page.route('**' + LIST_PATH, route => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ version: 1, poems: entries }),
+    }))
+    await page.route('**/site/tags.json', route => route.fulfill({ status: 500, body: 'no' }))
+    await page.goto('/read')
+    await expect(page.locator('a.poem-line')).toHaveCount(entries.length)
+    await expect(page.locator('.tag-mark')).toHaveCount(0)
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  })
+
   test('the list\'s order is not the bundle\'s', () => {
     // Guards the premise of the test above: if a bundled site opened on the same order, newest first by the
     // poems' own dates, that test could pass without the list being read at all.

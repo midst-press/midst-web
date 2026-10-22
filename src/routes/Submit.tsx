@@ -1,4 +1,4 @@
-import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
+import React, { FormEvent, MouseEvent, ReactElement, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
@@ -8,28 +8,28 @@ import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
 import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
 import NoteEditor from '../components/NoteEditor'
-import { Link } from 'react-router-dom'
+import { SUBMIT_TEXT, renderContent } from '../content'
+import { useNavigate } from 'react-router-dom'
 
 // The Submit page (#326, GitHub midst-press/midst-web#88). Everyone reads Annelyse's text about submitting; a signed-in poet
 // also gets, under it, the form to send a poem as a .midst file and the list of where each submission stands
 // (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21).
 
-// Annelyse's words, as she wrote them (GitHub #88, 21 Oct). They move to her content/ folder once #281 has landed.
+// Annelyse's words, from her content/ folder (content/submit.md; #281). A link to one of the site's own pages goes
+// through the router, as a Link would, rather than reloading the site.
+const SUBMIT_HTML = renderContent(SUBMIT_TEXT)
+
 function SubmissionsText(): ReactElement {
-  return (
-    <div className="submit-text">
-      <p>Midst is currently <strong>closed</strong> to submissions.</p>
-      <p>
-        Please note that we <em>only</em> consider .midst files—poems written and edited with <Link to="/app">the Midst app</Link>.
-        We do not accept poems in any other format made with any other software (.doc, .docx, .pdf, .txt, etc.).
-      </p>
-      <p>
-        The app is free to download and free to use, built by and for writers. Everything you write with it is completely
-        private and belongs 100% to you. It works on Mac, Windows, and Linux. <Link to="/app">Download it here</Link>.
-      </p>
-      <p><a href="#newsletter">Sign up to our newsletter</a> to find out about open submission windows and other opportunities.</p>
-    </div>
-  )
+  const navigate = useNavigate()
+  const follow = (event: MouseEvent<HTMLDivElement>) => {
+    const link = (event.target as HTMLElement).closest('a')
+    const href = link?.getAttribute('href')
+    if (!href || !href.startsWith('/') || href.startsWith('//')) return
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    navigate(href)
+  }
+  return <div className="submit-text" onClick={follow} dangerouslySetInnerHTML={{ __html: SUBMIT_HTML }} />
 }
 
 const putFile = async (url: string, headers: Record<string, string>, file: Blob) => {

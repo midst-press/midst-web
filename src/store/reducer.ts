@@ -78,6 +78,7 @@ function createPublishedPoem(entry: any, position: number): IPoem {
   // for one can never land on the other. cssId stays name-derived, so a style written for a poem by name still applies.
   poem.url = entry.url
   poem.poemId = entry.poemId
+  poem.tagIds = Array.isArray(entry.tagIds) ? entry.tagIds : []
   return poem
 }
 

@@ -1,3 +1,10 @@
+# 0.16.0
+
+- **Tags with colours.** The publisher can create tags, choose a colour for each, and tick them on published poems.
+  In the Table of Contents a poem's tags show as coloured marks.
+- **The Submit page's text lives in `content/`**, which only Annelyse approves. Her edits on GitHub come back
+  here unchanged.
+
 # 0.15.0
 
 - **The Table of Contents opens newest first**, by publish date. Readers can still sort by author or title, and a
