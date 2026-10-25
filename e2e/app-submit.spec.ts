@@ -1,4 +1,5 @@
 import { Page, Route } from '@playwright/test'
+import { JSDOM } from 'jsdom'
 import { test, expect } from './coverage'
 import { SUBMIT_TEXT, renderContent } from '../src/content'
 
@@ -253,8 +254,17 @@ test('anyone reading Submit sees her text from content/, and no form', async ({ 
   await page.locator('.nav-links-wrapper').getByRole('link', { name: 'Submit', exact: true }).click()
   await expect(page).toHaveURL(/\/submit$/)
   const text = page.locator('.submit-text')
+  // DOMPurify needs a window, and here, outside the page, there is none: so a jsdom one, while rendering.
+  const global = globalThis as { window?: unknown }
+  global.window = new JSDOM('').window
+  let html: string
+  try {
+    html = renderContent(SUBMIT_TEXT)
+  } finally {
+    delete global.window
+  }
   expect(SUBMIT_TEXT.trim()).not.toBe('')
-  expect(await text.innerHTML()).toBe(renderContent(SUBMIT_TEXT))
+  expect(await text.innerHTML()).toBe(html)
   await expect(page.locator('#newsletter .campaign-monitor-form')).toHaveCount(1)
   await expect(page.locator('form.submit-form')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()

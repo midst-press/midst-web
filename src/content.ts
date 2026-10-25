@@ -3,10 +3,7 @@
  * text as it was in content/ when it was built; under Jest it is read from the file.
  */
 import fs from 'fs'
-import marked from 'marked'
-// TODO: Type def file
-//@ts-ignore
-import insane from 'insane'
+import { renderMarkdown } from './markdown'
 
 // What her Markdown makes, and nothing that could load something from elsewhere (no img, no iframe). A link keeps
 // only its address.
@@ -15,7 +12,7 @@ const CONTENT_ATTRIBUTES = { a: ['href'] }
 
 /** Her Markdown as the sanitised HTML a page shows. */
 export const renderContent = (markdown: string): string =>
-  insane(marked(markdown), { allowedTags: CONTENT_TAGS, allowedAttributes: CONTENT_ATTRIBUTES, allowedSchemes: ['http', 'https', 'mailto'] })
+  renderMarkdown(markdown, { tags: CONTENT_TAGS, attributes: CONTENT_ATTRIBUTES })
 
 /** The Submit page's text (content/submit.md). */
 export const SUBMIT_TEXT = fs.readFileSync(__dirname + '/../content/submit.md', 'utf8')
