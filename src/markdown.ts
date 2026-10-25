@@ -29,13 +29,15 @@ const keepAttribute: UponSanitizeAttributeHook = (node, data) => {
   else if ((data.attrName === 'href' || data.attrName === 'src') && !ALLOWED_URI.test(data.attrValue)) data.keepAttr = false
 }
 
-// Made at the first render, not at import: the end-to-end specs import app modules in Node, where there is no
-// window until a spec makes one. Rendering with none throws.
+// This module's own instance, so the hook never reaches the shared DOMPurify. Made at the first render, not at
+// import: the end-to-end specs import app modules in Node, where there is no window until a spec makes one. Rendering
+// with none throws.
 let purifier: DOMPurifyInstance | undefined
 function purify(): DOMPurifyInstance {
   if (!purifier) {
-    purifier = DOMPurify.isSupported ? DOMPurify : DOMPurify(window)
-    purifier.addHook('uponSanitizeAttribute', keepAttribute)
+    const made = DOMPurify(globalThis.window)
+    made.addHook('uponSanitizeAttribute', keepAttribute)
+    purifier = made
   }
   return purifier
 }
