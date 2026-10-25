@@ -1,7 +1,7 @@
 import React, { ReactElement, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useParams } from 'react-router'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { findIndex } from 'lodash'
 import { RootState } from '../store'
 import { setProcessNoteOpen } from '../store/actions'

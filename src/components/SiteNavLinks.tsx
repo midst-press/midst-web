@@ -1,6 +1,6 @@
 import React, { ReactElement } from 'react'
 import { useLocation } from 'react-router'
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 
 function SiteNavLinks(): ReactElement {
   const { pathname } = useLocation()

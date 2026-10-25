@@ -1,3 +1,8 @@
+# 0.18.0
+
+- **The page router is updated to version 7** (react-router 7.18.4), which fixes the last of its open security
+  alerts, a redirect that a backslash could send off the site.
+
 # 0.17.0
 
 - **Security updates.** The formatter and the cleaner that make poets' process notes and Annelyse's pages safe to

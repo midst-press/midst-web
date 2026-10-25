@@ -1,5 +1,5 @@
 import React, { ReactElement, useEffect, useState } from 'react'
-import { Routes, Route, Link, NavLink } from 'react-router-dom'
+import { Routes, Route, Link, NavLink } from 'react-router'
 import { useSelector, useDispatch } from 'react-redux'
 //@ts-ignore
 import smoothscroll from 'smoothscroll-polyfill'
