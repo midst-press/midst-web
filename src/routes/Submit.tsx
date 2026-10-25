@@ -10,7 +10,7 @@ import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenW
 import NoteEditor from '../components/NoteEditor'
 import { SUBMIT_TEXT, renderContent } from '../content'
 import { isSitePath } from '../sitePath'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 // The Submit page (#326, GitHub midst-press/midst-web#88). Everyone reads Annelyse's text about submitting; a signed-in poet
 // also gets, under it, the form to send a poem as a .midst file and the list of where each submission stands

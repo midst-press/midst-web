@@ -4,7 +4,7 @@
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router'
 import ReadRedirect from '../components/ReadRedirect'
 
 let host: HTMLDivElement

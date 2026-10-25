@@ -1,6 +1,6 @@
 import React, { ReactElement, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { SignInError, completeSignIn } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
