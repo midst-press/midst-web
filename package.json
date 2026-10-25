@@ -48,7 +48,6 @@
     "@types/react-helmet": "^6.1.11",
     "@types/react-redux": "^7.1.34",
     "@types/react-router-dom": "5.1.5",
-    "@types/uuid": "3.4.9",
     "@types/voca": "1.4.6",
     "@zip.js/zip.js": "2.24.0",
     "global.css": "1.1.0",
@@ -70,7 +69,6 @@
     "redux-devtools-extension": "2.13.9",
     "redux-thunk": "2.3.0",
     "smoothscroll-polyfill": "0.4.4",
-    "uuid": "3.4.0",
     "voca": "1.4.1"
   },
   "devDependencies": {
