@@ -6,6 +6,7 @@
  * Everything the browser provides (storage, fetch, randomness, hashing) is passed in, so the flow is
  * tested without a browser.
  */
+import { isSitePath } from '../sitePath'
 
 export interface AuthSettings {
   domain: string // the managed login domain, no trailing slash
@@ -121,7 +122,7 @@ export async function completeSignIn(settings: AuthSettings, deps: AuthDeps, sea
   }
   deps.storage.setItem(SESSION, JSON.stringify(session))
   // Only a path on this site: a returnTo that names another origin would make this an open redirect.
-  return pending.returnTo.startsWith('/') && !pending.returnTo.startsWith('//') ? pending.returnTo : '/me'
+  return isSitePath(pending.returnTo) ? pending.returnTo : '/me'
 }
 
 /** The current session, or null when there is none or it has expired. */
