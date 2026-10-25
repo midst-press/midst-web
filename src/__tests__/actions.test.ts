@@ -28,11 +28,11 @@ import {
 const mockMarked = { throws: false }
 jest.mock('marked', () => {
   const actual = jest.requireActual('marked')
-  const wrapped = (...args: unknown[]) => {
+  const parse = (...args: unknown[]) => {
     if (mockMarked.throws) throw new TypeError('zq marked')
-    return actual(...args)
+    return actual.marked.parse(...args)
   }
-  return Object.assign(wrapped, actual)
+  return { ...actual, marked: { ...actual.marked, parse } }
 })
 jest.mock('../poems/key-scheme', () => ({ ...jest.requireActual('../poems/key-scheme'), fetchPoemAsset: jest.fn() }))
 let mockScheme: string | undefined = 'legacy'

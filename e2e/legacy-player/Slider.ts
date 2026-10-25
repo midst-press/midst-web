@@ -1,5 +1,4 @@
 import React, { createElement as e } from 'react'
-import uuid from 'uuid/v1'
 import appendStyle from './append-style'
 import { coords } from './mouse-position'
 
@@ -94,7 +93,7 @@ class Slider extends React.Component {
   // Class Properties
   // ================================================================================#
       this.el = null
-      this.id = uuid()
+      this.id = crypto.randomUUID() // the uuid package is gone (#340); any unique element id will do
     }
 
   // ================================================================================

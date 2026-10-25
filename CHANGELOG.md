@@ -1,3 +1,10 @@
+# 0.17.0
+
+- **Security updates.** The formatter and the cleaner that make poets' process notes and Annelyse's pages safe to
+  show are replaced with current, maintained versions (marked 18 and DOMPurify 3, in place of marked 0.7 and
+  insane), and the page router is updated to 6.30.6. Sign-in and the Submit page's links now refuse a path that
+  could lead off the site.
+
 # 0.16.0
 
 - **Tags with colours.** The publisher can create tags, choose a colour for each, and tick them on published poems.

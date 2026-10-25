@@ -2,14 +2,15 @@
  * A process note (#292): Markdown, rendered here for the poem page, the review page and the submit form's preview. A
  * poet's note from the form is rendered with the narrow list wherever someone else reads it.
  */
-import marked from 'marked'
-// TODO: Type def file
-//@ts-ignore
-import insane from 'insane'
+import { renderMarkdown } from './markdown'
 
-// The tags a published note may use, from the archive's notes. insane's default schemes (http, https, mailto) and
-// attributes apply.
+// The tags a published note may use, from the archive's notes, with the attributes insane allowed them by default.
 export const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']
+const NOTE_ATTRIBUTES = {
+  a: ['href', 'name', 'target', 'title', 'aria-label'],
+  iframe: ['allowfullscreen', 'frameborder', 'src'],
+  img: ['src', 'alt', 'title', 'aria-label'],
+}
 
 // A note a poet wrote in the submit form, wherever someone else reads it (#292; cora-2f1e43dc, review of #314): no
 // iframe, which could put another site's page (a fake sign-in) inside the publisher's signed-in review page, and no
@@ -19,11 +20,12 @@ export const POET_NOTE_TAGS = ['p', 'em', 'strong', 'i', 'b', 'a', 'br']
 const POET_NOTE_ATTRIBUTES = { a: ['href'] }
 
 /** A note's Markdown as the sanitised HTML the poem page shows. */
-export const renderProcessNote = (markdown: string): string => insane(marked(markdown), { allowedTags: NOTE_TAGS })
+export const renderProcessNote = (markdown: string): string =>
+  renderMarkdown(markdown, { tags: NOTE_TAGS, attributes: NOTE_ATTRIBUTES })
 
 /** A poet's note from the submit form, as the review page and the form's preview show it. */
 export const renderPoetNote = (markdown: string): string =>
-  insane(marked(markdown), { allowedTags: POET_NOTE_TAGS, allowedAttributes: POET_NOTE_ATTRIBUTES, allowedSchemes: ['http', 'https', 'mailto'] })
+  renderMarkdown(markdown, { tags: POET_NOTE_TAGS, attributes: POET_NOTE_ATTRIBUTES })
 
 // The most the API accepts (docs/app-api.md, POST /submissions), counted as a textarea's maxlength counts.
 export const MAX_NOTE_CHARACTERS = 20000

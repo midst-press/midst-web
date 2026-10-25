@@ -134,7 +134,7 @@ const loadPoemData = (poemIndex: number): any =>
       text = await readArchive(archive)
     } catch (e: unknown) {
       const error = e as Partial<LoadError> | null
-      // Not one of ours (marked or insane on the note, objectNames): its name only, since the note is
+      // Not one of ours (marked or DOMPurify on the note, objectNames): its name only, since the note is
       // the poet's text.
       const why = error && error.reason ? error.reason : causeName(e)
       return fail((error && error.log) || `Unable to load Midst data: ${why}`, (error && error.reason) || 'unknown')
