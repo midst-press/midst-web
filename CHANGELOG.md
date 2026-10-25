@@ -2,10 +2,8 @@
 
 - **Security updates.** The formatter and the cleaner that make poets' process notes and Annelyse's pages safe to
   show are replaced with current, maintained versions (marked 18 and DOMPurify 3, in place of marked 0.7 and
-  insane), and the page router is updated to 6.30.6. Paths given to sign-in and to the Submit page's links now
-  refuse a backslash.
-- **Links in published process notes keep their `target` and `title`.** Before, they could lose them once the
-  Submit page had been shown in the same visit.
+  insane), and the page router is updated to 6.30.6. Sign-in and the Submit page's links now refuse a path that
+  could lead off the site.
 
 # 0.16.0
 
