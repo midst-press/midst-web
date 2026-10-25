@@ -1,6 +1,6 @@
 import React, { ReactElement, useEffect, useRef, useState } from 'react'
 import { Helmet } from 'react-helmet'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
