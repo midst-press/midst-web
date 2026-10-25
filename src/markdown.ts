@@ -30,12 +30,13 @@ const keepAttribute: UponSanitizeAttributeHook = (node, data) => {
 }
 
 // This module's own instance, so the hook never reaches the shared DOMPurify. Made at the first render, not at
-// import: the end-to-end specs import app modules in Node, where there is no window until a spec makes one. Rendering
-// with none throws.
+// import: the end-to-end specs import app modules in Node, where there is no window until a spec makes one. With no
+// window DOMPurify's sanitize returns its input unchanged, so rendering with none throws instead.
 let purifier: DOMPurifyInstance | undefined
 function purify(): DOMPurifyInstance {
   if (!purifier) {
     const made = DOMPurify(globalThis.window)
+    if (!made.isSupported) throw new Error('markdown: no DOM to sanitise with')
     made.addHook('uponSanitizeAttribute', keepAttribute)
     purifier = made
   }
