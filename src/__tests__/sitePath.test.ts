@@ -9,6 +9,8 @@ describe('isSitePath', () => {
   it.each([
     '', 'me', 'https://elsewhere.example.invalid/', '//elsewhere.example.invalid/',
     '/\\elsewhere.example.invalid/', '/me\\..\\x', '\\\\elsewhere.example.invalid',
+    '/\t/elsewhere.example.invalid/', '/\n/elsewhere.example.invalid/', '/\r/elsewhere.example.invalid/',
+    '/me\tx', '/me\nx', '/me\rx',
   ])('refuses %j', path => {
     expect(isSitePath(path)).toBe(false)
   })
