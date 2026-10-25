@@ -9,6 +9,7 @@ import { callerFor } from '../app/publisher'
 import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
 import NoteEditor from '../components/NoteEditor'
 import { SUBMIT_TEXT, renderContent } from '../content'
+import { isSitePath } from '../sitePath'
 import { useNavigate } from 'react-router-dom'
 
 // The Submit page (#326, GitHub midst-press/midst-web#88). Everyone reads Annelyse's text about submitting; a signed-in poet
@@ -24,7 +25,7 @@ function SubmissionsText(): ReactElement {
   const follow = (event: MouseEvent<HTMLDivElement>) => {
     const link = (event.target as HTMLElement).closest('a')
     const href = link?.getAttribute('href')
-    if (!href || !href.startsWith('/') || href.startsWith('//')) return
+    if (!href || !isSitePath(href)) return
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
     navigate(href)

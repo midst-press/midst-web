@@ -144,7 +144,7 @@ describe('completeSignIn', () => {
   })
 
   it('goes to /me instead of following a returnTo that leaves the site', async () => {
-    for (const returnTo of ['https://elsewhere.example.invalid/', '//elsewhere.example.invalid/']) {
+    for (const returnTo of ['https://elsewhere.example.invalid/', '//elsewhere.example.invalid/', '/\\elsewhere.example.invalid/']) {
       const { d } = deps()
       const state = await startAndReturn(d, returnTo)
       expect(await completeSignIn(settings, d, `?code=c&state=${state}`)).toBe('/me')
