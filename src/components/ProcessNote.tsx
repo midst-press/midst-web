@@ -1,5 +1,5 @@
 import { MEDIA_URL, POEMS_URL } from '../config'
-import React, { ReactElement, useEffect, useRef } from 'react'
+import React, { ReactElement, useEffect, useRef, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '../store'
 import { IPoem } from '../store/types'
@@ -15,6 +15,26 @@ interface IProps {
  *  the archive's photo for its author, as before. */
 export const authorPhotoUrl = (poem: Pick<IPoem, 'authorId' | 'keys'>): string =>
   poem.keys?.photo ? POEMS_URL + poem.keys.photo : `${MEDIA_URL}${poem.authorId}/${poem.authorId}.jpg`
+
+/**
+ * The author photo, shown only once it has loaded (#359, GitHub #97). The archive's photo is guessed from the author's
+ * id and may not exist; a photo that fails is left out, so a poem with none shows no blank box. It is hidden while it
+ * loads, so a missing one never flashes the browser's broken-image box either.
+ */
+export function AuthorPhoto({ src }: { src: string }): ReactElement | null {
+  // Keyed by its address where it is used, so another poem's photo starts again from loading.
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading')
+  if (status === 'failed') return null
+  return (
+    <img
+      src={src}
+      alt=""
+      style={status === 'loaded' ? undefined : { display: 'none' }}
+      onLoad={() => setStatus('loaded')}
+      onError={() => setStatus('failed')}
+    />
+  )
+}
 
 function ProcessNote(): ReactElement {
   const { processNoteOpen, poems } = useSelector((state: RootState) => ({
@@ -81,7 +101,7 @@ function ProcessNote(): ReactElement {
       {poem &&
         <div className="process-note__content">
           <div dangerouslySetInnerHTML={{ __html: poem ? poem.processNote : '' }} />
-          <img src={authorPhotoUrl(poem)} />
+          <AuthorPhoto key={authorPhotoUrl(poem)} src={authorPhotoUrl(poem)} />
         </div>
       }
     </div>
