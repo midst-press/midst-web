@@ -1,5 +1,5 @@
 import { Call } from '../app/publisher'
-import { MAX_BYTES, Submission, fileProblem, submitPoem, whenWords } from '../app/submit'
+import { MAX_BYTES, MAX_PHOTO_BYTES, Submission, fileProblem, photoProblem, submitPoem, whenWords } from '../app/submit'
 
 // The poet's submission (docs/app-api.md, "Poet"): ask, upload, complete.
 
@@ -38,6 +38,56 @@ describe('submitPoem', () => {
       await expect(submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq' }, file)).rejects.toThrow('could not be uploaded')
       expect(call).toHaveBeenCalledTimes(1)
     }
+  })
+})
+
+describe('photoProblem (#312)', () => {
+  it('takes a JPEG, PNG or WebP of 1 byte to 5 MB, and refuses anything else', () => {
+    for (const type of ['image/jpeg', 'image/png', 'image/webp']) expect(photoProblem({ type, size: 3 })).toBeNull()
+    for (const type of ['image/gif', 'image/svg+xml', '', 'image/jpg']) expect(photoProblem({ type, size: 3 })).toContain('JPEG, PNG or WebP')
+    expect(photoProblem({ type: 'image/png', size: 0 })).toBe('That photo is empty.')
+    expect(photoProblem({ type: 'image/png', size: MAX_PHOTO_BYTES })).toBeNull()
+    expect(photoProblem({ type: 'image/png', size: MAX_PHOTO_BYTES + 1 })).toContain('larger than 5 MB')
+    expect(MAX_PHOTO_BYTES).toBe(5_242_880)
+  })
+})
+
+describe('submitPoem with a photo (#312)', () => {
+  const photo = new Blob(['qz'], { type: 'image/png' })
+  const photoTicket = { ...ticket, photoUploadUrl: 'https://up.example.invalid/p', photoUploadHeaders: { 'Content-Type': 'image/png' } }
+
+  it('describes the photo, sends the file then the photo to their own URLs, then completes', async () => {
+    const call = jest.fn(async (path: string) => (path === '/submissions' ? photoTicket : { submissionId: 's/1', status: 'received' })) as unknown as Call & jest.Mock
+    const put = jest.fn(async () => ({ ok: true }))
+    await submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq' }, file, photo)
+    expect(call.mock.calls[0][1].body.photo).toEqual({ contentType: 'image/png', sizeBytes: 2 })
+    expect(put.mock.calls).toEqual([
+      [ticket.uploadUrl, ticket.uploadHeaders, file],
+      [photoTicket.photoUploadUrl, photoTicket.photoUploadHeaders, photo],
+    ])
+    expect(call.mock.calls[1][0]).toBe('/submissions/s%2F1/complete')
+  })
+
+  it('does not complete when the photo fails, cannot be sent, or has no URL or headers to go to', async () => {
+    const { photoUploadHeaders: _h, ...noHeaders } = photoTicket
+    const cases: Array<[unknown, jest.Mock]> = [
+      [photoTicket, jest.fn(async (url: string) => ({ ok: url !== photoTicket.photoUploadUrl }))],
+      [photoTicket, jest.fn(async (url: string) => { if (url === photoTicket.photoUploadUrl) throw new TypeError('network'); return { ok: true } })],
+      [ticket, jest.fn(async () => ({ ok: true }))],
+      [noHeaders, jest.fn(async () => ({ ok: true }))],
+    ]
+    for (const [answer, put] of cases) {
+      const call = jest.fn(async () => answer) as unknown as Call & jest.Mock
+      await expect(submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq' }, file, photo)).rejects.toThrow('photo could not be uploaded')
+      expect(call).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('does not send the photo when the file itself failed', async () => {
+    const call = jest.fn(async () => photoTicket) as unknown as Call & jest.Mock
+    const put = jest.fn(async () => ({ ok: false }))
+    await expect(submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq' }, file, photo)).rejects.toThrow('The file could not be uploaded')
+    expect(put).toHaveBeenCalledTimes(1)
   })
 })
 
