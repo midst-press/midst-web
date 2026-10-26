@@ -155,6 +155,9 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in reading order. `unpublished` is every accepted poem not in the list, newest first.
+  `removed` is the ids of the poems removed from the portal (#308), and `deleted` is those poems for the Deleted
+  section (#349; midst-infra #227): each a Poem plus `removedAt`, most recently removed first. An API before those
+  sends neither, and the page then shows no Deleted section.
 - `POST /publisher/publish` `{ "poemId", "listEtag", "publishDate", "highlighted" }` → `{ "listEtag", "published", "edgeCleared"? }`
   Copies the poem into the publishing bucket and adds it at the end of the list. `publishDate` (YYYY-MM-DD) and
   `highlighted` are the date the Table of Contents shows and the highlight (#305): sent together, both valid, and
@@ -170,8 +173,11 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   to a day (`max-age=86400`), and the publisher's page says so (midst-infra #117).
 - `POST /publisher/remove` `{ "poemId" }` → `{ "removed" }`
   Removes an unpublished poem from the portal (#308): its draft record is marked `removed`, and nothing is deleted.
-  `GET /publisher/poems` no longer lists it, and publishing it is 409 `removed`. A published poem is 409 `published`:
-  unpublish it first. The list is not written, so it takes no `listEtag`.
+  `GET /publisher/poems` lists it under `deleted` instead of `unpublished`, and publishing it is 409 `removed`. A
+  published poem is 409 `published`: unpublish it first. The list is not written, so it takes no `listEtag`.
+- `POST /publisher/restore` `{ "poemId" }` → `{ "restored" }`
+  Puts a removed poem back under `unpublished` (#349): the mark is lifted, and the record keeps the removal undone in
+  `restored`. A poem not removed is 409 `not_removed`. Like remove, it takes no `listEtag`.
 - `PUT /publisher/order` `{ "poemIds": [...], "listEtag" }` → `{ "listEtag", "published" }`
   400 `invalid` unless `poemIds` is exactly the published set, each once.
 - `GET /publisher/poems/{poemId}/process-note` → `{ "processNote", "noteVersion" }`, a draft poem's note as
