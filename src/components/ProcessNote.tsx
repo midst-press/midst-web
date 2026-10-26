@@ -1,4 +1,4 @@
-import { MEDIA_URL } from '../config'
+import { MEDIA_URL, POEMS_URL } from '../config'
 import React, { ReactElement, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '../store'
@@ -10,6 +10,11 @@ interface IProps {
   match: any
 }
 
+
+/** The photo at the foot of a poem's note: its own, when the publisher recorded one (#312; Annelyse, 26 Oct), or else
+ *  the archive's photo for its author, as before. */
+export const authorPhotoUrl = (poem: Pick<IPoem, 'authorId' | 'keys'>): string =>
+  poem.keys?.photo ? POEMS_URL + poem.keys.photo : `${MEDIA_URL}${poem.authorId}/${poem.authorId}.jpg`
 
 function ProcessNote(): ReactElement {
   const { processNoteOpen, poems } = useSelector((state: RootState) => ({
@@ -76,7 +81,7 @@ function ProcessNote(): ReactElement {
       {poem &&
         <div className="process-note__content">
           <div dangerouslySetInnerHTML={{ __html: poem ? poem.processNote : '' }} />
-          <img src={`${MEDIA_URL}${poem.authorId}/${poem.authorId}.jpg`} />
+          <img src={authorPhotoUrl(poem)} />
         </div>
       }
     </div>
