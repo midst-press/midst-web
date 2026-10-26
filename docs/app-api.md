@@ -334,7 +334,7 @@ change a group without going to the AWS console, which is how the first admin is
 | `/signed-in` | anyone | where the managed login returns to; finishes sign-in and goes on |
 | `/me` | signed in | who you are and your groups; sign out |
 | `/publisher` | publisher | unpublished and published poems: publish, unpublish, reorder, date and highlight; poets: register, resend, disable; patrons: edit the list |
-| `/submit` | poet | submit a poem, and your submissions and where each stands |
+| `/authorportal` | poet | submit a poem, and your submissions and where each stands. Nothing on the site links to it (#360) |
 | `/review` | publisher | submissions: play, accept or decline with a note |
 | `/admin` | admin | publishers and admins: invite, resend an invitation, change groups, disable |
 

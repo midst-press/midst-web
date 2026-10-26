@@ -61,7 +61,7 @@ test('a poet sends a .midst file, is thanked, and sees it received', async ({ pa
   const store: Store = { submissions: [{ submissionId: 'sub-1', title: 'Xv', author: 'Qz', origin: 'upload', submittedAt: '2026-10-01T09:00:00Z', status: 'declined', note: 'Zq note' }], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await expect(page.getByRole('list', { name: 'Your submissions' })).toContainText('Not taken this time: Zq note')
   await page.getByLabel('Title').fill('Zq vb')
   await page.getByLabel('Your name as it should appear').fill('Qz')
@@ -80,7 +80,7 @@ test('the Process Note is required: with no note the form is not sent (#292)', a
   const store: Store = { submissions: [], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
@@ -93,7 +93,7 @@ test('the Process Note is required: with no note the form is not sent (#292)', a
 test('Bold, Italic and Link wrap the selection, and Preview shows the note as the poem page will (#292)', async ({ page, baseURL }) => {
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, { submissions: [], uploaded: [] })
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   const box = page.getByLabel('Process Note', { exact: true })
   await box.fill('zq xv vb')
   await box.evaluate((b: HTMLTextAreaElement) => b.setSelectionRange(3, 5))
@@ -125,7 +125,7 @@ test('an archive record in the poet\'s list says it is from the archive, and sho
   const store: Store = { submissions: [{ submissionId: 'sub-2', title: 'Zq xv', author: 'Qz', origin: 'archive', submittedAt: null, status: 'accepted', note: null }], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   const item = page.getByRole('list', { name: 'Your submissions' }).getByRole('listitem').filter({ hasText: 'Zq xv' })
   await expect(item).toContainText('from the archive')
   await expect(item).not.toContainText('1970')
@@ -135,7 +135,7 @@ test('when the poem is received but the list cannot be refreshed, it does not sa
   const store: Store = { submissions: [], uploaded: [], listFailsAfterComplete: true }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
@@ -150,7 +150,7 @@ test('a file that is not .midst is refused before anything is sent', async ({ pa
   const store: Store = { submissions: [], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
@@ -164,7 +164,7 @@ test('an upload that fails is said, and the submission is not completed', async 
   const store: Store = { submissions: [], uploaded: [], uploadFails: true }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
@@ -178,7 +178,7 @@ test('a poet may add a photo: it is described, then uploaded to its own URL befo
   const store: Store = { submissions: [], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
@@ -198,7 +198,7 @@ test('with no photo chosen, none is described (#312)', async ({ page, baseURL })
   const store: Store = { submissions: [], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('Process Note', { exact: true }).fill('Zq')
@@ -213,7 +213,7 @@ test('a photo that is not a JPEG, PNG or WebP is refused beside the photo field,
   const store: Store = { submissions: [], uploaded: [] }
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, store)
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await page.getByLabel('Title').fill('Zq')
   await page.getByLabel('Your name as it should appear').fill('Qz')
   await page.getByLabel('Process Note', { exact: true }).fill('Zq')
@@ -242,7 +242,7 @@ for (const size of SIZES) {
     await page.setViewportSize(size)
     await signedInAs(page, ['poet'])
     await standIn(page, baseURL!, { submissions: [], uploaded: [] })
-    await page.goto('/submit')
+    await page.goto('/authorportal')
     if (size.width < 600) await page.locator('.window-size-popup').click()
     for (const name of ['Title', 'Your name as it should appear', 'The poem, as a Midst file (.midst)']) {
       const field = page.getByLabel(name)
@@ -265,7 +265,7 @@ for (const size of SIZES) {
     const store: Store = { submissions: [], uploaded: [], uploadFails: true }
     await signedInAs(page, ['poet'])
     await standIn(page, baseURL!, store)
-    await page.goto('/submit')
+    await page.goto('/authorportal')
     if (size.width < 600) await page.locator('.window-size-popup').click()
     await page.getByLabel('Title').fill('Zq')
     await page.getByLabel('Your name as it should appear').fill('Qz')
@@ -295,7 +295,7 @@ test('someone who is not a poet is told so, and nothing is asked for', async ({ 
   await signedInAs(page, ['publisher'])
   await standIn(page, baseURL!, { submissions: [], uploaded: [] })
   page.on('request', request => { if (request.url().startsWith(API)) asked = true })
-  await page.goto('/submit')
+  await page.goto('/authorportal')
   await expect(page.getByText('Your account cannot submit poems.')).toBeVisible()
   expect(asked).toBe(false)
 })
@@ -322,7 +322,9 @@ test('anyone reading Submit sees her text from content/, and no form', async ({ 
   expect(await text.innerHTML()).toBe(html)
   await expect(page.locator('#newsletter .campaign-monitor-form')).toHaveCount(1)
   await expect(page.locator('form.submit-form')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  // #360 (GitHub #96): signing in to submit is the author portal's, and Submit no longer offers it.
+  await expect(page.getByRole('button', { name: 'Sign in' })).toHaveCount(0)
+  await expect(page.getByText('Sign in to submit a poem')).toHaveCount(0)
 })
 
 test("a link in her text to one of the site's pages goes through the router, without reloading the site", async ({ page, baseURL }) => {
@@ -337,11 +339,47 @@ test("a link in her text to one of the site's pages goes through the router, wit
   expect(await page.evaluate(() => (window as unknown as { zqStayed?: boolean }).zqStayed)).toBe(true)
 })
 
-test('a signed-in poet sees her text first and the form under it', async ({ page, baseURL }) => {
+// #360 (Annelyse, GitHub #96): the form is at /authorportal, for poems already accepted by email, and Submit keeps only
+// her text, signed in or not.
+test('a signed-in poet sees only her text on Submit, and the form only in the author portal', async ({ page, baseURL }) => {
   await signedInAs(page, ['poet'])
   await standIn(page, baseURL!, { submissions: [], uploaded: [] })
   await page.goto('/submit')
+  await expect(page.locator('.submit-text')).toBeVisible()
+  await expect(page.locator('form.submit-form')).toHaveCount(0)
+  await page.goto('/authorportal')
   await expect(page.locator('form.submit-form')).toBeVisible()
-  const order = await page.locator('.submit-text, form.submit-form').evaluateAll(els => els.map(el => el.className))
-  expect(order).toEqual(['submit-text', 'submit-form'])
+  await expect(page.locator('.submit-text')).toHaveCount(0)
+})
+
+test('the author portal asks to be signed in, comes back to itself after, and asks search engines not to list it', async ({ page, baseURL }) => {
+  await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+  // The sign-in page is a stand-in that sends the browser straight back, so the site's own sessionStorage can be read.
+  let signInAsked = false
+  await page.route('https://auth.example.invalid/**', route => {
+    signInAsked = true
+    return route.fulfill({ status: 302, headers: { Location: `${baseURL}/` } })
+  })
+  await page.goto('/authorportal')
+  await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect.poll(() => signInAsked).toBe(true)
+  await page.waitForURL(`${baseURL}/`)
+  await expect.poll(() => page.evaluate(() => {
+    const pending = window.sessionStorage.getItem('midst-app-sign-in')
+    return pending ? JSON.parse(pending).returnTo : null
+  })).toBe('/authorportal')
+})
+
+test('nothing on the site links to the author portal', async ({ page, baseURL }) => {
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, { submissions: [], uploaded: [] })
+  // CONTROL: the check can find a link in the nav, so a zero below is about the portal.
+  await page.goto('/')
+  await expect(page.locator('.nav-links-wrapper a[href="/submit"]')).toHaveCount(1)
+  for (const path of ['/', '/submit', '/me', '/about', '/app', '/read', '/nominate']) {
+    await page.goto(path)
+    await page.waitForLoadState('networkidle')
+    expect(await page.locator('a[href*="authorportal"]').count(), path).toBe(0)
+  }
 })
