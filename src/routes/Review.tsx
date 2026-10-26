@@ -8,7 +8,7 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor, loadList } from '../app/publisher'
 import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
-import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, processNoteOf, reviewSubmissions, timelapseTicket } from '../app/review'
+import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, photoOf, processNoteOf, reviewSubmissions, timelapseTicket } from '../app/review'
 import { renderProcessNote } from '../processNote'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
@@ -24,6 +24,8 @@ function Review(): ReactElement {
   const [notes, setNotes] = useState<Record<string, string>>({})
   // Each process note shown (#292), as Markdown, by submission; null for one made before notes were asked for.
   const [processNotes, setProcessNotes] = useState<Record<string, string | null>>({})
+  // The poet's photo, shown with the note (#312): a link to it, or null when the submission has none.
+  const [photos, setPhotos] = useState<Record<string, string | null>>({})
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -96,6 +98,14 @@ function Review(): ReactElement {
     }
     setBusy(true)
     setProblem(null)
+    // The photo is asked for beside the note. A photo that cannot be loaded does not hold back the note, and says so.
+    const photo = photoOf(call, id).then(
+      ({ url }) => setPhotos(p => ({ ...p, [id]: url })),
+      error => {
+        if (error instanceof ApiError && error.status === 404) setPhotos(p => ({ ...p, [id]: null }))
+        else failed(error, 'The photo sent with that poem could not be loaded. Please try again.')
+      },
+    )
     try {
       const { processNote } = await processNoteOf(call, id)
       setProcessNotes(n => ({ ...n, [id]: processNote }))
@@ -103,6 +113,7 @@ function Review(): ReactElement {
       if (error instanceof ApiError && error.status === 404) setProcessNotes(n => ({ ...n, [id]: null }))
       else failed(error, 'That process note could not be loaded. Please try again.')
     } finally {
+      await photo
       setBusy(false)
     }
   }
@@ -173,6 +184,10 @@ function Review(): ReactElement {
                     // The poet's Markdown, with the narrow list: this page holds a publisher's session.
                     : <div className="review-process-note" role="region" aria-label={`Process note for ${s.title}`}
                       dangerouslySetInnerHTML={{ __html: renderProcessNote(processNotes[s.submissionId] as string) }} />)}
+                  {/* At the foot of the note, as the poem page shows it (#312). */}
+                  {s.submissionId in processNotes && photos[s.submissionId] && (
+                    <img className="review-photo" src={photos[s.submissionId] as string} alt={`Photo sent with ${s.title}`}
+                      style={{ display: 'block', maxWidth: '100%', maxHeight: '16rem' }} />)}
                 </div>
                 <span className="publisher-actions">
                   {/* An upload that never completed has no review copy to play, and nor does an archive record. */}
