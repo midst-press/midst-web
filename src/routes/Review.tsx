@@ -9,7 +9,7 @@ import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor, loadList } from '../app/publisher'
 import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
 import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, processNoteOf, reviewSubmissions, timelapseTicket } from '../app/review'
-import { renderPoetNote } from '../processNote'
+import { renderProcessNote } from '../processNote'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 
@@ -172,7 +172,7 @@ function Review(): ReactElement {
                     ? <div className="review-process-note">No process note.</div>
                     // The poet's Markdown, with the narrow list: this page holds a publisher's session.
                     : <div className="review-process-note" role="region" aria-label={`Process note for ${s.title}`}
-                      dangerouslySetInnerHTML={{ __html: renderPoetNote(processNotes[s.submissionId] as string) }} />)}
+                      dangerouslySetInnerHTML={{ __html: renderProcessNote(processNotes[s.submissionId] as string) }} />)}
                 </div>
                 <span className="publisher-actions">
                   {/* An upload that never completed has no review copy to play, and nor does an archive record. */}
