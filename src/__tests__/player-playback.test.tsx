@@ -308,6 +308,15 @@ describe('content fidelity', () => {
     expect(shown()).toBe('zq\tqv')
   })
 
+  // midst-format 0.7.0 (midst-editor#140, GitHub midst-press/midst-editor#30): a poem can carry underline and
+  // strikethrough, and the player keeps them. The page's CSS reset leaves text-decoration alone, so they show.
+  it('PB-CF-3 underline and strikethrough in a frame are kept', () => {
+    render({ data: makeFile(['<p>zq0</p>', '<p><u>zq</u> <s>qv</s></p>']) })
+    expect(shown()).toBe('zq qv')
+    expect(byLabel('Poem replay').querySelector('u')?.textContent).toBe('zq')
+    expect(byLabel('Poem replay').querySelector('s')?.textContent).toBe('qv')
+  })
+
   it('PB-CF-2 seeking to each index 0..4 shows that frame', () => {
     render({ data: FIVE })
     for (const i of [0, 1, 2, 3, 4]) {
