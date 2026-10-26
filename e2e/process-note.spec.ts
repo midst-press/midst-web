@@ -81,6 +81,30 @@ test('control: the same poem with its note served shows text, so the empty case 
   expect(seen.externalPoemFiles().length, 'a poem file was asked of another host').toBe(0)
 })
 
+// The author photo at the foot of the note (#359, GitHub #97). The archive's photo is guessed from the author's id; a
+// missing one showed the browser's empty broken-image box. A 1x1 PNG stands in for a photo that exists.
+const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')
+const photo = (page: Page) => page.locator('.process-note__content img')
+
+for (const exists of [false, true]) {
+  test(exists ? 'control: a photo that exists is shown at the foot of the note (#359)' : 'a poem whose photo is missing shows no box where it would be (#359)', async ({ page, baseURL }) => {
+    const file = published[withNote]
+    await serveSentinelNotes(page, baseURL!)
+    const asked: string[] = []
+    await page.route(/\.(jpe?g|png|webp)$/, request => {
+      asked.push(new URL(request.request().url()).pathname)
+      return exists ? request.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }) : request.fulfill({ status: 404, body: '' })
+    })
+    await page.goto(route(file))
+    await expect(page.locator(`${scope(file)} .editor`)).toBeVisible()
+    await openNote(page)
+    await expect(note(page)).toContainText('NOTE-SENTINEL-1')
+    await expect.poll(() => asked.length, 'the photo was asked for').toBeGreaterThan(0)
+    if (exists) await expect(photo(page)).toBeVisible()
+    else await expect(photo(page)).toHaveCount(0)
+  })
+}
+
 test('Escape and a click outside close the note', async ({ page, baseURL }) => {
   const file = published[withNote]
   await serveSentinelNotes(page, baseURL!)
