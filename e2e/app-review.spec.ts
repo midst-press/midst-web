@@ -34,7 +34,7 @@ function fixtureZip(): Buffer {
 }
 
 interface Submission { submissionId: string, title: string, author: string, poet: string | null, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
-interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean, unpublished?: string[], published?: string[], poemsFail?: boolean, poemReads?: number, processNotes?: Record<string, string> }
+interface Store { submissions: Submission[], decisions: unknown[], failNext?: boolean, expired?: boolean, unauthorised?: boolean, listReads: number, listFailsAfterDecision?: boolean, unpublished?: string[], published?: string[], poemsFail?: boolean, poemReads?: number, processNotes?: Record<string, string>, photos?: Record<string, 'link' | 'fails'> }
 
 const submission = (n: number, over: Partial<Submission> = {}): Submission =>
   ({ submissionId: `sub-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, poet: `qz${n}@example.invalid`, origin: 'upload', submittedAt: `2026-10-0${n}T09:00:00Z`, status: 'received', note: null, ...over })
@@ -61,6 +61,13 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (request.method() === 'GET' && noteOf) {
       const note = store.processNotes?.[decodeURIComponent(noteOf[1])]
       return note === undefined ? reply(404, { error: 'not_found', message: 'This submission has no process note.' }) : reply(200, { processNote: note })
+    }
+    const photoOf = /^\/review\/submissions\/([^/]+)\/photo$/.exec(url.pathname)
+    if (request.method() === 'GET' && photoOf) {
+      const id = decodeURIComponent(photoOf[1])
+      const photo = store.photos?.[id]
+      if (photo === 'fails') return reply(503, { message: 'Service Unavailable' })
+      return photo === undefined ? reply(404, { error: 'not_found', message: 'This submission has no author photo.' }) : reply(200, { url: `${FILES}/photo/${id}`, expiresAt: 'x' })
     }
     if (request.method() === 'GET' && url.pathname === '/publisher/poems') {
       store.poemReads = (store.poemReads ?? 0) + 1
@@ -370,4 +377,33 @@ test('Process note shows the poet\'s note rendered and sanitised, says when ther
   await expect(page.getByRole('list', { name: 'Submissions' }).getByRole('listitem').last()).toContainText('No process note.')
   await page.getByRole('button', { name: 'Process note for Zq 2' }).click()
   await expect(note).toHaveCount(0)
+})
+
+test('the poet\'s photo is shown at the foot of the note, and a submission without one shows none (#312)', async ({ page, baseURL }) => {
+  const store: Store = {
+    submissions: [submission(2), submission(1)], decisions: [], listReads: 0,
+    processNotes: { 'sub-2': 'Zq', 'sub-1': 'Xv' }, photos: { 'sub-2': 'link' },
+  }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await page.getByRole('button', { name: 'Process note for Zq 2' }).click()
+  await expect(page.getByRole('img', { name: 'Photo sent with Zq 2' })).toHaveAttribute('src', `${FILES}/photo/sub-2`)
+  await page.getByRole('button', { name: 'Process note for Zq 1' }).click()
+  await expect(page.getByRole('region', { name: 'Process note for Zq 1' })).toHaveText('Xv')
+  await expect(page.getByRole('img', { name: 'Photo sent with Zq 1' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Process note for Zq 2' }).click()
+  await expect(page.getByRole('img', { name: 'Photo sent with Zq 2' })).toHaveCount(0)
+})
+
+test('a photo that cannot be loaded is said, and the note is still shown (#312)', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [submission(1)], decisions: [], listReads: 0, processNotes: { 'sub-1': 'Xv' }, photos: { 'sub-1': 'fails' } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/review')
+  await page.getByRole('button', { name: 'Process note for Zq 1' }).click()
+  await expect(page.getByRole('region', { name: 'Process note for Zq 1' })).toHaveText('Xv')
+  // The API's own words for a failure, as for the note (failed() prefers them over the fallback).
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Photo sent with Zq 1' })).toHaveCount(0)
 })
