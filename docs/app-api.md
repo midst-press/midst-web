@@ -187,6 +187,14 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   `conflict`. Each edit is kept beside the poet's own note and every earlier edit, never written over them. A
   published poem is 409 `published`: readers see the copy made when it was published, so unpublish, edit and publish
   again.
+- `GET /publisher/poems/{poemId}/photo` → `{ "url", "expiresAt", "photoVersion" }`, a one-minute link to a draft poem's
+  author photo (#312, step 2b), all `null` for a poem with none. Audited as a read.
+- `POST /publisher/poems/{poemId}/photo` `{ "contentType", "sizeBytes" }` → `{ "uploadUrl", "uploadHeaders", "expiresAt" }`,
+  a pre-signed PUT for the new photo: an `image/jpeg`, `image/png` or `image/webp` of at most 5 MB, or 400 `invalid`.
+- `POST /publisher/poems/{poemId}/photo/complete` `{ "contentType", "sizeBytes", "photoVersion" }` → `{ "photoVersion" }`.
+  Checks that the photo arrived at that size and that its first bytes are that type (else 400 `invalid`, and the upload
+  is discarded), then keeps it beside every earlier photo, never written over them. `photoVersion` is the one read
+  (`null` for none); a stale one is 409 `conflict`. Like the note, a published poem's photo is 409 `published`.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "tags"?, "listEtag" }` → `{ "listEtag", "published" }`
   For a published poem. `tags` is a list of tag ids, each a tag and each once (else 400 `invalid`); without it the
   poem keeps the tags it has.
