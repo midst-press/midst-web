@@ -253,7 +253,8 @@ The beta app is a set of signed-in pages in the same bundle: a poet submits a po
 | `/app` | anyone | about the app |
 | `/signed-in` | anyone | where managed login returns; finishes sign-in |
 | `/me` | signed in | who you are and your groups; sign out |
-| `/submit` | poet | submit a poem; see where each submission stands |
+| `/submit` | everyone | Annelyse's text about submitting (`content/submit.md`) |
+| `/authorportal` | poet | submit a poem; see where each submission stands. Linked from nowhere on the site (#360) |
 | `/review` | publisher | play, accept or decline submissions |
 | `/publisher` | publisher | publish, unpublish, reorder; register poets |
 | `/admin` | admin | invite and manage publishers and admins |
