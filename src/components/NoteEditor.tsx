@@ -1,5 +1,5 @@
 import React, { ReactElement, useLayoutEffect, useRef, useState } from 'react'
-import { MAX_NOTE_CHARACTERS, Markup, applyMarkup, renderPoetNote } from '../processNote'
+import { MAX_NOTE_CHARACTERS, Markup, applyMarkup, renderProcessNote } from '../processNote'
 
 // A process note's editor (#292, #312): a Markdown box with buttons that wrap the selection, and a preview below it
 // (not in its place, so the box stays in reach of `required`), rendered as the review page renders a poet's note.
@@ -45,7 +45,7 @@ function NoteEditor({ id, label, value, onChange, disabled }: Props): ReactEleme
       <textarea id={id} ref={box} required maxLength={MAX_NOTE_CHARACTERS} rows={10} value={value}
         onChange={e => onChange(e.target.value)} disabled={disabled} />
       {previewing && <div className="process-note-preview" aria-label={`${label} preview`} role="region"
-        dangerouslySetInnerHTML={{ __html: renderPoetNote(value) }} />}
+        dangerouslySetInnerHTML={{ __html: renderProcessNote(value) }} />}
     </div>
   )
 }

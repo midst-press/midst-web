@@ -19,7 +19,7 @@ async function signedInAs(page: Page, groups: string[]) {
 }
 
 interface Submission { submissionId: string, title: string, author: string, origin: 'archive' | 'upload', submittedAt: string | null, status: string, note: string | null, recordedBy?: string }
-interface Store { submissions: Submission[], uploaded: string[], processNotes?: string[], uploadFails?: boolean, listFailsAfterComplete?: boolean }
+interface Store { submissions: Submission[], uploaded: string[], processNotes?: string[], photos?: unknown[], asked?: number, uploadFails?: boolean, listFailsAfterComplete?: boolean }
 
 async function standIn(page: Page, baseURL: string, store: Store) {
   await page.route('**/*', async (route: Route) => {
@@ -41,8 +41,10 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (request.method() === 'POST' && url.pathname === '/submissions') {
       const body = request.postDataJSON()
       ;(store.processNotes ??= []).push(body.processNote)
+      ;(store.photos ??= []).push(body.photo ?? null)
       store.submissions.unshift({ submissionId: 'sub-9', title: body.title, author: body.author, origin: 'upload', submittedAt: '2026-10-15T09:30:00Z', status: 'uploading', note: null })
-      return reply(200, { submissionId: 'sub-9', uploadUrl: `${UPLOAD}/submissions/sub-9/zq.midst`, uploadHeaders: { 'Content-Type': 'application/octet-stream' }, expiresAt: 'x' })
+      const photo = body.photo ? { photoUploadUrl: `${UPLOAD}/submissions/sub-9/author-photo`, photoUploadHeaders: { 'Content-Type': body.photo.contentType } } : {}
+      return reply(200, { submissionId: 'sub-9', uploadUrl: `${UPLOAD}/submissions/sub-9/zq.midst`, uploadHeaders: { 'Content-Type': 'application/octet-stream' }, expiresAt: 'x', ...photo })
     }
     if (request.method() === 'POST' && url.pathname === '/submissions/sub-9/complete') {
       store.submissions[0].status = 'received'
@@ -53,6 +55,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
 }
 
 const midstFile = { name: 'zq.midst', mimeType: 'application/octet-stream', buffer: Buffer.from('zq synthetic') }
+const PHOTO_LABEL = /A photo of you/
 
 test('a poet sends a .midst file, is thanked, and sees it received', async ({ page, baseURL }) => {
   const store: Store = { submissions: [{ submissionId: 'sub-1', title: 'Xv', author: 'Qz', origin: 'upload', submittedAt: '2026-10-01T09:00:00Z', status: 'declined', note: 'Zq note' }], uploaded: [] }
@@ -112,7 +115,8 @@ test('Bold, Italic and Link wrap the selection, and Preview shows the note as th
   await expect(preview.locator('em')).toHaveText('vb')
   await expect(preview.locator('a')).toHaveAttribute('href', 'https://example.invalid/')
   await expect(preview.locator('script')).toHaveCount(0)
-  await expect(preview.locator('img')).toHaveCount(0)
+  // Every note is rendered the same way now, the preview included (#292; Annelyse, 26 Oct).
+  await expect(preview.locator('img')).toHaveAttribute('src', 'https://example.invalid/t.png')
   await page.getByRole('button', { name: 'Preview' }).click()
   await expect(preview).toHaveCount(0)
 })
@@ -168,6 +172,57 @@ test('an upload that fails is said, and the submission is not completed', async 
   await page.getByRole('button', { name: 'Submit poem' }).click()
   await expect(page.getByRole('alert')).toContainText('could not be uploaded')
   expect(store.submissions[0].status).toBe('uploading')
+})
+
+test('a poet may add a photo: it is described, then uploaded to its own URL before the poem is completed (#312)', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [], uploaded: [] }
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/submit')
+  await page.getByLabel('Title').fill('Zq')
+  await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq *xv*')
+  await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
+  await page.getByLabel(PHOTO_LABEL).setInputFiles({ name: 'qz.png', mimeType: 'image/png', buffer: Buffer.from('qz synthetic') })
+  await page.getByRole('button', { name: 'Submit poem' }).click()
+  await expect(page.getByRole('status')).toContainText('We have received “Zq”')
+  expect(store.photos).toEqual([{ contentType: 'image/png', sizeBytes: 12 }])
+  expect(store.uploaded).toEqual([
+    '/submissions/sub-9/zq.midst application/octet-stream zq synthetic',
+    '/submissions/sub-9/author-photo image/png qz synthetic',
+  ])
+  expect(store.submissions[0].status).toBe('received')
+})
+
+test('with no photo chosen, none is described (#312)', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [], uploaded: [] }
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/submit')
+  await page.getByLabel('Title').fill('Zq')
+  await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq')
+  await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
+  await page.getByRole('button', { name: 'Submit poem' }).click()
+  await expect(page.getByRole('status')).toContainText('We have received')
+  expect(store.photos).toEqual([null])
+  expect(store.uploaded).toHaveLength(1)
+})
+
+test('a photo that is not a JPEG, PNG or WebP is refused beside the photo field, before anything is sent (#312)', async ({ page, baseURL }) => {
+  const store: Store = { submissions: [], uploaded: [] }
+  await signedInAs(page, ['poet'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/submit')
+  await page.getByLabel('Title').fill('Zq')
+  await page.getByLabel('Your name as it should appear').fill('Qz')
+  await page.getByLabel('Process Note', { exact: true }).fill('Zq')
+  await page.getByLabel('The poem, as a Midst file (.midst)').setInputFiles(midstFile)
+  await page.getByLabel(PHOTO_LABEL).setInputFiles({ name: 'qz.gif', mimeType: 'image/gif', buffer: Buffer.from('qz') })
+  await page.getByRole('button', { name: 'Submit poem' }).click()
+  await expect(page.getByRole('alert')).toContainText('JPEG, PNG or WebP')
+  expect(store.processNotes).toBeUndefined()
+  expect(store.uploaded).toEqual([])
 })
 
 // #253: the portal forms, at a desktop and a phone size.

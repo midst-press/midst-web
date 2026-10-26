@@ -44,8 +44,8 @@ describe('parsePublishedList', () => {
       entry(),
     ))
     expect(parsed.map(p => p.poemId)).toEqual([ID_B, ID_A])
-    expect(parsed[0].keys).toEqual({ timelapse: `${ID_B}/timelapse.midst.zip`, processNote: `${ID_B}/process-note.md` })
-    expect(parsed[1].keys).toEqual({ timelapse: `${ID_A}/timelapse.midst.zip`, processNote: `${ID_A}/process-note.md` })
+    expect(parsed[0].keys).toEqual({ timelapse: `${ID_B}/timelapse.midst.zip`, processNote: `${ID_B}/process-note.md`, photo: null })
+    expect(parsed[1].keys).toEqual({ timelapse: `${ID_A}/timelapse.midst.zip`, processNote: `${ID_A}/process-note.md`, photo: null })
   })
 
   it('carries the display fields, and defaults the absent ones', () => {
@@ -63,6 +63,12 @@ describe('parsePublishedList', () => {
 
   it('records a null note as null', () => {
     expect(parsePublishedList(list(entry({ processNote: null })))[0].keys.processNote).toBeNull()
+  })
+
+  it('carries an author photo key under poems/ without the prefix, and null when absent (#312)', () => {
+    expect(parsePublishedList(list(entry({ photo: `poems/${ID_A}/g1/author-photo.png` })))[0].keys.photo).toBe(`${ID_A}/g1/author-photo.png`)
+    expect(parsePublishedList(list(entry()))[0].keys.photo).toBeNull()
+    expect(parsePublishedList(list(entry({ photo: null })))[0].keys.photo).toBeNull()
   })
 
   it('accepts an empty list: nothing published yet is a list', () => {
@@ -86,6 +92,8 @@ describe('parsePublishedList', () => {
     ['a timelapse climbing out of poems/', list(entry({ timelapse: 'poems/../x.zip' }))],
     ['a note not starting poems/', list(entry({ processNote: `${ID_A}/process-note.md` }))],
     ['a note that is not text', list(entry({ processNote: 5 }))],
+    ['a photo not starting poems/ (#312)', list(entry({ photo: `${ID_A}/author-photo.jpg` }))],
+    ['a photo that is not text (#312)', list(entry({ photo: 5 }))],
     ['an entry without a title', list(entry({ title: undefined }))],
     ['an entry without an author', list(entry({ author: undefined }))],
     ['two entries with one poemId', list(entry(), entry())],

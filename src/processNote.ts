@@ -1,31 +1,23 @@
 /*
- * A process note (#292): Markdown, rendered here for the poem page, the review page and the submit form's preview. A
- * poet's note from the form is rendered with the narrow list wherever someone else reads it.
+ * A process note (#292): Markdown, rendered here for the poem page, the review page and the submit form's preview, the
+ * same way everywhere (Annelyse, 26 Oct, GitHub #81): she reads every note before it is published.
  */
 import { renderMarkdown } from './markdown'
 
-// The tags a published note may use, from the archive's notes, with the attributes insane allowed them by default.
-export const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol']
+// The tags a note may use, from the archive's notes, with the attributes insane allowed them by default.
+export const NOTE_TAGS = ['h1', 'p', 'i', 'a', 'em', 'b', 'strong', 'img', 'iframe', 'ul', 'li', 'ol', 'br']
 const NOTE_ATTRIBUTES = {
   a: ['href', 'name', 'target', 'title', 'aria-label'],
   iframe: ['allowfullscreen', 'frameborder', 'src'],
   img: ['src', 'alt', 'title', 'aria-label'],
 }
+// Embedded video only from YouTube and Vimeo (Annelyse, 26 Oct, GitHub #81). Any other iframe is shown as a link to
+// its address, so a note cannot put another site's page, a fake sign-in for one, inside the publisher's signed-in page.
+export const EMBED_HOSTS = ['www.youtube.com', 'youtube.com', 'www.youtube-nocookie.com', 'player.vimeo.com']
 
-// A note a poet wrote in the submit form, wherever someone else reads it (#292; cora-2f1e43dc, review of #314): no
-// iframe, which could put another site's page (a fake sign-in) inside the publisher's signed-in review page, and no
-// img, which would tell another server who opened it and when. What the form's buttons make, and line breaks. A link
-// keeps only its address.
-export const POET_NOTE_TAGS = ['p', 'em', 'strong', 'i', 'b', 'a', 'br']
-const POET_NOTE_ATTRIBUTES = { a: ['href'] }
-
-/** A note's Markdown as the sanitised HTML the poem page shows. */
+/** A note's Markdown as the sanitised HTML every page shows. */
 export const renderProcessNote = (markdown: string): string =>
-  renderMarkdown(markdown, { tags: NOTE_TAGS, attributes: NOTE_ATTRIBUTES })
-
-/** A poet's note from the submit form, as the review page and the form's preview show it. */
-export const renderPoetNote = (markdown: string): string =>
-  renderMarkdown(markdown, { tags: POET_NOTE_TAGS, attributes: POET_NOTE_ATTRIBUTES })
+  renderMarkdown(markdown, { tags: NOTE_TAGS, attributes: NOTE_ATTRIBUTES, iframeHosts: EMBED_HOSTS })
 
 // The most the API accepts (docs/app-api.md, POST /submissions), counted as a textarea's maxlength counts.
 export const MAX_NOTE_CHARACTERS = 20000

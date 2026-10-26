@@ -68,8 +68,9 @@ export interface IPoem {
   hidden?: boolean
   highlighted: boolean
   /* Where this poem's files are, relative to POEMS_URL, as the published list recorded them (#110). Absent on a
-   * bundled poem, whose names are derived. `processNote` is null when the poem has no note. */
-  keys?: { timelapse: string, processNote: string | null }
+   * bundled poem, whose names are derived. `processNote` is null when the poem has no note; `photo` when it has no
+   * author photo of its own (#312), and then the archive's photo for its author is shown. */
+  keys?: { timelapse: string, processNote: string | null, photo?: string | null }
   /* Place in the list as it was given, so a sort breaks ties the way the list did. */
   position: number
   /* The opaque storage id (tools/poem-ids.mjs). Absent only on a poem still on the pending list. */
@@ -104,6 +105,8 @@ export interface IState {
   processNoteOpen: boolean
   sortTerm: string
   sortOrder: string
+  /** The tag ids a reader has ticked (#310): the Table of Contents shows the poems carrying any of them. */
+  tagFilter: string[]
 }
 
 export const LOAD_POEM_DATA = 'LOAD_POEM_DATA'
@@ -115,6 +118,7 @@ export const REVERSE_SORT_ORDER = 'REVERSE_SORT_ORDER'
 export const SET_MOBILE_NAV_OPEN = 'SET_MOBILE_NAV_OPEN'
 export const SET_PROCESS_NOTE_OPEN = 'SET_PROCESS_NOTE_OPEN'
 export const SET_SORT_TERM = 'SET_SORT_TERM'
+export const SET_TAG_FILTER = 'SET_TAG_FILTER'
 
 export interface ILoadPoemData extends AnyAction {
   payload: { poemId: string, data: IMidstFile, processNote: string }
@@ -152,9 +156,15 @@ export interface ISetSortTerm extends AnyAction {
   type: typeof SET_SORT_TERM
 }
 
+export interface ISetTagFilter extends AnyAction {
+  payload: string[]
+  type: typeof SET_TAG_FILTER
+}
+
 export type Action =
   ILoadPoemData
   | ISetMobileNavOpen
   | ISetProcessNoteOpen
   | ISetSortOrder
   | ISetSortTerm
+  | ISetTagFilter

@@ -5,7 +5,8 @@ import { act } from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AnyAction, applyMiddleware, combineReducers, createStore, Middleware } from 'redux'
-import ProcessNote from '../components/ProcessNote'
+import ProcessNote, { authorPhotoUrl } from '../components/ProcessNote'
+import { MEDIA_URL, POEMS_URL } from '../config'
 import { reducer } from '../store/reducer'
 import { SET_PROCESS_NOTE_OPEN } from '../store/types'
 
@@ -74,4 +75,13 @@ it('has one Escape handler after a remount, not one per mount', () => {
   mount()
   escape()
   expect(closes).toBe(1)
+})
+
+describe('authorPhotoUrl (#312)', () => {
+  it("is the poem's own photo when the list recorded one, and the archive's author photo otherwise", () => {
+    expect(authorPhotoUrl({ authorId: 'qz-vb', keys: { timelapse: 't', processNote: null, photo: 'zq/g1/author-photo.png' } }))
+      .toBe(`${POEMS_URL}zq/g1/author-photo.png`)
+    expect(authorPhotoUrl({ authorId: 'qz-vb', keys: { timelapse: 't', processNote: null, photo: null } })).toBe(`${MEDIA_URL}qz-vb/qz-vb.jpg`)
+    expect(authorPhotoUrl({ authorId: 'qz-vb', keys: undefined })).toBe(`${MEDIA_URL}qz-vb/qz-vb.jpg`)
+  })
 })

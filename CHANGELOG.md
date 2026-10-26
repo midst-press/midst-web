@@ -1,3 +1,19 @@
+# 0.19.0
+
+- **Tags in the Table of Contents.** Above the list there is a box for each tag in use: ticking tags shows the poems
+  carrying any of them, and unticking them all shows every poem. "Sort by tag" groups the poems by tag, each group
+  newest first, with untagged poems last; its arrow reverses the order of the groups. A poem with two tags is listed
+  under both, for now.
+- **Delete, and a Deleted section.** On the publisher page, "Remove from portal" is now **Delete**. It still asks
+  first and still deletes nothing: the poem moves to a new Deleted section below the published list, with its date,
+  and can't be published until it is restored. **Restore** puts it back.
+- **Process notes look the same everywhere.** The poem page, the review page and the Submit form's preview show a
+  note the same way, with the same formatting allowed. Embedded video plays only from YouTube and Vimeo; any other
+  embed is shown as a link to its address. The review page and the preview now show a note's images too.
+- **Author photos.** A poet can add a photo of themselves on the Submit form (JPEG, PNG or WebP, at most 5 MB). It
+  shows at the foot of the process note on the review page, and on the poem page once published; a poem without its
+  own photo shows the archive's, as before.
+
 # 0.18.0
 
 - **The page router is updated to version 7** (react-router 7.18.4), which fixes the last of its open security

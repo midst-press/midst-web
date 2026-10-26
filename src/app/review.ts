@@ -20,6 +20,10 @@ export const timelapseTicket = (call: Call, submissionId: string) =>
 export const processNoteOf = (call: Call, submissionId: string) =>
   call<{ processNote: string }>(`/review/submissions/${encodeURIComponent(submissionId)}/process-note`)
 
+/** A one-minute link to the checked copy of the poet's photo (#312). 404 for a submission sent without one. */
+export const photoOf = (call: Call, submissionId: string) =>
+  call<{ url: string, expiresAt: string }>(`/review/submissions/${encodeURIComponent(submissionId)}/photo`)
+
 export const decide = (call: Call, submissionId: string, decision: Decision, note: string) =>
   call<Submission>(`/review/submissions/${encodeURIComponent(submissionId)}/decision`, { method: 'POST', body: { decision, note } })
 

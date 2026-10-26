@@ -11,7 +11,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[], tags?: Array<{ id: string, name: string, colour: string }> }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[], tags?: Array<{ id: string, name: string, colour: string }>, deleted?: Array<ReturnType<typeof poem> & { removedAt: string }> }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -22,7 +22,8 @@ async function signedInAs(page: Page, groups: string[]) {
 }
 
 async function standIn(page: Page, baseURL: string, store: Store) {
-  const list = () => ({ listEtag: `e${store.etag}`, published: store.published, unpublished: store.unpublished })
+  // `deleted` only when the store has one: an API before midst-infra #227 sends none (#349).
+  const list = () => ({ listEtag: `e${store.etag}`, published: store.published, unpublished: store.unpublished, ...(store.deleted ? { deleted: store.deleted } : {}) })
   await page.route('**/*', async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
@@ -86,8 +87,19 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     // #308: remove changes the poem's record, not the list, so it takes no listEtag; a published poem is refused.
     if (url.pathname === '/publisher/remove') {
       if (store.published.some(p => p.poemId === body.poemId)) return reply(409, { error: 'published', message: 'This poem is published. Unpublish it before removing it from the portal.' })
+      const removed = store.unpublished.find(p => p.poemId === body.poemId)
       store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
+      if (removed && store.deleted) store.deleted.unshift({ ...removed, removedAt: '2026-10-26T04:00:00.000Z' })
       return reply(200, { removed: body.poemId })
+    }
+    // #349: restore puts a deleted poem back under Not published; one not deleted is refused.
+    if (url.pathname === '/publisher/restore') {
+      const restored = store.deleted?.find(p => p.poemId === body.poemId)
+      if (!restored) return reply(409, { error: 'not_removed', message: 'This poem is not in Deleted.' })
+      store.deleted = store.deleted!.filter(p => p.poemId !== body.poemId)
+      const { removedAt: _when, ...back } = restored
+      store.unpublished.push(back)
+      return reply(200, { restored: body.poemId })
     }
     // #101, midst-infra #190: a replacement the server refuses (another poet's, say) is a 400 with a brief message.
     if (store.refuseReplaces && url.pathname === '/publisher/publish' && body.replaces) {
@@ -592,12 +604,12 @@ test('remove from portal asks first; dismissed, nothing is sent; accepted, the p
   await page.goto('/publisher')
   const asked: string[] = []
   page.once('dialog', dialog => { asked.push(dialog.message()); return dialog.dismiss() })
-  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
-  expect(asked).toEqual(['Remove "Zq 2" from the portal? It will no longer be listed here and can\'t be published from the portal again. Nothing is deleted.'])
+  await page.getByRole('button', { name: 'Delete Zq 2' }).click()
+  expect(asked).toEqual(['Delete "Zq 2"? It moves to the Deleted section below, and can\'t be published until you restore it.'])
   expect(store.writes).toEqual([])
   page.once('dialog', dialog => dialog.accept())
-  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
-  await expect(page.getByRole('status')).toHaveText('Removed Zq 2 from the portal.')
+  await page.getByRole('button', { name: 'Delete Zq 2' }).click()
+  await expect(page.getByRole('status')).toHaveText('Moved Zq 2 to Deleted.')
   expect(store.bodies).toEqual([{ poemId: 'id-2' }])
   await expect(page.getByRole('list', { name: 'Poems not published' }).locator('strong')).toHaveText(['Zq 3'])
   await expect(published(page)).toHaveText(['Zq 1'])
@@ -611,7 +623,7 @@ test('a remove the server refuses says why, and the poem stays (#308)', async ({
   await page.goto('/publisher')
   store.published.push(store.unpublished.pop()!)
   page.once('dialog', dialog => dialog.accept())
-  await page.getByRole('button', { name: 'Remove Zq 2 from the portal' }).click()
+  await page.getByRole('button', { name: 'Delete Zq 2' }).click()
   await expect(page.getByRole('alert')).toHaveText('This poem is published. Unpublish it before removing it from the portal.')
   await expect(published(page)).toHaveText(['Zq 2'])
 })
@@ -648,4 +660,46 @@ test('a published poem is tagged and untagged with its boxes, and a date change 
   await expect(page.getByRole('status')).toHaveText('Saved the date of Zq 1.')
   expect('tags' in (store.bodies!.at(-1) as object)).toBe(false)
   await expect(box('Zq Green', 'Zq 1')).toBeChecked()
+})
+
+test('a deleted poem is listed under Deleted, and Restore puts it back under Not published (#349)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(2), poem(3)], writes: [], bodies: [], deleted: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(page.getByText('Nothing has been deleted.')).toBeVisible()
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'Delete Zq 2' }).click()
+  const deleted = page.getByRole('list', { name: 'Deleted poems' })
+  await expect(deleted.locator('strong')).toHaveText(['Zq 2'])
+  await expect(page.getByRole('list', { name: 'Poems not published' }).locator('strong')).toHaveText(['Zq 3'])
+  // Restore does not ask: nothing is lost by it, and Delete puts the poem back.
+  await deleted.getByRole('button', { name: 'Restore Zq 2' }).click()
+  await expect(page.getByRole('status')).toHaveText('Restored Zq 2. It is under Not published again.')
+  expect(store.bodies?.slice(-1)).toEqual([{ poemId: 'id-2' }])
+  expect(store.writes.filter(w => w.startsWith('POST'))).toEqual(['POST /publisher/remove', 'POST /publisher/restore'])
+  await expect(page.getByRole('list', { name: 'Poems not published' }).locator('strong')).toHaveText(['Zq 3', 'Zq 2'])
+  await expect(page.getByText('Nothing has been deleted.')).toBeVisible()
+})
+
+test('a restore the server refuses says why (#349)', async ({ page, baseURL }) => {
+  // Restored from another page since this one loaded: the server refuses, and the reload shows it where it now is.
+  const store: Store = { etag: 1, published: [], unpublished: [], writes: [], deleted: [{ ...poem(2), removedAt: '2026-10-20T00:00:00.000Z' }] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  store.unpublished.push(poem(2))
+  store.deleted = []
+  await page.getByRole('button', { name: 'Restore Zq 2' }).click()
+  await expect(page.getByRole('alert')).toHaveText('This poem is not in Deleted.')
+  await expect(page.getByRole('list', { name: 'Poems not published' }).locator('strong')).toHaveText(['Zq 2'])
+})
+
+test('with an API that sends no deleted list, there is no Deleted section (#349)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [poem(1)], unpublished: [poem(2)], writes: [] }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await expect(page.getByRole('list', { name: 'Poems not published' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Deleted' })).toHaveCount(0)
 })

@@ -6,7 +6,7 @@ import { ApiError } from '../app/api'
 import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
-import { STATUS_WORDS, Submission, fileProblem, mySubmissions, submitPoem, whenWords } from '../app/submit'
+import { PHOTO_TYPES, STATUS_WORDS, Submission, fileProblem, mySubmissions, photoProblem, submitPoem, whenWords } from '../app/submit'
 import NoteEditor from '../components/NoteEditor'
 import { SUBMIT_TEXT, renderContent } from '../content'
 import { isSitePath } from '../sitePath'
@@ -45,15 +45,17 @@ function Submit(): ReactElement {
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  // The author photo (#312): optional, shown at the foot of the process note.
+  const [photo, setPhoto] = useState<File | null>(null)
   // The process note (#292), in Markdown.
   const [processNote, setProcessNote] = useState('')
   const [formKey, setFormKey] = useState(0) // remakes the file input after a submission
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  // Which control the problem is about, so it is shown beside it (#253): the file chosen, or the sending of it.
-  // null: neither, such as the list failing to load; shown above the form.
-  const [problemAt, setProblemAt] = useState<'file' | 'send' | null>(null)
+  // Which control the problem is about, so it is shown beside it (#253): the file chosen, the photo chosen, or the
+  // sending of them. null: none, such as the list failing to load; shown above the form.
+  const [problemAt, setProblemAt] = useState<'file' | 'photo' | 'send' | null>(null)
 
   const call = session && isPoet ? callerFor(APP_API_URL, session.idToken) : null
   const failed = (error: unknown, fallback: string, at: 'send' | null = null) => {
@@ -72,16 +74,19 @@ function Submit(): ReactElement {
     if (!call || !file) return
     const wrong = fileProblem(file)
     if (wrong) { setProblem(wrong); setProblemAt('file'); return }
+    const wrongPhoto = photo ? photoProblem(photo) : null
+    if (wrongPhoto) { setProblem(wrongPhoto); setProblemAt('photo'); return }
     setBusy(true)
     setNotice(null)
     setProblem(null)
     setProblemAt(null)
     try {
-      const sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim(), processNote }, file)
+      const sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim(), processNote }, file, photo)
       setNotice(`Thank you. We have received “${sent.title}”. You will get an email to say so.`)
       setTitle('')
       setProcessNote('')
       setFile(null)
+      setPhoto(null)
       setFormKey(k => k + 1)
     } catch (error) {
       failed(error, 'Your poem could not be sent. Please try again.', 'send')
@@ -127,6 +132,8 @@ function Submit(): ReactElement {
           <NoteEditor id="process-note" label="Process Note" value={processNote} onChange={setProcessNote} disabled={busy} />
           <p><label>The poem, as a Midst file (.midst) <input type="file" accept=".midst" required onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={busy} /></label></p>
           {problem && problemAt === 'file' && <p role="alert" className="publisher-problem">{problem}</p>}
+          <p><label>A photo of you, if you would like one shown under your process note (JPEG, PNG or WebP, at most 5 MB) <input type="file" accept={PHOTO_TYPES.join(',')} onChange={e => setPhoto(e.target.files?.[0] ?? null)} disabled={busy} /></label></p>
+          {problem && problemAt === 'photo' && <p role="alert" className="publisher-problem">{problem}</p>}
           <p><button type="submit" className="app-button" disabled={busy || !file}>{busy ? 'Sending…' : 'Submit poem'}</button></p>
           {problem && problemAt === 'send' && <p role="alert" className="publisher-problem">{problem}</p>}
         </form>
