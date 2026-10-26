@@ -13,6 +13,7 @@ import {
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
   SET_SORT_TERM,
+  SET_TAG_FILTER,
 
   IPoem,
   IState,
@@ -89,12 +90,18 @@ const poems: IPoem[] = POEM_LIST === 'bundled' ? poemData.map(createPoem) : []
 // sorting by author) break by position in the list, so they come out in the same order whatever the
 // previous sort was, for a bundled list or a published one. A poem with no publish date comes last in either
 // order, in list order, so newest-first never opens on the undated ones (midst-web #309).
+//
+// Sorting by tag (#310) groups the poems by the tags' names, which the page reads (src/tags.ts, tocSections). Here it
+// orders them newest first, as each group shows them; sortOrder then orders the groups, not the poems.
 const undated = (poem: IPoem) => !(poem.publishDate && poem.publishDate.isValid())
 function sortPoems(draftState: { poems: IPoem[], sortTerm: string, sortOrder: string }) {
-  const last = draftState.sortTerm === 'publishDate' ? draftState.poems.filter(undated) : []
-  const rest = draftState.sortTerm === 'publishDate' ? draftState.poems.filter(poem => !undated(poem)) : draftState.poems
+  const byTag = draftState.sortTerm === 'tag'
+  const term = byTag ? 'publishDate' : draftState.sortTerm
+  const descending = byTag || draftState.sortOrder === 'DESC'
+  const last = term === 'publishDate' ? draftState.poems.filter(undated) : []
+  const rest = term === 'publishDate' ? draftState.poems.filter(poem => !undated(poem)) : draftState.poems
   // Ties keep list order in either direction: only the term is reversed, never the position.
-  const sorted = orderBy(rest, [draftState.sortTerm, 'position'], [draftState.sortOrder === 'DESC' ? 'desc' : 'asc', 'asc'])
+  const sorted = orderBy(rest, [term, 'position'], [descending ? 'desc' : 'asc', 'asc'])
   return [...sorted, ...sortBy(last, ['position'])]
 }
 
@@ -107,6 +114,7 @@ const initialState: IState = {
   processNoteOpen: false,
   sortOrder: 'DESC',
   sortTerm: 'publishDate',
+  tagFilter: [],
 }
 
 const reducer = (
@@ -182,9 +190,13 @@ const reducer = (
         draftState.sortTerm = payload
         // A newly chosen term starts at its own order: a date newest first, an author or title A to Z, whatever the
         // previous sort's direction (midst-web #309: the page opens descending, so keeping it would start authors at Z).
+        // Tags start A to Z (#310).
         draftState.sortOrder = payload === 'publishDate' ? 'DESC' : 'ASC'
         draftState.poems = sortPoems(draftState)
       })
+
+    case SET_TAG_FILTER:
+      return { ...state, tagFilter: payload }
 
     default:
       return state

@@ -16,6 +16,7 @@ import {
   SET_MOBILE_NAV_OPEN,
   SET_PROCESS_NOTE_OPEN,
   SET_SORT_TERM,
+  SET_TAG_FILTER,
 
   IPoem,
   PoemListFailure,
@@ -170,6 +171,12 @@ const setSortTerm = (sortBy: string): AnyAction => ({
   payload: sortBy,
 })
 
+// The tags a reader has ticked (#310), by id.
+const setTagFilter = (tagIds: string[]): AnyAction => ({
+  type: SET_TAG_FILTER,
+  payload: tagIds,
+})
+
 export {
   loadPoemData,
   loadPoemList,
@@ -177,4 +184,5 @@ export {
   setProcessNoteOpen,
   reverseSortOrder,
   setSortTerm,
+  setTagFilter,
 }
