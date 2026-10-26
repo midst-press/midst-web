@@ -6,12 +6,15 @@ import { test, expect } from './coverage'
 // poems and people only.
 
 const API = 'https://api.example.invalid'
+const UPLOAD = 'https://upload.example.invalid'
+const FILES = 'https://files.example.invalid'
+const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, PUT' }
 
 const poem = (n: number) => ({ poemId: `id-${n}`, title: `Zq ${n}`, author: `Qz ${n}`, timelapseKey: `poems/id-${n}/t`, processNoteKey: null, publishDate: null as string | null, highlighted: false })
 
 interface Person { username: string, name: string, email: string, groups: string[], status: string }
-interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[], tags?: Array<{ id: string, name: string, colour: string }>, deleted?: Array<ReturnType<typeof poem> & { removedAt: string }> }
+interface Store { etag: number, published: ReturnType<typeof poem>[], unpublished: ReturnType<typeof poem>[], writes: string[], failNext?: boolean, failReload?: boolean, reloadStatus?: number, poets?: Person[], edgeCleared?: boolean, edgeClearedEverywhere?: boolean, submissionStatuses?: string[], failSubmissions?: boolean, bodies?: Record<string, unknown>[], refuseReplaces?: string, notes?: Record<string, { text: string | null, version: string | null }>, noteSaves?: unknown[], photos?: Record<string, string | null>, photoCalls?: string[], photoUploadFails?: boolean, tags?: Array<{ id: string, name: string, colour: string }>, deleted?: Array<ReturnType<typeof poem> & { removedAt: string }> }
 
 async function signedInAs(page: Page, groups: string[]) {
   const b64url = (text: string) => Buffer.from(text).toString('base64url')
@@ -28,9 +31,30 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     const request = route.request()
     const url = new URL(request.url())
     if (url.origin === new URL(baseURL).origin) return route.continue()
-    if (url.origin !== API) return route.abort()
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
+    if (url.origin === FILES) return route.fulfill({ status: 200, headers: cors, contentType: 'image/png', body: PIXEL })
+    if (url.origin !== API && url.origin !== UPLOAD) return route.abort()
     const reply = (status: number, body: unknown) => route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) })
+    // A draft poem's author photo (#312, step 2b): its key is its version; a change is asked for, uploaded, completed.
+    if (url.origin === UPLOAD) {
+      ;(store.photoCalls ??= []).push(`PUT ${url.pathname} ${request.headers()['content-type']} ${request.postDataBuffer()?.length}`)
+      return route.fulfill({ status: store.photoUploadFails ? 403 : 200, headers: cors, body: '' })
+    }
+    const photoOf = /^\/publisher\/poems\/([^/]+)\/photo(\/complete)?$/.exec(url.pathname)
+    if (photoOf && store.photos) {
+      const id = decodeURIComponent(photoOf[1])
+      const key = store.photos[id] ?? null
+      if (request.method() === 'GET') {
+        ;(store.photoCalls ??= []).push(`GET ${id}`)
+        return reply(200, key ? { url: `${FILES}/${key}`, expiresAt: 'x', photoVersion: key } : { url: null, expiresAt: null, photoVersion: null })
+      }
+      const body = request.postDataJSON()
+      ;(store.photoCalls ??= []).push(`POST ${id}${photoOf[2] ?? ''} ${JSON.stringify(body)}`)
+      if (!photoOf[2]) return reply(200, { uploadUrl: `${UPLOAD}/${id}`, uploadHeaders: { 'Content-Type': body.contentType }, expiresAt: 'x' })
+      if (body.photoVersion !== key) return reply(409, { error: 'conflict', message: 'The photo changed since you loaded it. Load it again.' })
+      store.photos[id] = `poems/${id}/author-photo-${(store.photoCalls ?? []).length}.png`
+      return reply(200, { photoVersion: store.photos[id] })
+    }
     // A draft poem's process note (#312): the version is bumped on each save, and a stale one is a conflict.
     const noteOf = /^\/publisher\/poems\/([^/]+)\/process-note$/.exec(url.pathname)
     if (noteOf && store.notes) {
@@ -702,4 +726,67 @@ test('with an API that sends no deleted list, there is no Deleted section (#349)
   await page.goto('/publisher')
   await expect(page.getByRole('list', { name: 'Poems not published' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Deleted' })).toHaveCount(0)
+})
+
+const pngFile = (bytes = 'zq synthetic') => ({ name: 'qz.png', mimeType: 'image/png', buffer: Buffer.from(bytes) })
+
+test('an unpublished poem\'s photo is shown, and a new one is uploaded and completed on the version shown (#312)', async ({ page, baseURL }) => {
+  const old = 'poems/id-3/author-photo.jpg'
+  const store: Store = { etag: 1, published: [], unpublished: [poem(3)], writes: [], photos: { 'id-3': old } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Author photo for Zq 3', exact: true }).click()
+  await expect(page.getByRole('img', { name: 'Author photo for Zq 3' })).toHaveAttribute('src', `${FILES}/${old}`)
+  const save = page.getByRole('button', { name: 'Save photo' })
+  await expect(save).toBeDisabled()
+  await page.getByLabel(/A new photo/).setInputFiles(pngFile())
+  await save.click()
+  await expect(page.getByRole('status')).toHaveText('Photo saved.')
+  expect(store.photoCalls).toEqual([
+    'GET id-3',
+    `POST id-3 ${JSON.stringify({ contentType: 'image/png', sizeBytes: 12 })}`,
+    'PUT /id-3 image/png 12',
+    `POST id-3/complete ${JSON.stringify({ contentType: 'image/png', sizeBytes: 12, photoVersion: old })}`,
+    'GET id-3',
+  ])
+  await expect(page.getByRole('img', { name: 'Author photo for Zq 3' })).toHaveAttribute('src', `${FILES}/${store.photos!['id-3']}`)
+  await expect(save).toBeDisabled()
+})
+
+test('a poem with no photo says so, and its first photo completes from no version (#312)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(4)], writes: [], photos: {} }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Author photo for Zq 4', exact: true }).click()
+  await expect(page.getByText('No photo yet.')).toBeVisible()
+  await page.getByLabel(/A photo/).setInputFiles(pngFile())
+  await page.getByRole('button', { name: 'Save photo' }).click()
+  await expect(page.getByRole('status')).toHaveText('Photo saved.')
+  expect(store.photoCalls?.find(c => c.startsWith('POST id-4/complete'))).toContain('"photoVersion":null')
+})
+
+test('a photo of another type is refused before anything is sent; a failed upload is not completed; a conflict says so (#312)', async ({ page, baseURL }) => {
+  const store: Store = { etag: 1, published: [], unpublished: [poem(3)], writes: [], photos: { 'id-3': 'poems/id-3/author-photo.jpg' } }
+  await signedInAs(page, ['publisher'])
+  await standIn(page, baseURL!, store)
+  await page.goto('/publisher')
+  await page.getByRole('button', { name: 'Author photo for Zq 3', exact: true }).click()
+  const input = page.getByLabel(/A new photo/)
+  await input.setInputFiles({ name: 'qz.gif', mimeType: 'image/gif', buffer: Buffer.from('qz') })
+  await page.getByRole('button', { name: 'Save photo' }).click()
+  await expect(page.getByRole('alert')).toContainText('JPEG, PNG or WebP')
+  expect(store.photoCalls).toEqual(['GET id-3'])
+
+  store.photoUploadFails = true
+  await input.setInputFiles(pngFile())
+  await page.getByRole('button', { name: 'Save photo' }).click()
+  await expect(page.getByRole('alert')).toContainText('could not be uploaded')
+  expect(store.photoCalls?.some(c => c.includes('/complete'))).toBe(false)
+
+  store.photoUploadFails = false
+  store.photos!['id-3'] = 'poems/id-3/author-photo-other.png'
+  await page.getByRole('button', { name: 'Save photo' }).click()
+  await expect(page.getByRole('alert')).toHaveText('The photo changed since you opened it. Open it again to see it.')
 })
