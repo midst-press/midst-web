@@ -56,7 +56,7 @@ const hasStoredUrl = entry => Object.prototype.hasOwnProperty.call(entry, 'url')
  * is not the list the publisher meant.
  * @param {unknown} json
  * @returns {Array<{poemId: string, title: string, author: string, url: string,
- *   keys: {timelapse: string, processNote: string | null}, publishDate: string | null, highlighted: boolean,
+ *   keys: {timelapse: string, processNote: string | null, photo: string | null}, publishDate: string | null, highlighted: boolean,
  *   date: string | null}>}
  */
 function parsePublishedList(json) {
@@ -64,9 +64,11 @@ function parsePublishedList(json) {
   const seen = new Set()
   const entries = json.poems.map(entry => {
     if (!entry || typeof entry !== 'object') throw malformed()
-    const { poemId, title, author, timelapse, processNote, publishDate, highlighted, date, firstPublishedAt } = entry
+    const { poemId, title, author, timelapse, processNote, photo, publishDate, highlighted, date, firstPublishedAt } = entry
     if (!isText(poemId) || !isText(title) || !isText(author) || !isKey(timelapse) || seen.has(poemId)) throw malformed()
     if (processNote !== null && processNote !== undefined && !isKey(processNote)) throw malformed()
+    // The author photo (#312), shown at the foot of the note: a key like the note's, or absent.
+    if (photo !== null && photo !== undefined && !isKey(photo)) throw malformed()
     if (!isAbsentOrText(firstPublishedAt)) throw malformed()
     // A stored date is YYYY-MM-DD or absent (midst-infra #81). Any other form is refused, not guessed at.
     if (!isAbsentOrDate(publishDate) || !isAbsentOrDate(date)) throw malformed()
@@ -78,6 +80,7 @@ function parsePublishedList(json) {
       keys: {
         timelapse: timelapse.slice(KEY_ROOT.length),
         processNote: isKey(processNote) ? processNote.slice(KEY_ROOT.length) : null,
+        photo: isKey(photo) ? photo.slice(KEY_ROOT.length) : null,
       },
       publishDate: publishDate ?? null,
       highlighted: highlighted === true,
