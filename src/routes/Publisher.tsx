@@ -15,7 +15,8 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
 import {
-  Call, Poem, PublisherList, callerFor, lastEditedWords, leftInCache, loadList, moved, orderChanged, removeFromPortal,
+  Call, Poem, PublisherList, callerFor, lastEditedWords, leftInCache, loadList, moved, orderChanged, removeFromPortal, removedWords,
+  restoreToPortal,
   saveDetails, saveOrder, unpublish,
 } from '../app/publisher'
 
@@ -28,10 +29,10 @@ const LEFT_IN_CACHE = {
   unpublish: 'Its copies could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.',
   publish: 'The copies of the version it replaced could not be cleared from the site\'s cache, so anyone who already has their address may still open them for up to a day.',
 }
-// Remove asks first: the portal will not offer the poem again (#308). Nothing is deleted, so an admin can bring it
-// back, but the publisher cannot.
+// Delete asks first (#308). It moves the poem to the Deleted section, where Restore puts it back (#349; Annelyse's
+// words for both, GitHub #46): its record is marked, never removed.
 export const confirmRemove = (title: string) =>
-  `Remove "${title}" from the portal? It will no longer be listed here and can't be published from the portal again. Nothing is deleted.`
+  `Delete "${title}"? It moves to the Deleted section below, and can't be published until you restore it.`
 
 const CONFLICT = 'Someone else changed the published list while you were working. It has been reloaded; please check it and try again.'
 
@@ -181,11 +182,11 @@ function Publisher(): ReactElement {
                           }), `Published ${poem.title}.`, LEFT_IN_CACHE.publish)}>
                         Publish
                       </button>
-                      <button type="button" disabled={busy || reordered} aria-label={`Remove ${poem.title} from the portal`}
+                      <button type="button" disabled={busy || reordered} aria-label={`Delete ${poem.title}`}
                         onClick={() => {
-                          if (window.confirm(confirmRemove(poem.title))) change(c => removeFromPortal(c, poem.poemId), `Removed ${poem.title} from the portal.`)
+                          if (window.confirm(confirmRemove(poem.title))) change(c => removeFromPortal(c, poem.poemId), `Moved ${poem.title} to Deleted.`)
                         }}>
-                        Remove from portal
+                        Delete
                       </button>
                     </>
                   })()}
@@ -270,6 +271,27 @@ function Publisher(): ReactElement {
             <button type="button" disabled={busy} onClick={() => setOrder(list.published)}>Undo changes</button>
           </p>
         )}
+
+        {/* An API before midst-infra #227 sends no `deleted`, and then there is no section to show. */}
+        {list.deleted && <>
+          <h3>Deleted</h3>
+          {list.deleted.length === 0 ? <p>Nothing has been deleted.</p> : (
+            <ul className="publisher-list" aria-label="Deleted poems">
+              {list.deleted.map(poem => (
+                <li key={poem.poemId}>
+                  <PoemLine poem={poem} />
+                  {removedWords(poem.removedAt) && <span className="publisher-last-edited">, {removedWords(poem.removedAt)}</span>}
+                  <span className="publisher-actions">
+                    <button type="button" disabled={busy || reordered} aria-label={`Restore ${poem.title}`}
+                      onClick={() => change(c => restoreToPortal(c, poem.poemId), `Restored ${poem.title}. It is under Not published again.`)}>
+                      Restore
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>}
 
         {call && <PublisherTags call={call} onExpired={expired} onTags={list => setTags(list.tags)} />}
         {call && <PublisherPoets call={call} onExpired={expired} />}
