@@ -360,7 +360,9 @@ test('Process note shows the poet\'s note rendered and sanitised, says when ther
   const note = page.getByRole('region', { name: 'Process note for Zq 2' })
   await expect(note.locator('strong')).toHaveText('xv')
   await expect(note.locator('script')).toHaveCount(0)
+  // An embed from anywhere but YouTube or Vimeo is shown as a link to its address (#292; Annelyse, 26 Oct).
   await expect(note.locator('iframe')).toHaveCount(0)
+  await expect(note.locator('a[href="https://example.invalid/"]')).toHaveText('https://example.invalid/')
   // The link may stay as words; it must never be a link.
   await expect(note.locator('a[href^="javascript"]')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { ran?: number }).ran)).toBeUndefined()

@@ -1,9 +1,8 @@
-import { renderPoetNote, renderProcessNote } from '../processNote'
+import { renderProcessNote } from '../processNote'
 import { renderContent } from '../content'
 
 // marked ends a block with a newline; what is kept is the question here.
 const note = (md: string) => renderProcessNote(md).trim()
-const poet = (md: string) => renderPoetNote(md).trim()
 const content = (md: string) => renderContent(md).trim()
 
 // What marked 18 and DOMPurify keep, as insane kept it (#340).
@@ -14,8 +13,7 @@ describe('attributes, per tag', () => {
     expect(note(LINK)).toBe('<p><a href="https://zq.example.invalid/" target="_blank" title="t" name="n" aria-label="l">zq</a></p>')
   })
 
-  it("a poet's note and Annelyse's text keep only a link's address", () => {
-    expect(poet(LINK)).toBe('<p><a href="https://zq.example.invalid/">zq</a></p>')
+  it("Annelyse's text keeps only a link's address", () => {
     expect(content(LINK)).toBe('<p><a href="https://zq.example.invalid/">zq</a></p>')
   })
 
@@ -26,12 +24,11 @@ describe('attributes, per tag', () => {
   it("an image keeps its source, alt and title; an iframe its source, allowfullscreen and frameborder", () => {
     expect(note('<img src="https://zq.example.invalid/t.png" alt="a" title="t" onerror="x()" width="1">'))
       .toBe('<img src="https://zq.example.invalid/t.png" alt="a" title="t">')
-    expect(note('<iframe src="https://zq.example.invalid/" allowfullscreen frameborder="0" srcdoc="x"></iframe>'))
-      .toBe('<iframe src="https://zq.example.invalid/" allowfullscreen="" frameborder="0"></iframe>')
+    expect(note('<iframe src="https://player.vimeo.com/video/1" allowfullscreen frameborder="0" srcdoc="x"></iframe>'))
+      .toBe('<iframe src="https://player.vimeo.com/video/1" allowfullscreen="" frameborder="0"></iframe>')
   })
 
   it("rendering one list first does not change what another keeps (insane's defaults were shared, and changed)", () => {
-    poet(LINK)
     content(LINK)
     expect(note(LINK)).toContain('target="_blank" title="t"')
   })
@@ -40,11 +37,11 @@ describe('attributes, per tag', () => {
 describe('addresses', () => {
   it.each(['/zq', '#zq', '?zq', 'mailto:zq@example.invalid', 'http://zq.example.invalid/', 'https://zq.example.invalid/'])(
     'keeps %s', href => {
-      expect(poet(`[zq](${href})`)).toBe(`<p><a href="${href}">zq</a></p>`)
+      expect(content(`[zq](${href})`)).toBe(`<p><a href="${href}">zq</a></p>`)
     })
 
   it.each(['javascript:x()', 'data:text/html,x', 'vbscript:x', 'ftp://zq.example.invalid/'])('refuses %s', href => {
-    expect(poet(`[zq](${href})`)).toBe('<p><a>zq</a></p>')
+    expect(content(`[zq](${href})`)).toBe('<p><a>zq</a></p>')
   })
 
   it('refuses javascript: however it is spelled', () => {
@@ -54,7 +51,8 @@ describe('addresses', () => {
 
   it('refuses a data: or javascript: source on an image or iframe', () => {
     expect(note('<img src="data:image/png;base64,AA">')).toBe('<img>')
-    expect(note('<iframe src="javascript:x()"></iframe>')).toBe('<iframe></iframe>')
+    // An iframe with no web address is dropped, not kept empty (#292).
+    expect(note('<iframe src="javascript:x()"></iframe>')).toBe('')
   })
 })
 

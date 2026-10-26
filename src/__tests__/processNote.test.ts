@@ -1,4 +1,4 @@
-import { MAX_NOTE_CHARACTERS, applyMarkup, renderPoetNote, renderProcessNote } from '../processNote'
+import { MAX_NOTE_CHARACTERS, applyMarkup, renderProcessNote } from '../processNote'
 
 // The process note (#292): the Markdown buttons, and the one rendering the poem page, the review page and the preview share.
 
@@ -46,23 +46,37 @@ describe('renderProcessNote', () => {
   })
 })
 
-describe('renderPoetNote', () => {
-  it('keeps what the form\'s buttons make', () => {
-    expect(renderPoetNote('Zq **xv**\n\n*vb* [qz](https://example.invalid/)')).toBe(renderProcessNote('Zq **xv**\n\n*vb* [qz](https://example.invalid/)'))
+describe('embedded video (#292; Annelyse, 26 Oct, GitHub #81)', () => {
+  it.each([
+    'https://www.youtube.com/embed/zq',
+    'https://youtube.com/embed/zq',
+    'https://www.youtube-nocookie.com/embed/zq',
+    'https://player.vimeo.com/video/1',
+  ])('keeps an embedded player from %s', src => {
+    expect(renderProcessNote(`<iframe src="${src}" allowfullscreen></iframe>`)).toContain(`<iframe src="${src}"`)
   })
 
-  it('drops img and iframe, which load another server\'s content for whoever reads the note (review of #314)', () => {
-    const html = renderPoetNote('<img src="https://example.invalid/t.png"><iframe src="https://example.invalid/"></iframe>\n\n![zq](https://example.invalid/t.png)')
-    expect(html).not.toContain('<img')
+  it.each([
+    ['https://zq.example.invalid/sign-in', 'another host'],
+    ['http://www.youtube.com/embed/zq', 'YouTube over plain http'],
+    ['https://www.youtube.com.zq.example.invalid/embed', 'a host that only starts like YouTube'],
+    ['https://vimeo.com/1', "Vimeo's page, not its player"],
+  ])('shows any other iframe as a link to its address: %s (%s)', src => {
+    const html = renderProcessNote(`<iframe src="${src}"></iframe>`)
     expect(html).not.toContain('<iframe')
-    // The archive's list still has both, for the poem page's existing notes.
-    expect(renderProcessNote('<img src="https://example.invalid/t.png">')).toContain('<img')
+    expect(html).toContain(`<a href="${src}">${src}</a>`)
   })
 
-  it('keeps a link\'s address only, and no other scheme', () => {
-    const html = renderPoetNote('<a href="https://example.invalid/" target="_blank" title="zq">xv</a>\n\n[vb](javascript:x())')
-    expect(html).toContain('<a href="https://example.invalid/">xv</a>')
-    expect(html).not.toContain('target')
-    expect(html).not.toContain('javascript:')
+  it('drops an iframe with no web address, and never links a script', () => {
+    for (const src of ['javascript:x()', 'data:text/html,x', '']) {
+      const html = renderProcessNote(`<iframe src="${src}"></iframe>`)
+      expect(html).not.toContain('<iframe')
+      expect(html).not.toContain('<a')
+    }
+  })
+
+  it("keeps a poet's line breaks and images now that every note is rendered the same way", () => {
+    expect(renderProcessNote('zq<br>xv')).toContain('<br>')
+    expect(renderProcessNote('![zq](https://example.invalid/t.png)')).toContain('<img')
   })
 })
