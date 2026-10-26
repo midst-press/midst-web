@@ -59,6 +59,9 @@ interface UploadTicket {
   uploadUrl: string
   uploadHeaders: Record<string, string>
   expiresAt: string
+  /** Present when a photo was described: a second pre-signed PUT, for the photo alone. */
+  photoUploadUrl?: string
+  photoUploadHeaders?: Record<string, string>
 }
 
 export const STATUS_WORDS: Record<SubmissionStatus, string> = {
@@ -80,6 +83,19 @@ export function fileProblem(file: { name: string, size: number }): string | null
   return null
 }
 
+// The author photo (#312; Annelyse, 26 Oct): optional, one per poem, shown at the foot of its process note. The types and
+// the size are the server's (docs/app-api.md, POST /submissions), which also checks the photo's first bytes.
+export const PHOTO_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp']
+export const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+
+/** Why a chosen photo cannot be sent, or null when it can. The server checks again; this saves a round trip. */
+export function photoProblem(photo: { type: string, size: number }): string | null {
+  if (!PHOTO_TYPES.includes(photo.type)) return 'Please choose a JPEG, PNG or WebP image for your photo.'
+  if (photo.size === 0) return 'That photo is empty.'
+  if (photo.size > MAX_PHOTO_BYTES) return 'That photo is larger than 5 MB, which is the most the app accepts.'
+  return null
+}
+
 /**
  * Submit a poem. `put` sends the file to the upload URL (fetch in the browser). Returns the submission
  * as the server records it once complete.
@@ -89,18 +105,33 @@ export async function submitPoem(
   put: (url: string, headers: Record<string, string>, file: Blob) => Promise<{ ok: boolean }>,
   details: { title: string, author: string, processNote: string },
   file: File | (Blob & { name: string }),
+  photo: Blob | null = null,
 ): Promise<Submission> {
   const ticket = await call<UploadTicket>('/submissions', {
     method: 'POST',
-    body: { title: details.title, author: details.author, processNote: details.processNote, fileName: file.name, sizeBytes: file.size },
+    body: {
+      title: details.title, author: details.author, processNote: details.processNote, fileName: file.name, sizeBytes: file.size,
+      ...(photo ? { photo: { contentType: photo.type, sizeBytes: photo.size } } : {}),
+    },
   })
-  let uploaded: { ok: boolean }
-  try {
-    uploaded = await put(ticket.uploadUrl, ticket.uploadHeaders, file)
-  } catch {
-    uploaded = { ok: false }
+  const sent = async (url: string, headers: Record<string, string>, blob: Blob): Promise<boolean> => {
+    try {
+      return (await put(url, headers, blob)).ok
+    } catch {
+      return false
+    }
   }
-  if (!uploaded.ok) throw new ApiError(0, 'upload', 'The file could not be uploaded. Please try again.')
+  if (!(await sent(ticket.uploadUrl, ticket.uploadHeaders, file))) {
+    throw new ApiError(0, 'upload', 'The file could not be uploaded. Please try again.')
+  }
+  // Completing without the photo would make the server refuse it as not arrived, so a photo that cannot be sent stops
+  // here, as the file does. A ticket missing the photo's URL or headers is the same failure: never complete
+  // as though the poet had sent none.
+  if (photo) {
+    const { photoUploadUrl: url, photoUploadHeaders: headers } = ticket
+    const ok = url !== undefined && headers !== undefined && await sent(url, headers, photo)
+    if (!ok) throw new ApiError(0, 'upload', 'Your photo could not be uploaded. Please try again.')
+  }
   return call<Submission>(`/submissions/${encodeURIComponent(ticket.submissionId)}/complete`, { method: 'POST' })
 }
 
