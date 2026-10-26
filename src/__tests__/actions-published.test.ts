@@ -1,4 +1,5 @@
 import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js'
+import { renderProcessNote } from '../processNote'
 import { fetchPoemAsset } from '../poems/key-scheme'
 import { loadPoemData, loadPoemList } from '../store/actions'
 import { LOAD_POEM_DATA, LOAD_POEM_FAILED, LOAD_POEM_LIST, POEM_LIST_FAILED } from '../store/types'
@@ -38,6 +39,14 @@ const recorded = {
 
 let fetchMock: jest.Mock
 let consoleError: jest.SpyInstance
+
+// The first process note a suite renders builds DOMPurify on a fresh jsdom window (dompurify-node.cjs): about 200 ms
+// here, and past jest's 5 s per-test limit on a busy CI runner (#358). Pay it once, as setup with its own limit, so
+// each test's 5 s measures the test.
+const COLD_START_MS = 60000
+beforeAll(() => {
+  renderProcessNote('zq')
+}, COLD_START_MS)
 
 beforeEach(() => {
   mockScheme = 'legacy'
