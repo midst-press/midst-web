@@ -7,15 +7,16 @@ import PoemListStatus from '../components/PoemListStatus'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { RootState } from '../store'
 import { IPoem } from '../store/types'
-import { setMobileNavOpen, setSortTerm, reverseSortOrder } from '../store/actions'
+import { setMobileNavOpen, setSortTerm, setTagFilter, reverseSortOrder } from '../store/actions'
 import TagMark from '../components/TagMark'
-import { SiteTag, loadSiteTags, marksFor } from '../tags'
+import { SiteTag, loadSiteTags, marksFor, tagsInUse, tocSections } from '../tags'
 
 function Read(): ReactElement {
-  const { poems, sortTerm, sortOrder } = useSelector((state: RootState) => ({
+  const { poems, sortTerm, sortOrder, tagFilter } = useSelector((state: RootState) => ({
     poems: state.app.poems.filter(poem => !poem.hidden),
     sortTerm: state.app.sortTerm,
     sortOrder: state.app.sortOrder,
+    tagFilter: state.app.tagFilter,
   }))
 
   const dispatch = useDispatch()
@@ -32,6 +33,44 @@ function Read(): ReactElement {
     loadSiteTags().then(found => { if (current) setTags(found) }).catch(() => undefined)
     return () => { current = false }
   }, [tagged])
+
+  // A reader can tick tags to show only their poems, and sort by tag (#310). Both wait for the tags to be read.
+  const available = tagsInUse(poems, tags)
+  const sections = tocSections(poems, tags, { byTag: sortTerm === 'tag', descending: sortOrder === 'DESC', ticked: tagFilter })
+  const toggleTag = (id: string) =>
+    dispatch(setTagFilter(tagFilter.includes(id) ? tagFilter.filter(ticked => ticked !== id) : [...tagFilter, id]))
+
+  const poemLine = (poem: IPoem, group: string) => (
+    // A poem with two tags is in two groups, so the key names the group too.
+    <Link key={`${group}:${poem.url}`}
+      className={`
+        poem-line
+        ${ poem.highlighted ? 'poem-highlighted' : '' }
+      `}
+      data-trigger={poem.trigger ? 'true' : 'false'}
+      data-poem-id={poem.id}
+      to={`/poem/${poem.url}/`}
+      onClick={() => dispatch(setMobileNavOpen(false))}
+    >
+      {poem.badge && (
+        <div className="poem-badge">{ poem.badge }</div>
+      )}
+      {marksFor(poem.tagIds, tags).length > 0 && (
+        <div className="poem-tags">
+          {marksFor(poem.tagIds, tags).map(tag => <TagMark key={tag.id} name={tag.name} colour={tag.colour} />)}
+        </div>
+      )}
+      <div className="poem-line__column poem-author">{poem.author}</div>
+      <div
+        className="poem-line__column poem-title"
+        dangerouslySetInnerHTML={{ __html: poem.title }}
+      />
+      <div className="poem-line__column poem-date">
+        {/* The publish date, the one the list is sorted by and the publisher edits (midst-web #305). */}
+        { poem.publishDate.isValid() ? poem.publishDate.format('MM/DD/YYYY') : '' }
+      </div>
+    </Link>
+  )
 
   useEffect(() => {
     // TODO: React "call on an unmounted component" warning
@@ -106,6 +145,30 @@ function Read(): ReactElement {
           </div>
         </div>
 
+        {available.length > 0 && (
+          <div className="poem-tag-bar">
+            {available.map(tag => (
+              <label key={tag.id} className="poem-tag-option">
+                <input type="checkbox" checked={tagFilter.includes(tag.id)} onChange={() => toggleTag(tag.id)} />
+                <TagMark name={tag.name} colour={tag.colour} />
+              </label>
+            ))}
+            <span className="poem-tag-sort">
+              Sort by tag
+              <span
+                role="button"
+                aria-label="Sort by tag"
+                className={`
+                  poem-head-arrow
+                  ${ sortTerm === 'tag' ? 'poem-head-arrow-active' : ''}
+                  ${ sortTerm === 'tag' && sortOrder === 'ASC' ? 'poem-head-arrow-up' : ''}
+                `}
+                onClick={() => dispatch(sortTerm === 'tag' ? reverseSortOrder() : setSortTerm('tag'))}
+              />
+            </span>
+          </div>
+        )}
+
         <div className="poem-line poem-head">
           <div className="poem-line__column poem-author">
             <span
@@ -165,35 +228,13 @@ function Read(): ReactElement {
 
         <PoemListStatus />
 
-        {poems.map((poem: IPoem) => (
-          <Link key={poem.url}
-            className={`
-              poem-line
-              ${ poem.highlighted ? 'poem-highlighted' : '' }
-            `}
-            data-trigger={poem.trigger ? 'true' : 'false'}
-            data-poem-id={poem.id}
-            to={`/poem/${poem.url}/`}
-            onClick={() => dispatch(setMobileNavOpen(false))}
-          >
-            {poem.badge && (
-              <div className="poem-badge">{ poem.badge }</div>
+        {sections.map(section => (
+          <React.Fragment key={section.tag?.id ?? ''}>
+            {section.tag && (
+              <div className="poem-group"><TagMark name={section.tag.name} colour={section.tag.colour} /></div>
             )}
-            {marksFor(poem.tagIds, tags).length > 0 && (
-              <div className="poem-tags">
-                {marksFor(poem.tagIds, tags).map(tag => <TagMark key={tag.id} name={tag.name} colour={tag.colour} />)}
-              </div>
-            )}
-            <div className="poem-line__column poem-author">{poem.author}</div>
-            <div
-              className="poem-line__column poem-title"
-              dangerouslySetInnerHTML={{ __html: poem.title }}
-            />
-            <div className="poem-line__column poem-date">
-              {/* The publish date, the one the list is sorted by and the publisher edits (midst-web #305). */}
-              { poem.publishDate.isValid() ? poem.publishDate.format('MM/DD/YYYY') : '' }
-            </div>
-          </Link>
+            {section.poems.map(poem => poemLine(poem, section.tag?.id ?? ''))}
+          </React.Fragment>
         ))}
       </section>
     </div>

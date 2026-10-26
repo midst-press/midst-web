@@ -1606,6 +1606,38 @@ background-size: contain;
   margin-right: 8px;
 }
 
+/* The tags a reader can tick, and the sort-by-tag arrow, above the Table of Contents (#310). */
+.table-of-contents .poem-tag-bar {
+  float: left;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px;
+}
+
+.table-of-contents .poem-tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.table-of-contents .poem-tag-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* A group's heading when the Table of Contents is sorted by tag (#310). */
+.table-of-contents .poem-group {
+  float: left;
+  width: 100%;
+  padding: 16px 10px 4px;
+}
+
 .publisher-tags {
   display: inline-flex;
   flex-wrap: wrap;

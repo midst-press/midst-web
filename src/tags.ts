@@ -8,6 +8,8 @@
  * Marks are decoration: a file that cannot be read, or a tag in it that is not sound, shows no mark, and the Table of
  * Contents is shown as ever.
  */
+import type { IPoem } from './store/types'
+
 export interface SiteTag {
   id: string
   name: string
@@ -61,3 +63,43 @@ export function entryTagIds(json: unknown): Map<string, string[]> {
 /** The marks a poem shows: its tags that are tags, in the order the poem names them. */
 export const marksFor = (tagIds: string[] | undefined, tags: Map<string, SiteTag> | null): SiteTag[] =>
   (tags ? (tagIds ?? []).flatMap(id => (tags.has(id) ? [tags.get(id)!] : [])) : [])
+
+// Tags in the order a reader reads them: by name, ignoring case and accents (Armenia, Belarus, Canada), then by id.
+const byName = (a: SiteTag, b: SiteTag) =>
+  a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
+/** The tags some poem shows, by name: what a reader can tick. None before the tags are read. */
+export function tagsInUse(poems: IPoem[], tags: Map<string, SiteTag> | null): SiteTag[] {
+  const used = new Map<string, SiteTag>()
+  for (const poem of poems) for (const tag of marksFor(poem.tagIds, tags)) used.set(tag.id, tag)
+  return [...used.values()].sort(byName)
+}
+
+/** One run of the Table of Contents: the poems under a tag, or with no tag heading. */
+export interface TocSection {
+  tag: SiteTag | null
+  poems: IPoem[]
+}
+
+/**
+ * What the Table of Contents shows (#310; Annelyse on GitHub midst-web#46, 26 Oct), from the poems in their sorted
+ * order. With tags ticked, only the poems showing any ticked tag; an id that is not a tag ticks nothing. Sorted by tag,
+ * a group per tag, by name (reversed when `descending`), each in the poems' order, and a poem with two tags in both;
+ * then, with nothing ticked, the poems showing no tag. Otherwise one run, in the poems' order.
+ */
+export function tocSections(
+  poems: IPoem[],
+  tags: Map<string, SiteTag> | null,
+  { byTag, descending, ticked }: { byTag: boolean, descending: boolean, ticked: string[] },
+): TocSection[] {
+  const chosen = new Set(ticked.filter(id => tags?.has(id)))
+  const shows = (poem: IPoem) => marksFor(poem.tagIds, tags)
+  const shown = chosen.size > 0 ? poems.filter(poem => shows(poem).some(tag => chosen.has(tag.id))) : poems
+  if (!byTag || !tags) return [{ tag: null, poems: shown }]
+
+  const groups = tagsInUse(shown, tags).filter(tag => chosen.size === 0 || chosen.has(tag.id))
+  if (descending) groups.reverse()
+  const sections: TocSection[] = groups.map(tag => ({ tag, poems: shown.filter(poem => shows(poem).some(mark => mark.id === tag.id)) }))
+  const untagged = chosen.size > 0 ? [] : shown.filter(poem => shows(poem).length === 0)
+  return untagged.length > 0 ? [...sections, { tag: null, poems: untagged }] : sections
+}
