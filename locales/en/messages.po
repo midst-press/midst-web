@@ -13,6 +13,17 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+# Heard, not seen: the accessible name of a tick on a phone, where ticks too close together to tell apart are
+# one tap target (#256). {count} is how many drafts it holds, always 2 or more. Tapping it lists them, each by
+# its own name as player.jumpTo gives a single marker's.
+#. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#: src/components/MidstPlayer/MidstPlayer.tsx
+#, fuzzy
+msgid "player.draftsHere"
+msgstr "{count} drafts here"
+
 # Heard, not seen: what a screen reader says for the timeline's position. {time} is the time, such as "7:19 pm", and {date} the date, such as "November 5, 2019". Under the timeline they are shown on two lines instead.
 #. js-lingui-explicit-id
 #: src/components/MidstPlayer/MidstPlayer.tsx
@@ -93,6 +104,7 @@ msgstr "Poem replay"
 
 # The button that goes to the finished poem. The reader's guide names it in bold, so change it there too.
 #. js-lingui-explicit-id
+#: src/components/MidstPlayer/MidstPlayer.tsx
 #: src/components/MidstPlayer/MidstPlayer.tsx
 #, fuzzy
 msgid "player.showDraftMarkers"

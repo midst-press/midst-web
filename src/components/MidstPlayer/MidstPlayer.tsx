@@ -4,7 +4,7 @@ import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
 import { clampLabelCentre } from './timestamp-position'
 import { editTime } from './edit-time'
-import { draftMarkers, playerFont } from './timeline'
+import { draftMarkers, groupDraftMarkers, playerFont } from './timeline'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from '@midst-press/midst-format/follow'
 import './player.css'
 import { installFonts } from '../../fonts'
@@ -30,6 +30,9 @@ interface Props {
 
 // Half the 24px minimum target size (WCAG 2.2, 2.5.8) of a draft marker on a phone (#256).
 const MARKER_REACH = 12
+// Same breakpoint as player.css's phone rules (#254): below it a marker is its tick alone, and below it
+// (#256 (b), Annelyse's "One tick") ticks nearer than 24px apart merge into one tap target.
+const PHONE_QUERY = '(max-width: 599px)'
 
 export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasScrollbar }: Props) {
   // Each frame is a whole snapshot of the document (the loader validates both file forms into frames), so the
@@ -45,6 +48,18 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   // A label is centred over its marker, which would push one near either end of the timeline past
   // the end of the control bar. Slide only the label back inside; its pointer stays on the marker.
   const markerRow = useRef<HTMLDivElement | null>(null)
+  // #256 (b) (Annelyse, "One tick"): on a phone, markers whose ticks would land nearer than 24px apart are one
+  // tap target, listing their drafts in a popover instead of fighting for the same space. Desktop never merges
+  // (groups are always one marker each there). rowWidth/isPhone are measured below, with the labels, and
+  // re-read on every resize, since the breakpoint can be crossed either way.
+  const [rowWidth, setRowWidth] = useState(0)
+  const [isPhone, setIsPhone] = useState(false)
+  const groups = useMemo(() => {
+    const centres = markers.map(marker => marker.index / Math.max(1, maxStep) * rowWidth)
+    return isPhone ? groupDraftMarkers(centres, MARKER_REACH * 2) : markers.map((_, i) => [i])
+  }, [markers, maxStep, rowWidth, isPhone])
+  const [openGroupKey, setOpenGroupKey] = useState<number | null>(null)
+  const openGroupRef = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
     const row = markerRow.current
     const bar = row && row.closest('.controls')
@@ -57,19 +72,11 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
         const shift = box.left < bounds.left ? bounds.left - box.left : box.right > bounds.right ? bounds.right - box.right : 0
         if (shift) name.style.transform = `translateX(${shift}px)`
       })
-      // On a phone a marker is its tick alone, tapped through a box around it (#256). The box reaches 12px each
-      // side, making 24px, unless a neighbouring tick is nearer than 24px: then the two boxes meet halfway, so a
-      // tap reaches the nearer tick. The stylesheet uses these only below 600px.
-      const width = row.clientWidth
-      const centres = markers.map(marker => marker.index / Math.max(1, maxStep) * width)
-      const order = centres.map((_, i) => i).sort((a, b) => centres[a] - centres[b])
-      const buttons = row.querySelectorAll<HTMLElement>('.draft-marker')
-      order.forEach((i, k) => {
-        const toLeft = k > 0 ? (centres[i] - centres[order[k - 1]]) / 2 : MARKER_REACH
-        const toRight = k < order.length - 1 ? (centres[order[k + 1]] - centres[i]) / 2 : MARKER_REACH
-        buttons[i]?.style.setProperty('--reach-left', `${Math.min(MARKER_REACH, toLeft)}px`)
-        buttons[i]?.style.setProperty('--reach-right', `${Math.min(MARKER_REACH, toRight)}px`)
-      })
+      // On a phone a marker is its tick alone, tapped through a 24px box around it (#256, the stylesheet's
+      // --reach-left/--reach-right default of 12px each side). Ticks nearer than that merge into one (groupDraftMarkers),
+      // so no two remaining ticks' boxes overlap and none needs narrowing. The width and the breakpoint decide the groups.
+      setRowWidth(row.clientWidth)
+      setIsPhone(typeof window.matchMedia === 'function' && window.matchMedia(PHONE_QUERY).matches)
     }
     fit()
     if (typeof ResizeObserver === 'undefined') return
@@ -119,6 +126,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     setStep(maxStep)
     setPlaying(false)
     setSpeedOpen(false)
+    setOpenGroupKey(null)
     cancelGlide()
   }, [data, maxStep, haltPlayback])
 
@@ -186,6 +194,20 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     document.addEventListener('pointerdown', outside)
     return () => document.removeEventListener('pointerdown', outside)
   }, [speedOpen])
+
+  // A group's drafts list (#256 (b)): a tap outside it closes it, as the speed popup above does. Escape is
+  // handled on the tick button itself, which has focus whenever a keyboard reader could press it.
+  useEffect(() => {
+    if (openGroupKey == null) return
+    const outside = (event: PointerEvent) => {
+      if (!openGroupRef.current?.contains(event.target as Node)) setOpenGroupKey(null)
+    }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [openGroupKey])
+
+  // Hiding the markers leaves no open list behind it.
+  useEffect(() => { if (!showMarkers) setOpenGroupKey(null) }, [showMarkers])
 
   useEffect(() => () => {
     haltPlayback()
@@ -316,11 +338,46 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             }}
             onChange={event => seekTo(Number(event.target.value))} />
             <div className="draft-markers" ref={markerRow} hidden={!showMarkers}>
-              {markers.map((marker, i) => <button key={i} type="button" className="draft-marker"
-                style={{ left: `${marker.index / Math.max(1, maxStep) * 100}%` }}
-                title={marker.label} aria-label={i18n._('player.jumpTo', { draft: marker.label })} disabled={!activePlayer}
-                onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(marker.index) }}>
-                <span className="draft-marker-name">{marker.label}</span></button>)}
+              {groups.map(group => {
+                const leader = markers[group[0]]
+                // Between a marker-list change and the layout effect above catching up with it (next paint):
+                // nothing to draw for a stale group yet.
+                if (!leader) return null
+                if (group.length === 1) {
+                  return <button key={group[0]} type="button" className="draft-marker"
+                    style={{ left: `${leader.index / Math.max(1, maxStep) * 100}%` }}
+                    title={leader.label} aria-label={i18n._('player.jumpTo', { draft: leader.label })} disabled={!activePlayer}
+                    onClick={() => { haltPlayback(); setPlaying(false); cancelGlide(); setStep(leader.index) }}>
+                    <span className="draft-marker-name">{leader.label}</span></button>
+                }
+                // #256 (b) (Annelyse, "One tick"): on a phone, ticks nearer than 24px apart are one tap target, at
+                // the group's leftmost marker. The list is a sibling of the tick button, not nested inside it: a
+                // button cannot contain another button.
+                const open = openGroupKey === group[0]
+                return <div key={group[0]} className="draft-marker draft-marker-group" ref={open ? openGroupRef : undefined}
+                  style={{ left: `${leader.index / Math.max(1, maxStep) * 100}%` }}>
+                  <button type="button" className="draft-marker-group-button"
+                    aria-haspopup="true" aria-expanded={open} disabled={!activePlayer}
+                    title={i18n._('player.draftsHere', { count: group.length })}
+                    aria-label={i18n._('player.draftsHere', { count: group.length })}
+                    onClick={() => setOpenGroupKey(current => current === group[0] ? null : group[0])}
+                    onKeyDown={event => {
+                      if (event.key !== 'Escape') return
+                      event.preventDefault()
+                      setOpenGroupKey(null)
+                      event.currentTarget.focus()
+                    }} />
+                  {open && (
+                    <div className="draft-marker-group-popup" role="menu"
+                      aria-label={i18n._('player.draftsHere', { count: group.length })}>
+                      {group.map(gi => <button key={gi} type="button" role="menuitem" className="draft-marker-group-item"
+                        onClick={() => {
+                          haltPlayback(); setPlaying(false); cancelGlide(); setStep(markers[gi].index); setOpenGroupKey(null)
+                        }}>{markers[gi].label}</button>)}
+                    </div>
+                  )}
+                </div>
+              })}
             </div>
             {labelText != null && (
               <div ref={timestampRef} data-guide="frame-edit-time" aria-hidden="true"

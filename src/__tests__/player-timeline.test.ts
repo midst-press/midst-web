@@ -1,4 +1,4 @@
-import { draftMarkers, playerFont, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE } from '../components/MidstPlayer/timeline'
+import { draftMarkers, groupDraftMarkers, playerFont, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE } from '../components/MidstPlayer/timeline'
 import { IMidstFile } from '../store/types'
 
 // Synthetic data only. Built loosely (via unknown) so tests can feed malformed shapes.
@@ -163,6 +163,46 @@ describe('draftMarkers entries and labels', () => {
     expect(Object.keys(out[0]).sort()).toEqual(['index', 'label'])
     const metaOut = draftMarkers(metaFile([{ timelineIndex: 1, name: 'zq', colour: 'qv' }]), 5)
     expect(Object.keys(metaOut[0]).sort()).toEqual(['index', 'label'])
+  })
+})
+
+describe('groupDraftMarkers (#256 (b))', () => {
+  it('GM-1: no markers gives no groups', () => {
+    expect(groupDraftMarkers([], 24)).toEqual([])
+  })
+
+  it('GM-2: one marker is its own group', () => {
+    expect(groupDraftMarkers([50], 24)).toEqual([[0]])
+  })
+
+  it('GM-3: markers far apart (>= threshold) stay in separate groups, in position order', () => {
+    expect(groupDraftMarkers([0, 100, 200], 24)).toEqual([[0], [1], [2]])
+  })
+
+  it('GM-4: markers nearer than the threshold chain into one group', () => {
+    expect(groupDraftMarkers([0, 10, 20], 24)).toEqual([[0, 1, 2]])
+  })
+
+  it('GM-5: exactly at the threshold does not merge; just under it does', () => {
+    expect(groupDraftMarkers([0, 24], 24)).toEqual([[0], [1]])
+    expect(groupDraftMarkers([0, 23.999], 24)).toEqual([[0, 1]])
+  })
+
+  it('GM-6: a chain only has to be near its PREVIOUS member, not every member', () => {
+    // 0, 20, 40: each step is 20 (< 24) from the one before, but 40 is 40 from 0.
+    expect(groupDraftMarkers([0, 20, 40], 24)).toEqual([[0, 1, 2]])
+  })
+
+  it('GM-7: input order does not matter; groups come out left to right, group[0] leftmost', () => {
+    expect(groupDraftMarkers([40, 0, 20], 24)).toEqual([[1, 2, 0]])
+  })
+
+  it('GM-8: mixed run: a close pair, a lone marker, then another close pair', () => {
+    expect(groupDraftMarkers([0, 10, 100, 200, 210], 24)).toEqual([[0, 1], [2], [3, 4]])
+  })
+
+  it('GM-9: threshold 0 never merges, even identical centres', () => {
+    expect(groupDraftMarkers([5, 5, 5], 0)).toEqual([[0], [1], [2]])
   })
 })
 
