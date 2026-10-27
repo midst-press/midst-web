@@ -148,6 +148,19 @@ export const saveOrder = (call: Call, poemIds: string[], listEtag: string) =>
 export const saveDetails = (call: Call, poemId: string, details: { publishDate: string | null, highlighted: boolean, tags?: string[] }, listEtag: string) =>
   call(`/publisher/poems/${encodeURIComponent(poemId)}`, { method: 'PUT', body: { ...details, listEtag } })
 
+/**
+ * The published poems newest first, as the Table of Contents opens (#377; Annelyse, GitHub #102, #103): by publish date
+ * (YYYY-MM-DD) newest first; poems with the same date keep their order in the list; a poem with no date comes last, in
+ * list order. The same order the site gives readers (src/store/reducer.ts, sortPoems), so the page shows what they see.
+ */
+export function newestFirst<T extends Pick<Poem, 'publishDate'>>(poems: T[]): T[] {
+  const dated = (poem: T) => typeof poem.publishDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(poem.publishDate)
+  const indexed = poems.map((poem, position) => ({ poem, position }))
+  const withDate = indexed.filter(({ poem }) => dated(poem))
+    .sort((a, b) => (b.poem.publishDate as string).localeCompare(a.poem.publishDate as string) || a.position - b.position)
+  return [...withDate, ...indexed.filter(({ poem }) => !dated(poem))].map(({ poem }) => poem)
+}
+
 /** The list with the item at `from` moved to `to`. Out-of-range moves return the list unchanged. */
 export function moved<T>(items: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items

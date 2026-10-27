@@ -177,16 +177,19 @@ test('publish, reorder, highlight and unpublish, each saved to the list', async 
 
   await page.getByRole('list', { name: 'Poems not published' }).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 3.')
-  await expect(published(page)).toHaveText(['Zq 1', 'Zq 2', 'Zq 3'])
+  // Newest first (#377): the poem just published has a date, so it comes before the two with none, wherever the list
+  // keeps it.
+  expect(store.published.map(p => p.title)).toEqual(['Zq 1', 'Zq 2', 'Zq 3'])
+  await expect(published(page)).toHaveText(['Zq 3', 'Zq 1', 'Zq 2'])
   await expect(page.getByText('There is nothing waiting to be published.')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Move Zq 3 up' }).click()
   await page.getByRole('button', { name: 'Move Zq 1 down' }).click()
-  await expect(published(page)).toHaveText(['Zq 3', 'Zq 1', 'Zq 2'])
+  await expect(published(page)).toHaveText(['Zq 3', 'Zq 2', 'Zq 1'])
   expect(store.writes).toEqual(['POST /publisher/publish']) // reordering is local until saved
   await page.getByRole('button', { name: 'Save order' }).click()
   await expect(page.getByRole('status')).toHaveText('Saved the new order.')
-  expect(store.published.map(p => p.title)).toEqual(['Zq 3', 'Zq 1', 'Zq 2'])
+  expect(store.published.map(p => p.title)).toEqual(['Zq 3', 'Zq 2', 'Zq 1'])
+  await expect(page.getByRole('button', { name: 'Save order' })).toHaveCount(0)
 
   await page.getByRole('listitem').filter({ hasText: 'Zq 2' }).getByLabel('Highlighted').click()
   await expect(page.getByRole('status')).toHaveText('Highlighted Zq 2.')
@@ -424,7 +427,7 @@ test('the page links to Review with the number waiting, and puts the waiting poe
   const link = page.getByRole('link', { name: 'Review submissions (2 waiting)' })
   await expect(link).toBeVisible()
   const headings = await page.getByRole('heading', { level: 3 }).allTextContents()
-  expect(headings.indexOf('Not published')).toBeLessThan(headings.indexOf('Published, in reading order'))
+  expect(headings.indexOf('Not published')).toBeLessThan(headings.indexOf('Published, newest first'))
   await link.click()
   await expect(page).toHaveURL(/\/review$/)
   await expect(page.getByRole('heading', { name: 'Review', level: 2 })).toBeVisible()
@@ -507,7 +510,9 @@ test('a chosen replacement is sent, and the new poem takes the old one\'s place'
   await notPublished(page).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 4.')
   expect(store.bodies).toEqual([{ poemId: 'id-4', listEtag: 'e1', publishDate: TODAY, highlighted: false, replaces: 'id-3' }])
-  await expect(published(page)).toHaveText(['Zq 1', 'Zq 2', 'Zq 4'])
+  expect(store.published.map(p => p.title)).toEqual(['Zq 1', 'Zq 2', 'Zq 4'])
+  // Shown newest first (#377): the new poem is the only one with a date.
+  await expect(published(page)).toHaveText(['Zq 4', 'Zq 1', 'Zq 2'])
 })
 
 test('with None, publish sends no replaces key', async ({ page, baseURL }) => {
@@ -519,7 +524,7 @@ test('with None, publish sends no replaces key', async ({ page, baseURL }) => {
   await notPublished(page).getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByRole('status')).toHaveText('Published Zq 2.')
   expect(store.bodies).toEqual([{ poemId: 'id-2', listEtag: 'e1', publishDate: TODAY, highlighted: false }])
-  await expect(published(page)).toHaveText(['Zq 1', 'Zq 2'])
+  await expect(published(page)).toHaveText(['Zq 2', 'Zq 1'])
 })
 
 test('a refused replacement shows the server\'s message, keeps the choice, and changes nothing', async ({ page, baseURL }) => {
