@@ -18,7 +18,7 @@ import { currentSession, forgetSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
 import {
-  Call, Poem, PublisherList, callerFor, lastEditedWords, leftInCache, loadList, moved, orderChanged, removeFromPortal, removedWords,
+  Call, Poem, PublisherList, callerFor, lastEditedWords, leftInCache, loadList, moved, newestFirst, orderChanged, removeFromPortal, removedWords,
   restoreToPortal,
   saveDetails, saveOrder, unpublish,
 } from '../app/publisher'
@@ -72,7 +72,7 @@ function Publisher(): ReactElement {
   const reload = useCallback(async (c: Call) => {
     const next = await loadList(c)
     setList(next)
-    setOrder(next.published)
+    setOrder(newestFirst(next.published))
   }, [])
 
   // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
@@ -144,7 +144,7 @@ function Publisher(): ReactElement {
   } else if (!list) {
     content = problem ? <p role="alert">{problem}</p> : <p>Loading…</p>
   } else {
-    const reordered = orderChanged(list.published, order)
+    const reordered = orderChanged(newestFirst(list.published), order)
     content = (
       <>
         {notice && <p role="status" className="publisher-notice">{notice}</p>}
@@ -204,7 +204,7 @@ function Publisher(): ReactElement {
         )}
         {reordered && <p className="publisher-hint">Save or undo the new order before publishing or changing anything else.</p>}
 
-        <h3>Published, in reading order</h3>
+        <h3>Published, newest first</h3>
         {order.length === 0 ? <p>Nothing is published yet.</p> : (
           <ol className="publisher-list" aria-label="Published poems">
             {order.map((poem, index) => (
@@ -274,7 +274,7 @@ function Publisher(): ReactElement {
               onClick={() => change((c, etag) => saveOrder(c, order.map(poem => poem.poemId), etag), 'Saved the new order.')}>
               Save order
             </button>{' '}
-            <button type="button" disabled={busy} onClick={() => setOrder(list.published)}>Undo changes</button>
+            <button type="button" disabled={busy} onClick={() => setOrder(newestFirst(list.published))}>Undo changes</button>
           </p>
         )}
 

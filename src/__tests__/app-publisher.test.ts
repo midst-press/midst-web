@@ -1,4 +1,4 @@
-import { Call, Poem, lastEditedWords, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder, saveTitleAndName, unpublish } from '../app/publisher'
+import { Call, Poem, lastEditedWords, leftInCache, loadList, moved, newestFirst, orderChanged, publish, saveDetails, saveOrder, saveTitleAndName, unpublish } from '../app/publisher'
 
 // The publisher's calls (docs/app-api.md) and the reordering the page does before it saves.
 
@@ -108,5 +108,18 @@ describe('saveTitleAndName (#372)', () => {
     expect(call.mock.calls).toEqual([
       ['/publisher/poems/p%2F1/details', { method: 'PUT', body: { title: 'Zq', author: 'Vb', shown: { title: 'Ta', author: 'Aa' } } }],
     ])
+  })
+})
+
+describe('newestFirst (#377)', () => {
+  const p = (poemId: string, publishDate: string | null) => ({ poemId, publishDate })
+  it('orders by publish date newest first, keeps list order for one date, and puts undated poems last in list order', () => {
+    const list = [p('a', null), p('b', '2026-01-02'), p('c', '2026-03-04'), p('d', 'not a date'), p('e', '2026-01-02'), p('f', '2025-12-31')]
+    expect(newestFirst(list).map(x => x.poemId)).toEqual(['c', 'b', 'e', 'f', 'a', 'd'])
+  })
+  it('leaves the list it is given as it was', () => {
+    const list = [p('a', '2026-01-01'), p('b', '2026-02-01')]
+    newestFirst(list)
+    expect(list.map(x => x.poemId)).toEqual(['a', 'b'])
   })
 })

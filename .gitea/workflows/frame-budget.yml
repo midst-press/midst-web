@@ -46,10 +46,12 @@ env:
 defaults:
   run:
     shell: /opt/homebrew/bin/bash -eo pipefail {0}
+# github-main carries code from GitHub: on its PRs every job here waits for a person to add the github-reviewed
+# label (Stuart, 27 Oct, mirror-tools #15). The return path removes that label before it pushes new GitHub code.
 jobs:
   follow:
     name: replay follows the writing (host profile)
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    if: (github.head_ref != 'github-main' || contains(github.event.pull_request.labels.*.name, 'github-reviewed')) && (github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci-turn') || contains(github.event.pull_request.labels.*.name, 'full-ci'))
     runs-on: stuart-m3ultra-canary
     timeout-minutes: 30
     steps:

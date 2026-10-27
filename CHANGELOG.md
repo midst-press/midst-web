@@ -1,3 +1,10 @@
+# 0.22.0
+
+- **Published is newest first on the publisher page**, by publish date, the order the Table of Contents opens in. A
+  newly published poem appears at the top. Not published was already newest first. The reading-order arrows still
+  work, starting from that order; they only decide the order of poems published on the same day. The site and
+  Highlight are unchanged.
+
 # 0.21.0
 
 - **The publisher can submit a poem for a poet**, for a poet who emails her their poem. A new section of the
