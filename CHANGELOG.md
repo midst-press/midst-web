@@ -1,3 +1,16 @@
+# 0.20.0
+
+- **Author portal.** The submission form, its sign-in and "Your submissions" move to their own page,
+  `/authorportal`, which nothing on the site links to and which asks search engines not to list it. The Submit
+  page now shows only Annelyse's text, signed in or not.
+- **The publisher can add or change an author photo** on each unpublished poem, beside Process note: JPEG, PNG or
+  WebP, at most 5 MB. As with the note, a published poem's photo can't be changed until it is unpublished.
+- **No empty box where an author photo is missing.** A poem with no photo shows nothing at the foot of its note.
+- **On a phone, close draft markers are one tick.** Markers that would sit nearer than 24px apart become a single
+  tick; tapping it lists those drafts by name, and choosing one jumps to it. Desktop is unchanged.
+- **The player keeps underline and strikethrough** (midst-format 0.7.0), for poems written once the editor has
+  them. No poem in the archive uses either yet.
+
 # 0.19.0
 
 - **Tags in the Table of Contents.** Above the list there is a box for each tag in use: ticking tags shows the poems
