@@ -98,7 +98,8 @@ export function photoProblem(photo: { type: string, size: number }): string | nu
 
 /**
  * Submit a poem. `put` sends the file to the upload URL (fetch in the browser). Returns the submission
- * as the server records it once complete.
+ * as the server records it once complete. With `forPoet`, a publisher sends it for that registered poet (midst-infra
+ * #232): the same steps on the publisher's routes, and the submission is the poet's.
  */
 export async function submitPoem(
   call: Call,
@@ -106,12 +107,15 @@ export async function submitPoem(
   details: { title: string, author: string, processNote: string },
   file: File | (Blob & { name: string }),
   photo: Blob | null = null,
+  forPoet: string | null = null,
 ): Promise<Submission> {
-  const ticket = await call<UploadTicket>('/submissions', {
+  const base = forPoet === null ? '/submissions' : '/publisher/submissions'
+  const ticket = await call<UploadTicket>(base, {
     method: 'POST',
     body: {
       title: details.title, author: details.author, processNote: details.processNote, fileName: file.name, sizeBytes: file.size,
       ...(photo ? { photo: { contentType: photo.type, sizeBytes: photo.size } } : {}),
+      ...(forPoet === null ? {} : { poetUsername: forPoet }),
     },
   })
   const sent = async (url: string, headers: Record<string, string>, blob: Blob): Promise<boolean> => {
@@ -132,7 +136,7 @@ export async function submitPoem(
     const ok = url !== undefined && headers !== undefined && await sent(url, headers, photo)
     if (!ok) throw new ApiError(0, 'upload', 'Your photo could not be uploaded. Please try again.')
   }
-  return call<Submission>(`/submissions/${encodeURIComponent(ticket.submissionId)}/complete`, { method: 'POST' })
+  return call<Submission>(`${base}/${encodeURIComponent(ticket.submissionId)}/complete`, { method: 'POST' })
 }
 
 export const mySubmissions = (call: Call) => call<{ submissions: Submission[] }>('/submissions/mine')

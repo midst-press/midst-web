@@ -1,4 +1,4 @@
-import { Call, Poem, lastEditedWords, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder, unpublish } from '../app/publisher'
+import { Call, Poem, lastEditedWords, leftInCache, loadList, moved, orderChanged, publish, saveDetails, saveOrder, saveTitleAndName, unpublish } from '../app/publisher'
 
 // The publisher's calls (docs/app-api.md) and the reordering the page does before it saves.
 
@@ -97,6 +97,16 @@ describe('saveDetails and tags (#310)', () => {
     expect(call.mock.calls).toEqual([
       ['/publisher/poems/p1', { method: 'PUT', body: { publishDate: null, highlighted: false, listEtag: 'e1' } }],
       ['/publisher/poems/p1', { method: 'PUT', body: { publishDate: null, highlighted: false, tags: ['ta'], listEtag: 'e2' } }],
+    ])
+  })
+})
+
+describe('saveTitleAndName (#372)', () => {
+  it('sends the new pair and the pair shown, which the server checks', async () => {
+    const call = jest.fn(async () => ({ title: 'Zq', author: 'Vb' })) as unknown as Call & jest.Mock
+    await saveTitleAndName(call, 'p/1', { title: 'Zq', author: 'Vb' }, { title: 'Ta', author: 'Aa' })
+    expect(call.mock.calls).toEqual([
+      ['/publisher/poems/p%2F1/details', { method: 'PUT', body: { title: 'Zq', author: 'Vb', shown: { title: 'Ta', author: 'Aa' } } }],
     ])
   })
 })
