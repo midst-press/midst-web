@@ -41,6 +41,18 @@ describe('submitPoem', () => {
   })
 })
 
+describe('submitPoem for a poet (#372)', () => {
+  it('uses the publisher\'s routes, names the poet, and otherwise sends what a poet does', async () => {
+    const call = jest.fn(async (path: string) => (path === '/publisher/submissions' ? ticket : { submissionId: 's/1', status: 'received' })) as unknown as Call & jest.Mock
+    const put = jest.fn(async () => ({ ok: true }))
+    await submitPoem(call, put, { title: 'Zq', author: 'Qz', processNote: 'Zq' }, file, null, 'qz-vb')
+    expect(call.mock.calls).toEqual([
+      ['/publisher/submissions', { method: 'POST', body: { title: 'Zq', author: 'Qz', processNote: 'Zq', fileName: 'zq.midst', sizeBytes: 2, poetUsername: 'qz-vb' } }],
+      ['/publisher/submissions/s%2F1/complete', { method: 'POST' }],
+    ])
+  })
+})
+
 describe('photoProblem (#312)', () => {
   it('takes a JPEG, PNG or WebP of 1 byte to 5 MB, and refuses anything else', () => {
     for (const type of ['image/jpeg', 'image/png', 'image/webp']) expect(photoProblem({ type, size: 3 })).toBeNull()

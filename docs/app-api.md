@@ -195,6 +195,20 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
   Checks that the photo arrived at that size and that its first bytes are that type (else 400 `invalid`, and the upload
   is discarded), then keeps it beside every earlier photo, never written over them. `photoVersion` is the one read
   (`null` for none); a stale one is 409 `conflict`. Like the note, a published poem's photo is 409 `published`.
+- `PUT /publisher/poems/{poemId}/details` `{ "title", "author", "shown": { "title", "author" } }` → `{ "title", "author" }`,
+  a draft poem's title and the name it is shown under (#372; midst-infra #232), each trimmed, required, and at most
+  200 characters (else 400 `invalid`). `shown` is the pair the page showed and is the version: if either has changed
+  since, the answer is 409 `conflict`. Each change is listed in the draft record. The submission keeps the pair the
+  poet sent. Like the note, a published poem is 409 `published`.
+- `POST /publisher/submissions` `{ "poetUsername", "title", "author", "processNote", "fileName", "sizeBytes", "photo"? }` →
+  the answer of `POST /submissions`. It sends a poem for a registered poet (#372; midst-infra #232; Stuart, 27 Oct:
+  poets email the publisher their poem). `poetUsername` must be a poet whose account is enabled, or 400 `invalid`
+  "Please choose a registered poet."; every other field is checked as in `POST /submissions`. The submission is the
+  poet's: it is in their `GET /submissions/mine` and goes to Review like any other. Its record names the publisher in
+  `submittedBy`, and the poet is never emailed about it, at any status: the publisher handles all communication with
+  that poet. The browser `PUT`s the file, and any photo, as a poet's are sent.
+- `POST /publisher/submissions/{submissionId}/complete` → as `POST /submissions/{submissionId}/complete`, for a submission
+  a publisher sent. One a poet sent is 404 `not_found`.
 - `PUT /publisher/poems/{poemId}` `{ "publishDate", "highlighted", "tags"?, "listEtag" }` → `{ "listEtag", "published" }`
   For a published poem. `tags` is a list of tag ids, each a tag and each once (else 400 `invalid`); without it the
   poem keeps the tags it has.

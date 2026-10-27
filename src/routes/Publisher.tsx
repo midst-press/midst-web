@@ -8,6 +8,8 @@ import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
 import PublisherNote from './PublisherNote'
 import PublisherPhoto from './PublisherPhoto'
+import PublisherSubmit from './PublisherSubmit'
+import PublisherTitle from './PublisherTitle'
 import PublisherTags from './PublisherTags'
 import TagMark from '../components/TagMark'
 import { Tag, tagsAfterToggle } from '../app/tags'
@@ -192,6 +194,8 @@ function Publisher(): ReactElement {
                     </>
                   })()}
                 </span>
+                {call && <PublisherTitle call={call} poemId={poem.poemId} shown={{ title: poem.title, author: poem.author }} disabled={busy}
+                  onExpired={expired} onSaved={() => reload(call).catch(() => setProblem(SAVED_NOT_RELOADED))} />}
                 {call && <PublisherNote call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
                 {call && <PublisherPhoto call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
               </li>
@@ -296,6 +300,8 @@ function Publisher(): ReactElement {
         </>}
 
         {call && <PublisherTags call={call} onExpired={expired} onTags={list => setTags(list.tags)} />}
+        {call && <PublisherSubmit call={call} onExpired={expired}
+          onSent={() => reviewSubmissions(call).then(r => setWaiting(waitingCount(r.submissions))).catch(error => expired(error))} />}
         {call && <PublisherPoets call={call} onExpired={expired} />}
         {call && <PublisherPatrons call={call} onExpired={expired} />}
       </>
