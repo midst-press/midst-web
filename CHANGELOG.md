@@ -1,3 +1,12 @@
+# 0.21.0
+
+- **The publisher can submit a poem for a poet**, for a poet who emails her their poem. A new section of the
+  publisher page has the author portal's form (title, name as it should appear, process note, the .midst file and
+  an optional photo) and a choice of registered poet. The poem then waits in Review like any submission. The poet
+  gets no email about it; the publisher writes to them herself.
+- **The publisher can change an unpublished poem's title and name**, with a button beside Process note and Author
+  photo. If someone else changed them meanwhile, the page says so instead of overwriting.
+
 # 0.20.0
 
 - **Author portal.** The submission form, its sign-in and "Your submissions" move to their own page,
