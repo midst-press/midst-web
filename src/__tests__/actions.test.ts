@@ -1,4 +1,5 @@
 import { BlobWriter, TextReader, ZipWriter } from '@zip.js/zip.js'
+import { renderProcessNote } from '../processNote'
 import * as archiveModule from '../archive'
 import { fetchPoemAsset } from '../poems/key-scheme'
 import { parseMidstFile } from '../store/midst-file'
@@ -88,6 +89,14 @@ const stateWith = (poems: any[]) => () => ({ app: { poems } })
 
 // What every failed load of poemB must dispatch, and nothing else: the page shows it (#34).
 const failedB = (reason: string) => [[{ type: LOAD_POEM_FAILED, payload: { poemId: 'zq-xv--kj-wm', reason } }]]
+
+// The first process note a suite renders builds DOMPurify on a fresh jsdom window (dompurify-node.cjs): about 200 ms
+// here, and past jest's 5 s per-test limit on a busy CI runner (#358). Pay it once, as setup with its own limit, so
+// each test's 5 s measures the test.
+const COLD_START_MS = 60000
+beforeAll(() => {
+  renderProcessNote('zq')
+}, COLD_START_MS)
 
 beforeEach(() => {
   fileText = validText

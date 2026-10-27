@@ -7,6 +7,7 @@ import { ApiError } from '../app/api'
 import PublisherPatrons from './PublisherPatrons'
 import PublisherPoets from './PublisherPoets'
 import PublisherNote from './PublisherNote'
+import PublisherPhoto from './PublisherPhoto'
 import PublisherTags from './PublisherTags'
 import TagMark from '../components/TagMark'
 import { Tag, tagsAfterToggle } from '../app/tags'
@@ -192,6 +193,7 @@ function Publisher(): ReactElement {
                   })()}
                 </span>
                 {call && <PublisherNote call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
+                {call && <PublisherPhoto call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
               </li>
             ))}
           </ul>

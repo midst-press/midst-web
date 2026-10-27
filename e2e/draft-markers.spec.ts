@@ -195,6 +195,69 @@ for (const width of [600, 1024]) {
   })
 }
 
+// #256 (b) (Annelyse, "One tick"): on a phone, ticks nearer than 24px apart are one tap target that lists its
+// drafts instead of each fighting for its own 24px box. Many frames keep each step's pixel distance tiny, so
+// the exact row width never matters: 1 frame apart is always well inside 24px, and 160 frames apart never is.
+const PHONE = { width: 390, height: 844 }
+const CLOSE_PAIR = [
+  { timelineIndex: 100, name: 'zq near one' },
+  { timelineIndex: 101, name: 'zq near two' },
+]
+const FAR_PAIR = [
+  { timelineIndex: 20, name: 'zq far one' },
+  { timelineIndex: 180, name: 'zq far two' },
+]
+
+test('on a phone, two ticks a frame apart merge into one that lists both drafts', async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await mount(page, syntheticData(CLOSE_PAIR, 200))
+  const row = page.locator(`${player} .draft-markers`)
+  await expect(row.locator('.draft-marker')).toHaveCount(1)
+  const group = row.locator('.draft-marker-group-button')
+  await expect(group).toHaveCount(1)
+  await expect(group).toHaveAttribute('aria-haspopup', 'true')
+  await expect(group).toHaveAttribute('aria-expanded', 'false')
+  await expect(group).toHaveAttribute('aria-label', '2 drafts here')
+
+  await group.click()
+  await expect(group).toHaveAttribute('aria-expanded', 'true')
+  const items = row.locator('.draft-marker-group-item')
+  await expect(items).toHaveCount(2)
+  await expect(items.nth(0)).toHaveText('zq near one')
+  await expect(items.nth(1)).toHaveText('zq near two')
+
+  // Picking a draft jumps exactly as a single marker does, and closes the list.
+  const timeline = page.locator(`${player} input[aria-label="Timeline"]`)
+  await items.nth(1).click()
+  await expect(timeline).toHaveValue('101')
+  await expect(group).toHaveAttribute('aria-expanded', 'false')
+  await expect(row.locator('.draft-marker-group-item')).toHaveCount(0)
+
+  // Escape closes it too, without jumping anywhere.
+  await group.click()
+  await expect(group).toHaveAttribute('aria-expanded', 'true')
+  await page.keyboard.press('Escape')
+  await expect(group).toHaveAttribute('aria-expanded', 'false')
+  await expect(timeline).toHaveValue('101')
+})
+
+// Control: desktop never merges, whatever the spacing (#256 (b)): every marker keeps its own labelled button.
+test('at desktop width the same two close markers stay two buttons', async ({ page }) => {
+  await mount(page, syntheticData(CLOSE_PAIR, 200))
+  const row = page.locator(`${player} .draft-markers`)
+  await expect(row.locator('.draft-marker')).toHaveCount(2)
+  await expect(row.locator('.draft-marker-group-button')).toHaveCount(0)
+  await expect(row.locator('.draft-marker-name')).toHaveCount(2)
+})
+
+test('on a phone, markers far apart stay separate ticks', async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await mount(page, syntheticData(FAR_PAIR, 200))
+  const row = page.locator(`${player} .draft-markers`)
+  await expect(row.locator('.draft-marker')).toHaveCount(2)
+  await expect(row.locator('.draft-marker-group-button')).toHaveCount(0)
+})
+
 test('a label pushed back inside the bar is put back when the bar gets wider', async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 720 })
   await mount(page, syntheticData([{ timelineIndex: 2, name: 'zq '.repeat(30).trim() }]))

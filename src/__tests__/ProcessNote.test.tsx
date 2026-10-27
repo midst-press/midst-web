@@ -5,7 +5,7 @@ import { act } from 'react-dom/test-utils'
 import { Provider } from 'react-redux'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AnyAction, applyMiddleware, combineReducers, createStore, Middleware } from 'redux'
-import ProcessNote, { authorPhotoUrl } from '../components/ProcessNote'
+import ProcessNote, { AuthorPhoto, authorPhotoUrl } from '../components/ProcessNote'
 import { MEDIA_URL, POEMS_URL } from '../config'
 import { reducer } from '../store/reducer'
 import { SET_PROCESS_NOTE_OPEN } from '../store/types'
@@ -83,5 +83,29 @@ describe('authorPhotoUrl (#312)', () => {
       .toBe(`${POEMS_URL}zq/g1/author-photo.png`)
     expect(authorPhotoUrl({ authorId: 'qz-vb', keys: { timelapse: 't', processNote: null, photo: null } })).toBe(`${MEDIA_URL}qz-vb/qz-vb.jpg`)
     expect(authorPhotoUrl({ authorId: 'qz-vb', keys: undefined })).toBe(`${MEDIA_URL}qz-vb/qz-vb.jpg`)
+  })
+})
+
+describe('AuthorPhoto (#359, GitHub #97)', () => {
+  const src = `${MEDIA_URL}qz-vb/qz-vb.jpg`
+  const photo = () => container.querySelector('img')
+  const render = () => act(() => root.render(<AuthorPhoto src={src} />))
+
+  it('is hidden while it loads, so a missing photo never shows an empty box', () => {
+    render()
+    expect(photo()?.getAttribute('src')).toBe(src)
+    expect(photo()?.style.display).toBe('none')
+  })
+
+  it('shows once it has loaded', () => {
+    render()
+    act(() => { photo()!.dispatchEvent(new Event('load')) })
+    expect(photo()?.style.display).toBe('')
+  })
+
+  it('is left out when it fails, so a poem with no photo shows none', () => {
+    render()
+    act(() => { photo()!.dispatchEvent(new Event('error')) })
+    expect(photo()).toBeNull()
   })
 })

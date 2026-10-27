@@ -3,7 +3,7 @@
  * saving. Every change to the published list carries the listEtag the page last read; a 409 means
  * someone else changed it first.
  */
-import { apiFetch } from './api'
+import { ApiError, apiFetch } from './api'
 
 export interface Poem {
   poemId: string
@@ -93,6 +93,38 @@ export const readNote = (call: Call, poemId: string) =>
 /** Save an edit, on the version it was loaded at. Refused while the poem is published. */
 export const saveNote = (call: Call, poemId: string, processNote: string, noteVersion: string | null) =>
   call<DraftNote>(`/publisher/poems/${encodeURIComponent(poemId)}/process-note`, { method: 'PUT', body: { processNote, noteVersion } })
+
+/** An unpublished poem's author photo (#312, step 2b): a one-minute link to it, and the version to change it on; all null
+ *  for a poem with no photo. */
+export interface DraftPhoto { url: string | null, expiresAt: string | null, photoVersion: string | null }
+
+export const readPhoto = (call: Call, poemId: string) =>
+  call<DraftPhoto>(`/publisher/poems/${encodeURIComponent(poemId)}/photo`)
+
+/**
+ * Change a poem's photo, on the version it was shown at, as a poet's is sent: ask for an upload URL, PUT the image there,
+ * then complete, which checks it (midst-infra publisherphoto.mjs). Refused while the poem is published. `put` sends the
+ * image (fetch in the browser).
+ */
+export async function changePhoto(
+  call: Call,
+  put: (url: string, headers: Record<string, string>, file: Blob) => Promise<{ ok: boolean }>,
+  poemId: string,
+  photo: Blob,
+  photoVersion: string | null,
+): Promise<{ photoVersion: string }> {
+  const path = `/publisher/poems/${encodeURIComponent(poemId)}/photo`
+  const described = { contentType: photo.type, sizeBytes: photo.size }
+  const ticket = await call<{ uploadUrl: string, uploadHeaders: Record<string, string> }>(path, { method: 'POST', body: described })
+  let sent = false
+  try {
+    sent = (await put(ticket.uploadUrl, ticket.uploadHeaders, photo)).ok
+  } catch {
+    sent = false
+  }
+  if (!sent) throw new ApiError(0, 'upload', 'The photo could not be uploaded. Please try again.')
+  return call<{ photoVersion: string }>(`${path}/complete`, { method: 'POST', body: { ...described, photoVersion } })
+}
 
 /** Whether a change's answer says withdrawn copies were left in CloudFront's cache. Only an explicit false: an
  *  answer with no field withdrew nothing. */

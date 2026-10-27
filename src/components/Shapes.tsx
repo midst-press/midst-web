@@ -67,6 +67,7 @@ function Shapes(): ReactElement {
       || pathname === '/contact'
       || pathname === '/app'
       || pathname === '/submit'
+      || pathname === '/authorportal'
       || pathname === '/read'
     ) {
       showShapes()

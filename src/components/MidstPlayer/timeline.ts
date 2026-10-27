@@ -27,6 +27,23 @@ export function draftMarkers(data: IMidstFile | null, frameCount: number): Draft
   }, [])
 }
 
+// On a phone, draft marker ticks nearer than `threshold` px apart are one tap target instead of fighting for
+// the same space (#256 (b), Annelyse's "One tick"). `centres` are pixel positions index-aligned with the
+// draft markers array (as MidstPlayer.tsx computes them from the row's measured width). A marker joins the
+// previous marker's group when it is nearer than `threshold` to it IN SORTED ORDER, so a run of close markers
+// chains into one group; a marker threshold px or further from its neighbour starts a new group. Each
+// returned group lists the markers' array indices, left to right, so group[0] is always its leftmost member -
+// the position the merged tick renders at.
+export function groupDraftMarkers(centres: readonly number[], threshold: number): number[][] {
+  const order = centres.map((_, i) => i).sort((a, b) => centres[a] - centres[b])
+  const groups: number[][] = []
+  order.forEach((i, k) => {
+    if (k > 0 && centres[i] - centres[order[k - 1]] < threshold) groups[groups.length - 1].push(i)
+    else groups.push([i])
+  })
+  return groups
+}
+
 export const DEFAULT_FONT_FAMILY = 'Helvetica'
 export const DEFAULT_FONT_SIZE = 14
 
