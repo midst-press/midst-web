@@ -140,7 +140,8 @@ async function standIn(page: Page, baseURL: string, store: Store) {
     if (url.pathname === '/publisher/publish' && body.replaces) {
       // The new poem takes the replaced one's place in the list (midst-infra #190).
       const at = store.published.findIndex(p => p.poemId === body.replaces)
-      store.published[at] = store.unpublished.find(p => p.poemId === body.poemId)!
+      store.published[at] = Object.assign(store.unpublished.find(p => p.poemId === body.poemId)!,
+        body.publishDate === undefined ? {} : { publishDate: body.publishDate, highlighted: body.highlighted })
       store.unpublished = store.unpublished.filter(p => p.poemId !== body.poemId)
     } else if (url.pathname === '/publisher/publish') {
       store.published.push(Object.assign(store.unpublished.find(p => p.poemId === body.poemId)!,
