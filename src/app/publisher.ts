@@ -94,6 +94,16 @@ export const readNote = (call: Call, poemId: string) =>
 export const saveNote = (call: Call, poemId: string, processNote: string, noteVersion: string | null) =>
   call<DraftNote>(`/publisher/poems/${encodeURIComponent(poemId)}/process-note`, { method: 'PUT', body: { processNote, noteVersion } })
 
+/** A poem's title and the name it is shown under. */
+export interface TitleAndName { title: string, author: string }
+
+/** Change an unpublished poem's title and name (#372; midst-infra #232), on the pair the page showed: if either changed
+ *  since, the server answers 409 conflict. Refused while the poem is published. */
+export const saveTitleAndName = (call: Call, poemId: string, next: TitleAndName, shown: TitleAndName) =>
+  call<TitleAndName>(`/publisher/poems/${encodeURIComponent(poemId)}/details`, {
+    method: 'PUT', body: { title: next.title, author: next.author, shown: { title: shown.title, author: shown.author } },
+  })
+
 /** An unpublished poem's author photo (#312, step 2b): a one-minute link to it, and the version to change it on; all null
  *  for a poem with no photo. */
 export interface DraftPhoto { url: string | null, expiresAt: string | null, photoVersion: string | null }
