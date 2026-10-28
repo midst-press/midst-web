@@ -1,3 +1,9 @@
+# 0.25.0
+
+- **No reading-order arrows on the publisher page.** The Published list is newest first by publish date, as the Table
+  of Contents opens; the arrows, drag and Save order are gone. Poems published on the same day still appear oldest
+  first on the site.
+
 # 0.24.0
 
 - **Every poem is the same size**, 16.8px (20% larger than the 14px most poems used), in Jost, whatever size its poet
