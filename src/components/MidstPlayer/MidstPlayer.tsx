@@ -4,7 +4,7 @@ import extensions from '@midst-press/midst-format/extensions'
 import { IMidstFile } from '../../store/types'
 import { clampLabelCentre } from './timestamp-position'
 import { editTime } from './edit-time'
-import { draftMarkers, groupDraftMarkers, playerFont } from './timeline'
+import { draftMarkers, groupDraftMarkers } from './timeline'
 import { Glide, glideTo, gliding, scrollParent, targetScrollTop } from '@midst-press/midst-format/follow'
 import './player.css'
 import { installFonts } from '../../fonts'
@@ -85,7 +85,6 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     return () => observer.disconnect()
     // A hidden row measures nothing, so the labels and tap boxes are fitted again when it is shown (#296).
   }, [markers, maxStep, showMarkers])
-  const { size } = playerFont(data)
   const [step, setStep] = useState(maxStep)
   const [playing, setPlaying] = useState(false)
   const [fps, setFPS] = useState(DEFAULT_FPS)
@@ -320,7 +319,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       <div className={`editor${hasScrollbar ? '' : ' editor--hide-scrollbar'}`} style={{
         // Every poem is shown in the site's poem font, whatever the poet chose in the app (#380; Annelyse, GitHub #105).
         fontFamily: 'var(--font-poem, sans-serif)',
-        fontSize: size,
+        // One size for every poem too (#380); the poet's own size is no longer used.
+        fontSize: 'var(--poem-size, 16.8px)',
       }}>
         <EditorContent editor={editor} />
       </div>
