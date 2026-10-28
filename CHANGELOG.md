@@ -1,3 +1,10 @@
+# 0.23.0
+
+- **Every poem, and the site, are in Jost** (Book, with Medium for bold). Poets still choose their own font in the
+  app; the site now shows every poem in the standard one, at the size the poet chose for now. Headers, the Table of
+  Contents, editorial text and poem bodies each have their own setting, so any one of them can be given a different
+  font later on its own.
+
 # 0.22.0
 
 - **Published is newest first on the publisher page**, by publish date, the order the Table of Contents opens in. A
