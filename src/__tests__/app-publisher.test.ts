@@ -1,33 +1,6 @@
-import { Call, Poem, lastEditedWords, leftInCache, loadList, moved, newestFirst, orderChanged, publish, saveDetails, saveOrder, saveTitleAndName, unpublish } from '../app/publisher'
+import { Call, lastEditedWords, leftInCache, loadList, newestFirst, publish, saveDetails, saveTitleAndName, unpublish } from '../app/publisher'
 
-// The publisher's calls (docs/app-api.md) and the reordering the page does before it saves.
-
-const poem = (poemId: string): Poem =>
-  ({ poemId, title: `Zq ${poemId}`, author: 'Qz', timelapseKey: `poems/${poemId}/t`, processNoteKey: null, publishDate: null, highlighted: false })
-
-describe('moved', () => {
-  it('moves an item up, down, to the top and to the bottom', () => {
-    expect(moved(['a', 'b', 'c', 'd'], 2, 1)).toEqual(['a', 'c', 'b', 'd'])
-    expect(moved(['a', 'b', 'c', 'd'], 0, 1)).toEqual(['b', 'a', 'c', 'd'])
-    expect(moved(['a', 'b', 'c', 'd'], 3, 0)).toEqual(['d', 'a', 'b', 'c'])
-    expect(moved(['a', 'b', 'c', 'd'], 0, 3)).toEqual(['b', 'c', 'd', 'a'])
-  })
-
-  it('returns the same list, untouched, for a move that goes nowhere or off either end', () => {
-    const items = ['a', 'b']
-    for (const [from, to] of [[0, 0], [0, -1], [1, 2], [-1, 0], [2, 0]]) expect(moved(items, from, to)).toBe(items)
-    expect(items).toEqual(['a', 'b'])
-  })
-})
-
-describe('orderChanged', () => {
-  it('is true only when the ids differ in order', () => {
-    const [a, b] = [poem('a'), poem('b')]
-    expect(orderChanged([a, b], [a, b])).toBe(false)
-    expect(orderChanged([a, b], [b, a])).toBe(true)
-    expect(orderChanged([a, b], [a])).toBe(true)
-  })
-})
+// The publisher's calls (docs/app-api.md) and the newest-first order the page shows.
 
 describe('the calls', () => {
   it('use the contract’s routes, methods and bodies, each carrying the listEtag', async () => {
@@ -35,13 +8,11 @@ describe('the calls', () => {
     await loadList(call)
     await publish(call, 'p1', 'e1', { publishDate: '2026-10-21', highlighted: false })
     await unpublish(call, 'p1', 'e2')
-    await saveOrder(call, ['p2', 'p1'], 'e3')
     await saveDetails(call, 'p/1', { publishDate: '2026-10-20', highlighted: true }, 'e4')
     expect(call.mock.calls).toEqual([
       ['/publisher/poems'],
       ['/publisher/publish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e1', publishDate: '2026-10-21', highlighted: false } }],
       ['/publisher/unpublish', { method: 'POST', body: { poemId: 'p1', listEtag: 'e2' } }],
-      ['/publisher/order', { method: 'PUT', body: { poemIds: ['p2', 'p1'], listEtag: 'e3' } }],
       ['/publisher/poems/p%2F1', { method: 'PUT', body: { publishDate: '2026-10-20', highlighted: true, listEtag: 'e4' } }],
     ])
   })
