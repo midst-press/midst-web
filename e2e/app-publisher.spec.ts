@@ -169,7 +169,7 @@ async function standIn(page: Page, baseURL: string, store: Store) {
 
 const published = (page: Page) => page.getByRole('list', { name: 'Published poems' }).locator('strong')
 
-test('publish, reorder, highlight and unpublish, each saved to the list', async ({ page, baseURL }) => {
+test('publish, highlight and unpublish, each saved to the list, with no reading-order controls', async ({ page, baseURL }) => {
   const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [poem(3)], writes: [] }
   await signedInAs(page, ['publisher'])
   await standIn(page, baseURL!, store)
@@ -184,13 +184,10 @@ test('publish, reorder, highlight and unpublish, each saved to the list', async 
   await expect(published(page)).toHaveText(['Zq 3', 'Zq 1', 'Zq 2'])
   await expect(page.getByText('There is nothing waiting to be published.')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Move Zq 1 down' }).click()
-  await expect(published(page)).toHaveText(['Zq 3', 'Zq 2', 'Zq 1'])
-  expect(store.writes).toEqual(['POST /publisher/publish']) // reordering is local until saved
-  await page.getByRole('button', { name: 'Save order' }).click()
-  await expect(page.getByRole('status')).toHaveText('Saved the new order.')
-  expect(store.published.map(p => p.title)).toEqual(['Zq 3', 'Zq 2', 'Zq 1'])
+  // The reading-order arrows and Save order are gone (#377; Annelyse, GitHub #103), and so is dragging.
+  await expect(page.getByRole('button', { name: /^Move / })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Save order' })).toHaveCount(0)
+  await expect(page.getByRole('list', { name: 'Published poems' }).locator('li[draggable="true"]')).toHaveCount(0)
 
   await page.getByRole('listitem').filter({ hasText: 'Zq 2' }).getByLabel('Highlighted').click()
   await expect(page.getByRole('status')).toHaveText('Highlighted Zq 2.')
@@ -405,19 +402,6 @@ test('a 401 in the Poets section signs the whole page out and offers sign-in', a
   await form.getByRole('button', { name: 'Register poet' }).click()
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
   await expect(page.getByRole('list', { name: 'Published poems' })).toHaveCount(0)
-})
-
-test('Undo changes puts back the saved order, and nothing is written', async ({ page, baseURL }) => {
-  const store: Store = { etag: 1, published: [poem(1), poem(2)], unpublished: [], writes: [] }
-  await signedInAs(page, ['publisher'])
-  await standIn(page, baseURL!, store)
-  await page.goto('/publisher')
-  await page.getByRole('button', { name: 'Move Zq 2 up' }).click()
-  await expect(published(page)).toHaveText(['Zq 2', 'Zq 1'])
-  await expect(page.getByRole('button', { name: 'Unpublish' }).first()).toBeDisabled()
-  await page.getByRole('button', { name: 'Undo changes' }).click()
-  await expect(published(page)).toHaveText(['Zq 1', 'Zq 2'])
-  expect(store.writes).toEqual([])
 })
 
 test('the page links to Review with the number waiting, and puts the waiting poems before the published list (#289)', async ({ page, baseURL }) => {

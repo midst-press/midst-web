@@ -141,9 +141,6 @@ export async function changePhoto(
 export const leftInCache = (result: unknown): boolean =>
   typeof result === 'object' && result !== null && (result as { edgeCleared?: unknown }).edgeCleared === false
 
-export const saveOrder = (call: Call, poemIds: string[], listEtag: string) =>
-  call('/publisher/order', { method: 'PUT', body: { poemIds, listEtag } })
-
 /** Without `tags`, the poem keeps the tags it has (midst-infra #214). */
 export const saveDetails = (call: Call, poemId: string, details: { publishDate: string | null, highlighted: boolean, tags?: string[] }, listEtag: string) =>
   call(`/publisher/poems/${encodeURIComponent(poemId)}`, { method: 'PUT', body: { ...details, listEtag } })
@@ -160,16 +157,3 @@ export function newestFirst<T extends Pick<Poem, 'publishDate'>>(poems: T[]): T[
     .sort((a, b) => (b.poem.publishDate as string).localeCompare(a.poem.publishDate as string) || a.position - b.position)
   return [...withDate, ...indexed.filter(({ poem }) => !dated(poem))].map(({ poem }) => poem)
 }
-
-/** The list with the item at `from` moved to `to`. Out-of-range moves return the list unchanged. */
-export function moved<T>(items: T[], from: number, to: number): T[] {
-  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items
-  const next = items.slice()
-  const [item] = next.splice(from, 1)
-  next.splice(to, 0, item)
-  return next
-}
-
-/** Whether the page's order differs from the saved one. */
-export const orderChanged = (saved: Poem[], shown: Poem[]): boolean =>
-  saved.length !== shown.length || saved.some((poem, i) => poem.poemId !== shown[i].poemId)

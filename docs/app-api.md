@@ -155,7 +155,9 @@ conditional write on its ETag, so each changing route takes the `listEtag` the p
 
 - `GET /publisher/poems` → `{ "listEtag", "published": [Poem, ...], "unpublished": [Poem, ...] }`
   `published` is in the list's stored order; the publisher's page shows it newest first by `publishDate`, as the Table of
-  Contents does (#377). `unpublished` is every accepted poem not in the list, newest first.
+  Contents does (#377), and no longer offers to reorder it, so nothing calls `PUT /publisher/order` now. The stored order
+  only breaks ties between poems with the same publish date. `unpublished` is every accepted poem not in the list,
+  newest first.
   `removed` is the ids of the poems removed from the portal (#308), and `deleted` is those poems for the Deleted
   section (#349; midst-infra #227): each a Poem plus `removedAt`, most recently removed first. An API before those
   sends neither, and the page then shows no Deleted section.
