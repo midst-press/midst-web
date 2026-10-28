@@ -1,3 +1,9 @@
+# 0.24.0
+
+- **Every poem is the same size**, 16.8px (20% larger than the 14px most poems used), in Jost, whatever size its poet
+  chose in the app. Poems also start one line higher on the page. The size is a single setting, so it can be adjusted
+  in one place.
+
 # 0.23.0
 
 - **Every poem, and the site, are in Jost** (Book, with Medium for bold). Poets still choose their own font in the

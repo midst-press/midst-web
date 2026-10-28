@@ -72,6 +72,8 @@ body {
   --font-toc: 'Jost', sans-serif;
   --font-editorial: 'Jost', sans-serif;
   --font-poem: 'Jost', sans-serif;
+  /* One size for every poem (#380; Annelyse, 28 Oct): 20% above the 14px most poems used, whatever size the poet chose. */
+  --poem-size: 16.8px;
 }
 
 body {
