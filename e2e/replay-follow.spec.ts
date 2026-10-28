@@ -206,7 +206,12 @@ test('presentation reaches rendered paragraphs and draft buttons seek exact unch
   const player = page.locator(scope)
   await expect(player.locator('.editable')).toContainText('synthetic final')
   const computed = await player.locator('.editable p').evaluate(p => ({ size: getComputedStyle(p).fontSize, family: getComputedStyle(p).fontFamily }))
-  expect(computed.size).toBe('24px')
+  // The poet chose 24px; every poem is shown at the site's one poem size (#380).
+  expect(computed.size).toBe('16.8px')
+  // And starts one line higher than the 3rem it used to: less than 48px of top padding, more than none.
+  const top = await player.locator('.editor').evaluate(e => parseFloat(getComputedStyle(e).paddingTop))
+  expect(top).toBeGreaterThan(0)
+  expect(top).toBeLessThan(48)
   // The poet chose Courier; the site shows every poem in its poem font (#380), at the poet's size.
   expect(computed.family).toContain('Jost')
   expect(computed.family).not.toContain('Courier')
@@ -230,7 +235,7 @@ test('B font and legacy-index draft markers remain supported', async ({ page, ba
   await page.goto(`/poem/${names.poemUrl(meta.title)}/`)
   const player = page.locator(scope)
   await expect(player.locator('.editable')).toContainText('synthetic legacy')
-  expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe('36px')
+  expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe('16.8px')
   await showDraftMarkers(player)
   await expect(player.locator('.draft-marker')).toHaveCount(2)
   await player.getByRole('button', { name: 'Jump to synthetic 0', exact: true }).click()
@@ -246,8 +251,8 @@ test('static C history has no valid draft index and rendering defaults handle un
     await expect(player.locator('.editable')).toContainText('synthetic static')
     await expect(player.locator('.draft-marker')).toHaveCount(0)
     await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled()
-    const expected = presentation && presentation.fontSize > 0 ? presentation.fontSize : 14
-    expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe(`${expected}px`)
+    // Whatever size the file names, or none, the poem is shown at the site's one poem size (#380).
+    expect(await player.locator('.editable p').evaluate(p => getComputedStyle(p).fontSize)).toBe('16.8px')
   }
 })
 
