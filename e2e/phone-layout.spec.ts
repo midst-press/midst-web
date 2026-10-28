@@ -224,7 +224,8 @@ test('on a desktop, the poem, its markers and the newsletter bar are where they 
       editor: css(root.querySelector('.editor')!, ['text-align', 'padding-left', 'padding-right']),
       editable: css(editable, ['display', 'text-align', 'transform', 'padding-left', 'padding-right']),
       // Centred before its 20px shift to the right, and every line starting at its left edge.
-      centreOffset: Math.round((box.left - 20 + box.right - 20) / 2 - (around.left + around.right) / 2),
+      // + 0 turns -0 into 0: an offset under half a pixel either way is centred, and toEqual tells -0 from 0.
+      centreOffset: Math.round((box.left - 20 + box.right - 20) / 2 - (around.left + around.right) / 2) + 0,
       paragraphs: Array.from(root.querySelectorAll('.editable p')).map(p => ({
         ...css(p, ['float', 'clear']), offset: Math.round(p.getBoundingClientRect().left - box.left),
       })),
