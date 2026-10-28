@@ -1591,14 +1591,6 @@ background-size: contain;
   font-size: 18px;
 }
 
-.publisher-list li[draggable='true'] {
-  cursor: grab;
-}
-
-.publisher-list li.publisher-dragging {
-  opacity: 0.5;
-}
-
 .publisher-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1668,8 +1660,7 @@ background-size: contain;
 }
 
 .publisher-notice,
-.publisher-problem,
-.publisher-hint {
+.publisher-problem {
   font-size: 16px;
 }
 
