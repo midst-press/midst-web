@@ -85,7 +85,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
     return () => observer.disconnect()
     // A hidden row measures nothing, so the labels and tap boxes are fitted again when it is shown (#296).
   }, [markers, maxStep, showMarkers])
-  const { family, size } = playerFont(data)
+  const { size } = playerFont(data)
   const [step, setStep] = useState(maxStep)
   const [playing, setPlaying] = useState(false)
   const [fps, setFPS] = useState(DEFAULT_FPS)
@@ -318,7 +318,8 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   return (
     <div className="midst-tiptap-player" data-player="tiptap">
       <div className={`editor${hasScrollbar ? '' : ' editor--hide-scrollbar'}`} style={{
-        fontFamily: `${family}, ${family === 'Courier' ? 'monospace' : /Bell|Garamond|Times/.test(family) ? 'serif' : 'sans-serif'}`,
+        // Every poem is shown in the site's poem font, whatever the poet chose in the app (#380; Annelyse, GitHub #105).
+        fontFamily: 'var(--font-poem, sans-serif)',
         fontSize: size,
       }}>
         <EditorContent editor={editor} />

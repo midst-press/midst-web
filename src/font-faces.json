@@ -279,5 +279,49 @@
         "format": "truetype"
       }
     ]
+  },
+  {
+    "family": "Jost",
+    "weight": "400",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "Jost-Book.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "Jost",
+    "weight": "400",
+    "style": "italic",
+    "sources": [
+      {
+        "file": "Jost-BookItalic.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "Jost",
+    "weight": "500 700",
+    "style": "normal",
+    "sources": [
+      {
+        "file": "Jost-Medium.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  {
+    "family": "Jost",
+    "weight": "500 700",
+    "style": "italic",
+    "sources": [
+      {
+        "file": "Jost-MediumItalic.ttf",
+        "format": "truetype"
+      }
+    ]
   }
 ]
