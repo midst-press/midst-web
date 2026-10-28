@@ -207,7 +207,9 @@ test('presentation reaches rendered paragraphs and draft buttons seek exact unch
   await expect(player.locator('.editable')).toContainText('synthetic final')
   const computed = await player.locator('.editable p').evaluate(p => ({ size: getComputedStyle(p).fontSize, family: getComputedStyle(p).fontFamily }))
   expect(computed.size).toBe('24px')
-  expect(computed.family).toContain('Courier')
+  // The poet chose Courier; the site shows every poem in its poem font (#380), at the poet's size.
+  expect(computed.family).toContain('Jost')
+  expect(computed.family).not.toContain('Courier')
   await showDraftMarkers(player)
   await expect(player.locator('.draft-marker')).toHaveCount(3)
   await expect(player.getByRole('button', { name: 'Jump to synthetic outside draft' })).toHaveCount(0)

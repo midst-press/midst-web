@@ -138,8 +138,8 @@ test.describe('a published poem plays', () => {
 
       // Fonts (#55). The font files are served from MIDST_FONTS_URL, not bundled, so a wrong URL would
       // leave every reader on a system font with all else green. The CSS naming a family proves
-      // nothing; the face must have LOADED. The site chrome is set in futuraregular. One fixture poem
-      // is set in Lato, which the site serves; the others are in Helvetica, which it does not.
+      // nothing; the face must have LOADED. The site and every poem are set in Jost, whatever font the
+      // poet chose (#380; GitHub #105): one fixture poem was written in Lato and the others in Helvetica.
       const fonts = await page.evaluate(async (selector) => {
         const set = (document as any).fonts
         await set.ready
@@ -150,15 +150,11 @@ test.describe('a published poem plays', () => {
         const poem = first(document.querySelector(selector)!)
         return { body, bodyStatuses: statuses(body), bodyCheck: set.check(`16px "${body}"`) as boolean, poem, poemStatuses: statuses(poem) }
       }, `${scope} .editable p`)
-      expect(fonts.body).toBe('futuraregular')
+      expect(fonts.body).toBe('Jost')
       expect(fonts.bodyStatuses, 'the site font is declared but did not load').toContain('loaded')
       expect(fonts.bodyCheck).toBe(true)
-      if (file === 'Margaret_Yapp') {
-        expect(fonts.poem).toBe('Lato')
-        expect(fonts.poemStatuses, 'the poem is set in Lato and no Lato face loaded').toContain('loaded')
-      } else {
-        expect(fonts.poemStatuses, 'this fixture poem is set in a system font').toEqual([])
-      }
+      expect(fonts.poem).toBe('Jost')
+      expect(fonts.poemStatuses, 'the poem is set in Jost and no Jost face loaded').toContain('loaded')
 
       // 4. Nothing 404ed or 403ed on the way. The production failures this suite exists to prevent
       //    were all 403s on an object whose name did not match what was uploaded.
