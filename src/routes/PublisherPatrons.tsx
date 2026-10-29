@@ -4,6 +4,7 @@ import { Call } from '../app/publisher'
 import {
   PatronsList, Visibility, VISIBILITY_WORDS, closingFromText, loadPatronsList, savePatronsList, visibilitiesFor,
 } from '../app/patrons'
+import { useAppCall } from '../app/useAppCall'
 
 // The "Patrons" part of the publisher's page (#58): every patron, in the order the site names them, each with a
 // visibility; only public ones are named on the site. Saving replaces the whole list, and the back end then writes
@@ -39,9 +40,8 @@ function PublisherPatrons({ call, onExpired }: Props): ReactElement {
   const [closing, setClosing] = useState('')
   const [newName, setNewName] = useState('')
   const [newVisibility, setNewVisibility] = useState<Visibility>('public')
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, run, load } = useAppCall({ onExpired })
   // True when the server's list moved and this page could not fetch it: what is shown may be saved over by
   // nobody, so Save waits until the list is reloaded.
   const [stale, setStale] = useState(false)
@@ -53,35 +53,21 @@ function PublisherPatrons({ call, onExpired }: Props): ReactElement {
     setClosing(list.closing ?? '')
   }
 
-  const loadFailed = (error: unknown) => (error instanceof ApiError ? error.message : 'The patrons could not be loaded.')
-
-  // Loads the list and shows it, replacing whatever the form holds. A failure goes to the page (a 401 forgets the
-  // session) and is returned, so each caller says what it means there. Resolves to the error, or null when it loaded.
-  const load = async (): Promise<unknown> => {
-    try {
-      show(await loadPatronsList(call))
-      return null
-    } catch (error) {
-      onExpired(error)
-      return error
-    }
-  }
+  const LOAD_FAILED = 'The patrons could not be loaded.'
+  // Loads the list and shows it, replacing whatever the form holds.
+  const fetchPatrons = async () => show(await loadPatronsList(call))
 
   useEffect(() => {
-    load().then(error => { if (error) setProblem(loadFailed(error)) })
+    load(fetchPatrons, LOAD_FAILED)
     // Loaded once; a save shows what the server then holds.
   }, [])
 
   // The publisher's way back from a failed load: try again, here or after a save the page could not follow.
-  const reload = async () => {
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    const error = await load()
-    if (error) setProblem(stale ? NOT_RELOADED : loadFailed(error))
-    else setNotice(RELOADED)
-    setBusy(false)
-  }
+  const reload = () =>
+    run(async () => {
+      await fetchPatrons()
+      setNotice(RELOADED)
+    }, LOAD_FAILED, () => (stale ? NOT_RELOADED : undefined))
 
   const edit = (key: number, change: Partial<Row>) => setRows(rows.map(row => (row.key === key ? { ...row, ...change } : row)))
   const move = (from: number, to: number) => {
@@ -102,32 +88,24 @@ function PublisherPatrons({ call, onExpired }: Props): ReactElement {
 
   const save = async () => {
     if (!saved || stale) return
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
+    await run(async () => {
       const body = rows.map(({ id, name, visibility }) => ({ ...(id ? { id } : {}), name: name.trim(), visibility }))
       show(await savePatronsList(call, body, closingFromText(closing), saved.patronsEtag))
       setNotice(SAVED)
-    } catch (error) {
-      onExpired(error)
-      if (error instanceof ApiError && (error.status === 409 || error.code === 'public_copy_failed')) {
-        // The list moved on the server (someone else's save, or this one's): show what it now holds, and say so only
-        // if it was in fact reloaded.
-        // If it cannot be fetched, the form keeps the publisher's unsaved changes and Save waits for a reload.
-        const reloadFailed = await load()
-        if (reloadFailed) {
-          setStale(true)
-          setProblem(NOT_RELOADED)
-        } else {
-          setProblem(error.status === 409 ? CONFLICT : error.message)
-        }
-      } else {
-        setProblem(error instanceof ApiError ? error.message : 'The patrons list was not saved. Please try again.')
+    }, 'The patrons list was not saved. Please try again.', async error => {
+      if (!(error instanceof ApiError && (error.status === 409 || error.code === 'public_copy_failed'))) return undefined
+      // The list moved on the server (someone else's save, or this one's): show what it now holds, and say so only
+      // if it was in fact reloaded. If it cannot be fetched, the form keeps the publisher's unsaved changes and Save
+      // waits for a reload.
+      try {
+        await fetchPatrons()
+        return error.status === 409 ? CONFLICT : error.message
+      } catch (reloadError) {
+        onExpired(reloadError)
+        setStale(true)
+        return NOT_RELOADED
       }
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (

@@ -365,6 +365,21 @@ describe('spacebar', () => {
     expect(playButton().getAttribute('aria-label')).toBe('Play')
   })
 
+  // GitHub #109 (midst-web #403): the arrows to the next poem are links, and a clicked one keeps focus. Space has no
+  // meaning on a link, so it plays and pauses there as it does on the page.
+  it('PB-SP-4 space with a link focused toggles Play/Pause, and the page does not scroll', () => {
+    render({ data: FIVE })
+    const link = document.createElement('a')
+    link.href = '/poem/zq/'
+    document.body.appendChild(link)
+    const first = key(link)
+    expect(playButton().getAttribute('aria-label')).toBe('Pause')
+    expect(first.defaultPrevented).toBe(true)
+    key(link)
+    expect(playButton().getAttribute('aria-label')).toBe('Play')
+    link.remove()
+  })
+
   describe('PB-SP-2 ignored when', () => {
     // Targets outside the component: the controls bar stops keydown propagation, so a key pressed on
     // the player's own buttons never reaches the document listener at all.

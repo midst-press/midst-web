@@ -1,3 +1,9 @@
+# 0.26.0
+
+- **Space plays and pauses after moving to the next poem with the arrows.** Previously, after using the navigation
+  arrows on the right of the page, the spacebar did nothing until you clicked the poem (GitHub #109).
+- The publisher and poet pages share one way of calling the server. Nothing is meant to look different.
+
 # 0.25.0
 
 - **No reading-order arrows on the publisher page.** The Published list is newest first by publish date, as the Table

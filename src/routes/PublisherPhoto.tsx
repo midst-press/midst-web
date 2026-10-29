@@ -2,6 +2,7 @@ import React, { ReactElement, useState } from 'react'
 import { ApiError } from '../app/api'
 import { Call, DraftPhoto, changePhoto, readPhoto } from '../app/publisher'
 import { PHOTO_TYPES, photoProblem } from '../app/submit'
+import { useAppCall } from '../app/useAppCall'
 
 // An unpublished poem's author photo, for the publisher to add or change (#312, step 2b; Annelyse, 26 Oct). The API keeps
 // the poet's photo and every earlier one; the published copy is made from the latest when the poem is published, and
@@ -27,55 +28,44 @@ function PublisherPhoto({ call, poemId, title, disabled, onExpired }: Props): Re
   const [shown, setShown] = useState<DraftPhoto | null>(null)
   const [chosen, setChosen] = useState<File | null>(null)
   const [inputKey, setInputKey] = useState(0) // remakes the file input after a change
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
-
-  const failed = (error: unknown, fallback: string) => {
-    onExpired(error)
-    setProblem(error instanceof ApiError && error.code === 'conflict' ? CONFLICT : error instanceof ApiError ? error.message : fallback)
-  }
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run, expired } = useAppCall({ onExpired })
+  const conflict = (error: unknown) => (error instanceof ApiError && error.code === 'conflict' ? CONFLICT : undefined)
 
   const toggle = async () => {
-    setNotice(null)
-    setProblem(null)
-    if (shown) { setShown(null); setChosen(null); return }
-    setBusy(true)
-    try {
-      setShown(await readPhoto(call, poemId))
-    } catch (error) {
-      failed(error, 'The photo could not be loaded. Please try again.')
-    } finally {
-      setBusy(false)
+    if (shown) {
+      setNotice(null)
+      setProblem(null)
+      setShown(null)
+      setChosen(null)
+      return
     }
+    await run(async () => {
+      setShown(await readPhoto(call, poemId))
+    }, 'The photo could not be loaded. Please try again.', conflict)
   }
 
   const upload = async () => {
     if (!shown || !chosen) return
-    setNotice(null)
-    setProblem(null)
     const wrong = photoProblem(chosen)
-    if (wrong) { setProblem(wrong); return }
-    setBusy(true)
-    try {
+    if (wrong) {
+      setNotice(null)
+      setProblem(wrong)
+      return
+    }
+    await run(async () => {
       await changePhoto(call, putFile, poemId, chosen, shown.photoVersion)
       setChosen(null)
       setInputKey(k => k + 1)
       setNotice('Photo saved.')
-    } catch (error) {
-      failed(error, 'The photo could not be saved. Please try again.')
-      setBusy(false)
-      return
-    }
-    // Saved. A failure from here on is only showing it: saying "could not be saved" would make the publisher send it twice.
-    try {
-      setShown(await readPhoto(call, poemId))
-    } catch (error) {
-      onExpired(error)
-      setProblem('The photo was saved, but it could not be shown. Open it again to see it.')
-    } finally {
-      setBusy(false)
-    }
+      // Saved. A failure from here on is only showing it: saying "could not be saved" would make the publisher send it twice.
+      try {
+        setShown(await readPhoto(call, poemId))
+      } catch (error) {
+        expired(error)
+        setProblem('The photo was saved, but it could not be shown. Open it again to see it.')
+      }
+    }, 'The photo could not be saved. Please try again.', conflict)
   }
 
   return (

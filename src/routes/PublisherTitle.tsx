@@ -1,6 +1,7 @@
 import React, { ReactElement, useState } from 'react'
 import { ApiError } from '../app/api'
 import { Call, TitleAndName, saveTitleAndName } from '../app/publisher'
+import { useAppCall } from '../app/useAppCall'
 
 // An unpublished poem's title and the name it is shown under (#372; midst-infra #232), beside its process note and
 // photo. Saved on the pair shown, so a change someone else made meanwhile is refused rather than overwritten.
@@ -20,9 +21,8 @@ interface Props {
 function PublisherTitle({ call, poemId, shown, disabled, onExpired, onSaved }: Props): ReactElement {
   // null: closed; otherwise the pair being edited.
   const [open, setOpen] = useState<TitleAndName | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run } = useAppCall({ onExpired })
 
   const toggle = () => {
     setNotice(null)
@@ -32,21 +32,13 @@ function PublisherTitle({ call, poemId, shown, disabled, onExpired, onSaved }: P
 
   const save = async () => {
     if (!open) return
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
+    await run(async () => {
       await saveTitleAndName(call, poemId, { title: open.title.trim(), author: open.author.trim() }, shown)
       setOpen(null)
       setNotice('Title and name saved.')
       onSaved()
-    } catch (error) {
-      onExpired(error)
-      setProblem(error instanceof ApiError && error.code === 'conflict' ? CONFLICT
-        : error instanceof ApiError ? error.message : 'The title and name could not be saved. Please try again.')
-    } finally {
-      setBusy(false)
-    }
+    }, 'The title and name could not be saved. Please try again.',
+    error => (error instanceof ApiError && error.code === 'conflict' ? CONFLICT : undefined))
   }
 
   const unchanged = open !== null && open.title.trim() === shown.title && open.author.trim() === shown.author

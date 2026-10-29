@@ -3,10 +3,11 @@ import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
-import { currentSession, forgetSession, signInUrl } from '../app/auth'
+import { currentSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor } from '../app/publisher'
 import { GROUPS, Person, disable, enable, invite, loadPeople, resendInvitation, setGroups } from '../app/admin'
+import { useAppCall } from '../app/useAppCall'
 
 // The admin's page (docs/app-api.md, "Admin"): see everyone, invite, resend an invitation, change groups, disable and
 // enable.
@@ -45,9 +46,8 @@ function Admin(): ReactElement {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [inviteGroups, setInviteGroups] = useState<string[]>(['poet'])
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem, and a 401 that forgets the session, as on every app page (#387).
+  const { busy, notice, problem, setNotice, run, load } = useAppCall()
   // Whose row a change was made from, so its result is shown there, beside the button, and not above the invite form
   // where it may be out of view (#241). null: the invite form, or the page.
   const [about, setAbout] = useState<string | null>(null)
@@ -60,36 +60,27 @@ function Admin(): ReactElement {
     setEdits({})
   }, [])
 
-  // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
-  const expired = (error: unknown) => {
-    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-  }
-
   useEffect(() => {
-    if (call) reload(call).catch(error => { expired(error); setProblem(error instanceof ApiError ? error.message : 'The list could not be loaded.') })
+    if (call) load(() => reload(call), 'The list could not be loaded.')
     // Loaded once per visit; each change reloads it.
   }, [])
 
   // Every change: run it, then reload, so the page always shows what the server now holds.
   const change = async (action: (c: Call) => Promise<unknown>, done: string, username: string | null = null): Promise<boolean> => {
     if (!call) return false
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
     setAbout(username)
-    try {
-      await action(call)
-      await reload(call)
-      setNotice(done)
-      return true
-    } catch (error) {
-      expired(error)
-      await reload(call).catch(() => undefined)
-      setProblem(problemOf(error))
-      return false
-    } finally {
-      setBusy(false)
-    }
+    return run(
+      async () => {
+        await action(call)
+        await reload(call)
+        setNotice(done)
+      },
+      'That did not work. Please try again.',
+      async error => {
+        await reload(call).catch(() => undefined)
+        return problemOf(error)
+      },
+    )
   }
 
   const sendInvite = async (event: FormEvent) => {
