@@ -333,11 +333,16 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
             click still work every control. */}
         <div className="controls" onKeyDown={event => {
           event.stopPropagation()
-          if (!canPlay || event.key !== ' ' || event.repeat || event.defaultPrevented) return
-          if (event.altKey || event.ctrlKey || event.metaKey) return
+          if (event.key !== ' ' || event.defaultPrevented) return
           // The speed popup is left as it was: Space on its frame-rate slider neither plays nor changes the speed.
-          if ((event.target as Element).closest?.('.playback-speed-popup')) return
-          event.preventDefault() // a button clicks itself on Space's keyup unless its keydown is cancelled
+          const target = event.target as Element
+          if (target.closest?.('.playback-speed-popup')) return
+          // A button clicks itself on Space's keyup unless its keydown is cancelled, so Space on a button is always
+          // cancelled, even when it then does nothing: a held key, a modifier, a poem that cannot play (Silas, review
+          // of #408). The timeline keeps its own rule: Space does nothing to a range, so those are left alone.
+          if (target.closest?.('button')) event.preventDefault()
+          if (!canPlay || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+          event.preventDefault()
           playPause()
         }}>
           <div className="timeline-control" ref={timelineRef}>

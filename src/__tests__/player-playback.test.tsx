@@ -396,6 +396,17 @@ describe('spacebar', () => {
       expect(control.getAttribute('aria-expanded')).not.toBe('true')
     })
 
+    // Silas, review of #408: a Space that does not play is still cancelled on a button, or the button clicks itself.
+    it.each([{ repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true }])(
+      'Skip to start with %j: cancelled, does not play and does not seek', init => {
+        render({ data: FIVE })
+        setRange(timeline(), 2)
+        const event = key(byLabel<HTMLButtonElement>('Skip to start'), init)
+        expect(event.defaultPrevented).toBe(true)
+        expect(playButton().getAttribute('aria-label')).toBe('Play')
+        expect(Number(timeline().value)).toBe(2)
+      })
+
     it('the play button itself: one Space is one toggle', () => {
       render({ data: FIVE })
       setRange(timeline(), 2)
