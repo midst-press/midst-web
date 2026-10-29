@@ -1,9 +1,9 @@
 import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
-import { ApiError } from '../app/api'
 import { Call } from '../app/publisher'
 import { Person, listPoets } from '../app/poets'
 import { PHOTO_TYPES, fileProblem, photoProblem, submitPoem } from '../app/submit'
 import NoteEditor from '../components/NoteEditor'
+import { useAppCall } from '../app/useAppCall'
 
 // Submit a poem for a poet (#372; midst-infra #232; Stuart, 27 Oct: poets email Annelyse their poem, and she does on
 // their behalf what the author portal does). The author portal's form, with a choice of registered poet. The poem goes
@@ -31,14 +31,14 @@ function PublisherSubmit({ call, onExpired, onSent }: Props): ReactElement {
   const [file, setFile] = useState<File | null>(null)
   const [photo, setPhoto] = useState<File | null>(null)
   const [formKey, setFormKey] = useState(0) // remakes the file inputs after a poem is sent
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run, load } = useAppCall({ onExpired })
 
   useEffect(() => {
-    listPoets(call)
-      .then(r => setPoets(r.poets.filter(p => p.status !== 'disabled' && p.groups.includes('poet'))))
-      .catch(error => { onExpired(error); setProblem(error instanceof ApiError ? error.message : 'The poets could not be loaded.') })
+    load(async () => {
+      const r = await listPoets(call)
+      setPoets(r.poets.filter(p => p.status !== 'disabled' && p.groups.includes('poet')))
+    }, 'The poets could not be loaded.')
     // Loaded once per visit.
   }, [])
 
@@ -47,10 +47,7 @@ function PublisherSubmit({ call, onExpired, onSent }: Props): ReactElement {
     if (!file || !poet) return
     const wrong = fileProblem(file) ?? (photo ? photoProblem(photo) : null)
     if (wrong) { setProblem(wrong); setNotice(null); return }
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
+    await run(async () => {
       const sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim(), processNote }, file, photo, poet)
       const name = poets?.find(p => p.username === poet)?.name || 'the poet'
       setNotice(`Sent “${sent.title}” for ${name}. It is waiting in Review.`)
@@ -62,12 +59,7 @@ function PublisherSubmit({ call, onExpired, onSent }: Props): ReactElement {
       setPhoto(null)
       setFormKey(k => k + 1)
       onSent?.()
-    } catch (error) {
-      onExpired(error)
-      setProblem(error instanceof ApiError ? error.message : 'The poem could not be sent. Please try again.')
-    } finally {
-      setBusy(false)
-    }
+    }, 'The poem could not be sent. Please try again.')
   }
 
   return (

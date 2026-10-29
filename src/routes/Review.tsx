@@ -4,12 +4,13 @@ import { Link } from 'react-router'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
 import { ApiError } from '../app/api'
-import { currentSession, forgetSession, signInUrl } from '../app/auth'
+import { currentSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { Call, callerFor, loadList } from '../app/publisher'
 import { STATUS_WORDS, Submission, canPlay, reviewByline } from '../app/submit'
 import { Decision, PlayError, PoemIds, decide, fetchTimelapse, needsFinishing, poemIdsOf, photoOf, processNoteOf, reviewSubmissions, timelapseTicket } from '../app/review'
 import { renderProcessNote } from '../processNote'
+import { problemText, sessionExpired, useAppCall } from '../app/useAppCall'
 import { IMidstFile } from '../store/types'
 import MidstPlayer from '../components/MidstPlayer/MidstPlayer'
 
@@ -26,9 +27,8 @@ function Review(): ReactElement {
   const [processNotes, setProcessNotes] = useState<Record<string, string | null>>({})
   // The poet's photo, shown with the note (#312): a link to it, or null when the submission has none.
   const [photos, setPhotos] = useState<Record<string, string | null>>({})
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem, and a 401 that forgets the session, as on every app page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run, load, expired } = useAppCall()
   const [playing, setPlaying] = useState<{ title: string, author: string, data: IMidstFile } | null>(null)
   const playerDialog = useRef<HTMLDialogElement>(null)
   const playButton = useRef<HTMLButtonElement | null>(null)
@@ -50,24 +50,28 @@ function Review(): ReactElement {
   // Only a publisher's page asks for the list; the API would refuse anyone else anyway.
   const call: Call | null = session && session.groups.includes('publisher') ? callerFor(APP_API_URL, session.idToken) : null
 
-  // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
+  // A timelapse that cannot be played says why in its own words, as the API's errors do.
+  const playMessage = (error: unknown): string | undefined => (error instanceof PlayError ? error.message : undefined)
+  // A failure beside another call, which must not stop it: said, and a 401 forgets the session.
   const failed = (error: unknown, fallback: string) => {
-    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-    setProblem(error instanceof ApiError || error instanceof PlayError ? error.message : fallback)
+    expired(error)
+    setProblem(playMessage(error) ?? problemText(error, fallback))
   }
 
   const reloadPoemIds = async (c: Call) => {
     try {
       setPoemIds(poemIdsOf(await loadList(c)))
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
+      // Otherwise quiet: without the list the page only cannot tell which accepted poems lack one. A 401 is said, so
+      // the sign-in the page now offers comes with its reason (#387).
+      if (sessionExpired(error)) setProblem(problemText(error, ''))
       setPoemIds(null)
     }
   }
 
   useEffect(() => {
     if (call) reloadPoemIds(call)
-    if (call) reviewSubmissions(call).then(r => setSubmissions(r.submissions)).catch(error => failed(error, 'The submissions could not be loaded.'))
+    if (call) load(async () => setSubmissions((await reviewSubmissions(call)).submissions), 'The submissions could not be loaded.', playMessage)
     // Loaded once per visit, and again after each decision.
   }, [])
 
@@ -75,18 +79,11 @@ function Review(): ReactElement {
     if (!call) return
     // Disabling the busy button may blur it before the file arrives, so remember the actual trigger now.
     playButton.current = trigger
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
+    await run(async () => {
       const ticket = await timelapseTicket(call, submission.submissionId)
       const data = await fetchTimelapse(ticket.url, { fetch: url => fetch(url) })
       setPlaying({ title: submission.title, author: submission.author, data })
-    } catch (error) {
-      failed(error, 'That submission could not be played. Please try again.')
-    } finally {
-      setBusy(false)
-    }
+    }, 'That submission could not be played. Please try again.', playMessage)
   }
 
   const showProcessNote = async (submission: Submission) => {
@@ -96,59 +93,49 @@ function Review(): ReactElement {
       setProcessNotes(({ [id]: _shown, ...rest }) => rest)
       return
     }
-    setBusy(true)
-    setProblem(null)
-    // The photo is asked for beside the note. A photo that cannot be loaded does not hold back the note, and says so.
-    const photo = photoOf(call, id).then(
-      ({ url }) => setPhotos(p => ({ ...p, [id]: url })),
-      error => {
-        if (error instanceof ApiError && error.status === 404) setPhotos(p => ({ ...p, [id]: null }))
-        else failed(error, 'The photo sent with that poem could not be loaded. Please try again.')
-      },
-    )
-    try {
-      const { processNote } = await processNoteOf(call, id)
-      setProcessNotes(n => ({ ...n, [id]: processNote }))
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) setProcessNotes(n => ({ ...n, [id]: null }))
-      else failed(error, 'That process note could not be loaded. Please try again.')
-    } finally {
-      await photo
-      setBusy(false)
-    }
+    await run(async () => {
+      // The photo is asked for beside the note. A photo that cannot be loaded does not hold back the note, and says so.
+      const photo = photoOf(call, id).then(
+        ({ url }) => setPhotos(p => ({ ...p, [id]: url })),
+        error => {
+          if (error instanceof ApiError && error.status === 404) setPhotos(p => ({ ...p, [id]: null }))
+          else failed(error, 'The photo sent with that poem could not be loaded. Please try again.')
+        },
+      )
+      try {
+        const { processNote } = await processNoteOf(call, id)
+        setProcessNotes(n => ({ ...n, [id]: processNote }))
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 404)) throw error
+        setProcessNotes(n => ({ ...n, [id]: null }))
+      } finally {
+        await photo
+      }
+    }, 'That process note could not be loaded. Please try again.', playMessage)
   }
 
   const decideOn = async (submission: Submission, decision: Decision, finishing = false) => {
     if (!call) return
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    let decided: Submission
-    try {
-      decided = await decide(call, submission.submissionId, decision, (notes[submission.submissionId] ?? '').trim())
-    } catch (error) {
-      failed(error, 'That did not work. Please try again.')
-      setBusy(false)
-      return
-    }
-    // The decision is saved. A failure from here on is only the list.
-    setNotice(`${finishing ? 'Finished accepting' : decision === 'accept' ? 'Accepted' : 'Declined'} “${submission.title}”.`)
-    setNotes(n => ({ ...n, [submission.submissionId]: '' }))
-    // Show it decided at once, so its buttons go even if the reload below fails.
-    setSubmissions(list => list && list.map(s => (s.submissionId === submission.submissionId ? { ...s, ...decided } : s)))
-    // An accept makes a poem, so the old poem list is out of date until it is read again.
-    setPoemIds('loading')
-    const poems = reloadPoemIds(call)
-    try {
-      setSubmissions((await reviewSubmissions(call)).submissions)
-    } catch (error) {
-      // Whatever went wrong, the decision itself is saved: never say otherwise, or it may be made again.
-      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-      setProblem('The decision was saved, but the list could not be refreshed. Reload the page to see it.')
-    } finally {
-      await poems
-      setBusy(false)
-    }
+    await run(async () => {
+      const decided = await decide(call, submission.submissionId, decision, (notes[submission.submissionId] ?? '').trim())
+      // The decision is saved. A failure from here on is only the list.
+      setNotice(`${finishing ? 'Finished accepting' : decision === 'accept' ? 'Accepted' : 'Declined'} “${submission.title}”.`)
+      setNotes(n => ({ ...n, [submission.submissionId]: '' }))
+      // Show it decided at once, so its buttons go even if the reload below fails.
+      setSubmissions(list => list && list.map(s => (s.submissionId === submission.submissionId ? { ...s, ...decided } : s)))
+      // An accept makes a poem, so the old poem list is out of date until it is read again.
+      setPoemIds('loading')
+      const poems = reloadPoemIds(call)
+      try {
+        setSubmissions((await reviewSubmissions(call)).submissions)
+      } catch (error) {
+        // Whatever went wrong, the decision itself is saved: never say otherwise, or it may be made again.
+        expired(error)
+        setProblem('The decision was saved, but the list could not be refreshed. Reload the page to see it.')
+      } finally {
+        await poems
+      }
+    }, 'That did not work. Please try again.', playMessage)
   }
 
   const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/review'))

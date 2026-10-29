@@ -14,7 +14,8 @@ import PublisherTags from './PublisherTags'
 import TagMark from '../components/TagMark'
 import { Tag, tagsAfterToggle } from '../app/tags'
 import ReplacesChoice, { detailsFor, localToday, publishWithChoice } from './PublisherReplaces'
-import { currentSession, forgetSession, signInUrl } from '../app/auth'
+import { currentSession, signInUrl } from '../app/auth'
+import { problemText, sessionExpired, useAppCall } from '../app/useAppCall'
 import { authSettings, browserDeps } from '../app/browser'
 import { reviewSubmissions, waitingCount } from '../app/review'
 import {
@@ -50,9 +51,8 @@ function PoemLine({ poem }: { poem: Poem }): ReactElement {
 function Publisher(): ReactElement {
   const session = APP_AVAILABLE ? currentSession(browserDeps()) : null
   const [list, setList] = useState<PublisherList | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem, and a 401 that forgets the session, as on every app page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run, load } = useAppCall()
   // Bumped on every failed change, so fields typed into are remade from the server's values (see the date input).
   const [failures, setFailures] = useState(0)
   // For each unpublished poem, the published poem it is to replace, if one was chosen.
@@ -72,18 +72,14 @@ function Publisher(): ReactElement {
     setList(next)
   }, [])
 
-  // Any 401: the token is no longer accepted. Forget it, so the page offers sign-in again (docs/app-api.md).
-  // Sets state here too, so the whole page renders again and offers sign-in, even when the 401 came from the
-  // Poets section, whose own state is not this page's.
+  // For the sections, which have their own state: a 401 in one forgets the session and sets this page's problem too,
+  // so the whole page renders again and offers sign-in (docs/app-api.md).
   const expired = (error: unknown) => {
-    if (error instanceof ApiError && error.status === 401) {
-      forgetSession(browserDeps())
-      setProblem(error.message)
-    }
+    if (sessionExpired(error)) setProblem(problemText(error, ''))
   }
 
   useEffect(() => {
-    if (call) reload(call).catch(error => { expired(error); setProblem(error instanceof ApiError ? error.message : 'The list could not be loaded.') })
+    if (call) load(() => reload(call), 'The list could not be loaded.')
     // The count is only a pointer to the review page: if it cannot be read, the link is shown without it.
     if (call) reviewSubmissions(call).then(r => setWaiting(waitingCount(r.submissions))).catch(error => expired(error))
     // Loaded once per visit; each change reloads it.
@@ -92,36 +88,27 @@ function Publisher(): ReactElement {
   // Every change: run it, then reload, so the page always shows what the server now holds.
   const change = async (action: (c: Call, etag: string) => Promise<unknown>, done: string, cacheNote?: string) => {
     if (!call || !list) return
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    let result: unknown
-    try {
-      result = await action(call, list.listEtag)
-    } catch (error) {
-      expired(error)
-      setFailures(count => count + 1)
-      await reload(call).catch(() => undefined)
-      if (error instanceof ApiError && error.code === 'conflict') {
-        setProblem(CONFLICT)
-      } else {
-        setProblem(error instanceof ApiError ? error.message : 'That did not work. Please try again.')
-      }
-      setBusy(false)
-      return
-    }
-    // The change is saved. Whatever the reload does, never say otherwise, or it may be made again (#127). Copies
-    // left in the cache are said either way.
-    const left = cacheNote && leftInCache(result) ? ` ${cacheNote}` : ''
-    try {
-      await reload(call)
-      setNotice(`${done}${left}`)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-      setProblem(`${SAVED_NOT_RELOADED}${left}`)
-    } finally {
-      setBusy(false)
-    }
+    await run(
+      async () => {
+        const result = await action(call, list.listEtag)
+        // The change is saved. Whatever the reload does, never say otherwise, or it may be made again (#127). Copies
+        // left in the cache are said either way.
+        const left = cacheNote && leftInCache(result) ? ` ${cacheNote}` : ''
+        try {
+          await reload(call)
+          setNotice(`${done}${left}`)
+        } catch (error) {
+          sessionExpired(error)
+          setProblem(`${SAVED_NOT_RELOADED}${left}`)
+        }
+      },
+      'That did not work. Please try again.',
+      async error => {
+        setFailures(count => count + 1)
+        await reload(call).catch(() => undefined)
+        return error instanceof ApiError && error.code === 'conflict' ? CONFLICT : undefined
+      },
+    )
   }
 
   const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/publisher'))
@@ -194,7 +181,7 @@ function Publisher(): ReactElement {
                   })()}
                 </span>
                 {call && <PublisherTitle call={call} poemId={poem.poemId} shown={{ title: poem.title, author: poem.author }} disabled={busy}
-                  onExpired={expired} onSaved={() => reload(call).catch(() => setProblem(SAVED_NOT_RELOADED))} />}
+                  onExpired={expired} onSaved={() => reload(call).catch(error => { sessionExpired(error); setProblem(SAVED_NOT_RELOADED) })} />}
                 {call && <PublisherNote call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
                 {call && <PublisherPhoto call={call} poemId={poem.poemId} title={poem.title} disabled={busy} onExpired={expired} />}
               </li>

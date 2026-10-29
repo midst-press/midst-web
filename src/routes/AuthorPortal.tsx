@@ -2,12 +2,12 @@ import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
-import { ApiError } from '../app/api'
-import { currentSession, forgetSession, signInUrl } from '../app/auth'
+import { currentSession, signInUrl } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
 import { callerFor } from '../app/publisher'
 import { PHOTO_TYPES, STATUS_WORDS, Submission, fileProblem, mySubmissions, photoProblem, submitPoem, whenWords } from '../app/submit'
 import NoteEditor from '../components/NoteEditor'
+import { useAppCall } from '../app/useAppCall'
 
 // The author portal (#360, GitHub midst-press/midst-web#96): where a poet signs in, sends a poem as a .midst file and
 // sees where each submission stands (docs/app-api.md, "Poet"; #110, GitHub midst-press/midst-web#21). For now it is
@@ -31,22 +31,20 @@ function AuthorPortal(): ReactElement {
   // The process note (#292), in Markdown.
   const [processNote, setProcessNote] = useState('')
   const [formKey, setFormKey] = useState(0) // remakes the file input after a submission
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem, and a 401 that forgets the session, as on every app page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run, load, expired } = useAppCall()
   // Which control the problem is about, so it is shown beside it (#253): the file chosen, the photo chosen, or the
   // sending of them. null: none, such as the list failing to load; shown above the form.
   const [problemAt, setProblemAt] = useState<'file' | 'photo' | 'send' | null>(null)
 
   const call = session && isPoet ? callerFor(APP_API_URL, session.idToken) : null
-  const failed = (error: unknown, fallback: string, at: 'send' | null = null) => {
-    if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-    setProblem(error instanceof ApiError ? error.message : fallback)
-    setProblemAt(at)
-  }
-
   useEffect(() => {
-    if (call) mySubmissions(call).then(r => setSubmissions(r.submissions)).catch(error => failed(error, 'Your submissions could not be loaded.'))
+    if (call) {
+      load(async () => setSubmissions((await mySubmissions(call)).submissions), 'Your submissions could not be loaded.', () => {
+        setProblemAt(null)
+        return undefined
+      })
+    }
     // Loaded once per visit, and again after each submission.
   }, [])
 
@@ -57,34 +55,31 @@ function AuthorPortal(): ReactElement {
     if (wrong) { setProblem(wrong); setProblemAt('file'); return }
     const wrongPhoto = photo ? photoProblem(photo) : null
     if (wrongPhoto) { setProblem(wrongPhoto); setProblemAt('photo'); return }
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    setProblemAt(null)
-    try {
-      const sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim(), processNote }, file, photo)
+    await run(async () => {
+      setProblemAt(null)
+      let sent
+      try {
+        sent = await submitPoem(call, putFile, { title: title.trim(), author: author.trim(), processNote }, file, photo)
+      } catch (error) {
+        setProblemAt('send')
+        throw error
+      }
       setNotice(`Thank you. We have received “${sent.title}”. You will get an email to say so.`)
       setTitle('')
       setProcessNote('')
       setFile(null)
       setPhoto(null)
       setFormKey(k => k + 1)
-    } catch (error) {
-      failed(error, 'Your poem could not be sent. Please try again.', 'send')
-      setBusy(false)
-      return
-    }
-    // The poem is in. A failure from here on is only the list: saying "could not be sent" would make a poet
-    // send it twice.
-    try {
-      setSubmissions((await mySubmissions(call)).submissions)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-      setProblem('Your poem was received, but the list below could not be refreshed. Reload the page to see it.')
-      setProblemAt(null)
-    } finally {
-      setBusy(false)
-    }
+      // The poem is in. A failure from here on is only the list: saying "could not be sent" would make a poet
+      // send it twice.
+      try {
+        setSubmissions((await mySubmissions(call)).submissions)
+      } catch (error) {
+        expired(error)
+        setProblem('Your poem was received, but the list below could not be refreshed. Reload the page to see it.')
+        setProblemAt(null)
+      }
+    }, 'Your poem could not be sent. Please try again.')
   }
 
   const signIn = async () => window.location.assign(await signInUrl(authSettings(), browserDeps(), '/authorportal'))

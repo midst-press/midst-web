@@ -1,7 +1,7 @@
 import React, { FormEvent, ReactElement, useEffect, useState } from 'react'
-import { ApiError } from '../app/api'
 import { Call } from '../app/publisher'
 import { Person, STATUS_WORDS, disablePoet, listPoets, poetOnly, registerPoet, resendInvitation } from '../app/poets'
+import { useAppCall } from '../app/useAppCall'
 
 // Disable asks first: only an admin can turn the account back on, so a mis-click would lock the poet out (#122). The
 // wording is the one proposed to Annelyse (GitHub midst-web #65), and hers to change.
@@ -20,34 +20,26 @@ function PublisherPoets({ call, onExpired }: Props): ReactElement {
   const [poets, setPoets] = useState<Person[] | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, run: runCall, load } = useAppCall({ onExpired })
 
   const reload = async () => setPoets((await listPoets(call)).poets)
 
   useEffect(() => {
-    reload().catch(error => { onExpired(error); setProblem(error instanceof ApiError ? error.message : 'The poets could not be loaded.') })
+    load(reload, 'The poets could not be loaded.')
     // Loaded once; each change reloads.
   }, [])
 
-  const run = async (action: () => Promise<unknown>, done: string) => {
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
-      await action()
-      setNotice(done)
-      return true
-    } catch (error) {
-      onExpired(error)
-      setProblem(error instanceof ApiError ? error.message : 'That did not work. Please try again.')
-      return false
-    } finally {
-      await reload().catch(() => undefined)
-      setBusy(false)
-    }
-  }
+  // Every change reloads the list afterwards, whether it worked or not.
+  const run = (action: () => Promise<unknown>, done: string) =>
+    runCall(async () => {
+      try {
+        await action()
+        setNotice(done)
+      } finally {
+        await reload().catch(() => undefined)
+      }
+    }, 'That did not work. Please try again.')
 
   const register = async (event: FormEvent) => {
     event.preventDefault()

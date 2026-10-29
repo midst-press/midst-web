@@ -3,6 +3,7 @@ import { ApiError } from '../app/api'
 import { Call } from '../app/publisher'
 import { TAG_NAME_MAX, TAGS_MAX, Tag, TagsList, loadTags, saveTags } from '../app/tags'
 import TagMark from '../components/TagMark'
+import { useAppCall } from '../app/useAppCall'
 
 // The "Tags" part of the publisher's page (#310): named, coloured marks for a collection, such as a folio. Saving
 // replaces the whole list; a tag still on a published poem cannot be removed until it is taken off those poems.
@@ -38,9 +39,8 @@ function PublisherTags({ call, onExpired, onTags }: Props): ReactElement {
   const [rows, setRows] = useState<Row[]>([])
   const [newName, setNewName] = useState('')
   const [newColour, setNewColour] = useState(DEFAULT_COLOUR)
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, run, load } = useAppCall({ onExpired })
   // True when the server's tags moved and this page could not fetch them: Save waits until they are reloaded.
   const [stale, setStale] = useState(false)
 
@@ -51,32 +51,18 @@ function PublisherTags({ call, onExpired, onTags }: Props): ReactElement {
     onTags(list)
   }
 
-  const loadFailed = (error: unknown) => (error instanceof ApiError ? error.message : 'The tags could not be loaded.')
-
-  // Resolves to the error, or null when it loaded.
-  const load = async (): Promise<unknown> => {
-    try {
-      show(await loadTags(call))
-      return null
-    } catch (error) {
-      onExpired(error)
-      return error
-    }
-  }
+  const LOAD_FAILED = 'The tags could not be loaded.'
+  const fetchTags = async () => show(await loadTags(call))
 
   useEffect(() => {
-    load().then(error => { if (error) setProblem(loadFailed(error)) })
+    load(fetchTags, LOAD_FAILED)
   }, [])
 
-  const reload = async () => {
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    const error = await load()
-    if (error) setProblem(stale ? NOT_RELOADED : loadFailed(error))
-    else setNotice(RELOADED)
-    setBusy(false)
-  }
+  const reload = () =>
+    run(async () => {
+      await fetchTags()
+      setNotice(RELOADED)
+    }, LOAD_FAILED, () => (stale ? NOT_RELOADED : undefined))
 
   const edit = (key: number, change: Partial<Row>) => setRows(rows.map(row => (row.key === key ? { ...row, ...change } : row)))
 
@@ -90,34 +76,29 @@ function PublisherTags({ call, onExpired, onTags }: Props): ReactElement {
 
   const save = async () => {
     if (!saved || stale) return
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
+    await run(async () => {
       const body = rows.map(({ id, name, colour }) => ({ ...(id ? { id } : {}), name: name.trim(), colour }))
       show(await saveTags(call, body, saved.tagsEtag))
       setNotice(SAVED)
-    } catch (error) {
-      onExpired(error)
+    }, 'The tags were not saved. Please try again.', async error => {
       if (error instanceof ApiError && error.code === 'in_use') {
         // Nothing was saved, and the form keeps the edits: name the tags, as the page shows them, to put back.
         const ids = Array.isArray(error.body.tagIds) ? error.body.tagIds : []
         const names = saved.tags.filter(tag => ids.includes(tag.id)).map(tag => tag.name)
-        setProblem(names.length ? inUse(names) : error.message)
-      } else if (error instanceof ApiError && error.status === 409) {
-        const reloadFailed = await load()
-        if (reloadFailed) {
-          setStale(true)
-          setProblem(NOT_RELOADED)
-        } else {
-          setProblem(CONFLICT)
-        }
-      } else {
-        setProblem(error instanceof ApiError ? error.message : 'The tags were not saved. Please try again.')
+        return names.length ? inUse(names) : error.message
       }
-    } finally {
-      setBusy(false)
-    }
+      if (error instanceof ApiError && error.status === 409) {
+        try {
+          await fetchTags()
+          return CONFLICT
+        } catch (reloadError) {
+          onExpired(reloadError)
+          setStale(true)
+          return NOT_RELOADED
+        }
+      }
+      return undefined
+    })
   }
 
   const tooLong = rows.some(row => row.name.trim().length > TAG_NAME_MAX)
