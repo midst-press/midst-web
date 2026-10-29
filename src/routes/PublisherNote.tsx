@@ -2,6 +2,7 @@ import React, { ReactElement, useState } from 'react'
 import { ApiError } from '../app/api'
 import { Call, DraftNote, readNote, saveNote } from '../app/publisher'
 import NoteEditor from '../components/NoteEditor'
+import { useAppCall } from '../app/useAppCall'
 
 // An unpublished poem's process note, for the publisher to edit to house style (#312). The API keeps the poet's own
 // note and every earlier edit; the published copy is made from the latest when the poem is published.
@@ -19,44 +20,30 @@ interface Props {
 function PublisherNote({ call, poemId, title, disabled, onExpired }: Props): ReactElement {
   // null: closed; otherwise the note as loaded, and the text being edited.
   const [open, setOpen] = useState<{ loaded: DraftNote, text: string } | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
-
-  const failed = (error: unknown, fallback: string) => {
-    onExpired(error)
-    setProblem(error instanceof ApiError && error.code === 'conflict' ? CONFLICT : error instanceof ApiError ? error.message : fallback)
-  }
+  // Busy, notice and problem as on every app page; a 401 goes to the page (#387).
+  const { busy, notice, problem, setNotice, setProblem, run } = useAppCall({ onExpired })
+  const conflict = (error: unknown) => (error instanceof ApiError && error.code === 'conflict' ? CONFLICT : undefined)
 
   const toggle = async () => {
-    setNotice(null)
-    setProblem(null)
-    if (open) { setOpen(null); return }
-    setBusy(true)
-    try {
+    if (open) {
+      setNotice(null)
+      setProblem(null)
+      setOpen(null)
+      return
+    }
+    await run(async () => {
       const loaded = await readNote(call, poemId)
       setOpen({ loaded, text: loaded.processNote ?? '' })
-    } catch (error) {
-      failed(error, 'The note could not be loaded. Please try again.')
-    } finally {
-      setBusy(false)
-    }
+    }, 'The note could not be loaded. Please try again.', conflict)
   }
 
   const save = async () => {
     if (!open) return
-    setBusy(true)
-    setNotice(null)
-    setProblem(null)
-    try {
+    await run(async () => {
       const saved = await saveNote(call, poemId, open.text, open.loaded.noteVersion)
       setOpen({ loaded: saved, text: saved.processNote ?? '' })
       setNotice('Note saved.')
-    } catch (error) {
-      failed(error, 'The note could not be saved. Please try again.')
-    } finally {
-      setBusy(false)
-    }
+    }, 'The note could not be saved. Please try again.', conflict)
   }
 
   const unchanged = open !== null && open.text === (open.loaded.processNote ?? '')

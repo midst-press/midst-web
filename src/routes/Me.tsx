@@ -2,26 +2,24 @@ import React, { ReactElement, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 import { APP_API_URL, APP_AVAILABLE } from '../app/config'
-import { ApiError, Me as MeResult, apiFetch } from '../app/api'
-import { currentSession, forgetSession, forgotPasswordUrl, signInUrl, signOut } from '../app/auth'
+import { Me as MeResult, apiFetch } from '../app/api'
+import { currentSession, forgotPasswordUrl, signInUrl, signOut } from '../app/auth'
 import { authSettings, browserDeps } from '../app/browser'
+import { useAppCall } from '../app/useAppCall'
 
 // Who you are on the beta app, and your groups (docs/app-api.md, GET /me). The first signed-in page:
 // it proves sign-in end to end before any feature is built on it (#110).
 function Me(): ReactElement {
   const session = APP_AVAILABLE ? currentSession(browserDeps()) : null
   const [me, setMe] = useState<MeResult | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  // A 401 forgets the session, and the page offers sign-in again (#387).
+  const { problem, load } = useAppCall()
 
   useEffect(() => {
     if (!session) return
-    apiFetch<MeResult>(APP_API_URL, session.idToken, '/me')
-      .then(setMe)
-      .catch(error => {
-        // Any 401: the token is no longer accepted. Forget it and offer sign-in again.
-        if (error instanceof ApiError && error.status === 401) forgetSession(browserDeps())
-        setProblem(error instanceof ApiError ? error.message : 'Something went wrong. Please try again.')
-      })
+    load(async () => {
+      setMe(await apiFetch<MeResult>(APP_API_URL, session.idToken, '/me'))
+    }, 'Something went wrong. Please try again.')
     // The session is read once per visit to the page.
   }, [])
 
