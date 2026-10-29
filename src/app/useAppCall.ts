@@ -49,7 +49,14 @@ export function useAppCall({ onExpired }: AppCallOptions = {}) {
   const fail = useCallback(
     async (error: unknown, fallback: string, onError?: OnError) => {
       expired(error)
-      setProblem((await onError?.(error)) ?? problemText(error, fallback))
+      let own: string | undefined
+      try {
+        own = await onError?.(error)
+      } catch {
+        // A page's own handling that fails (a reload inside it) must not swallow the failure it was handling.
+        own = undefined
+      }
+      setProblem(own ?? problemText(error, fallback))
     },
     [expired],
   )

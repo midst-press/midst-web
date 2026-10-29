@@ -126,14 +126,18 @@ function Review(): ReactElement {
       // An accept makes a poem, so the old poem list is out of date until it is read again.
       setPoemIds('loading')
       const poems = reloadPoemIds(call)
+      let listFailed: { error: unknown } | null = null
       try {
         setSubmissions((await reviewSubmissions(call)).submissions)
       } catch (error) {
-        // Whatever went wrong, the decision itself is saved: never say otherwise, or it may be made again.
-        expired(error)
+        listFailed = { error }
+      }
+      // The poem list settles first: a 401 there says its own message, and this one must be the last word.
+      await poems
+      if (listFailed) {
+        // Whatever went wrong, the decision itself is saved: never say otherwise, or it may be made again (#127).
+        expired(listFailed.error)
         setProblem('The decision was saved, but the list could not be refreshed. Reload the page to see it.')
-      } finally {
-        await poems
       }
     }, 'That did not work. Please try again.', playMessage)
   }

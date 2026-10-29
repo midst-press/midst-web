@@ -105,6 +105,18 @@ describe('useAppCall: run', () => {
     expect([hook.busy, hook.problem]).toEqual([false, 'Zq after reload.'])
   })
 
+  it("says the usual message when the page's own handling itself fails, and does not reject", async () => {
+    await mount()
+    let ok = true
+    await act(async () => {
+      ok = await hook.run(async () => { throw new ApiError(500, 'server', 'Zq on our side.') }, 'Fallback.', async () => {
+        throw new Error('the reload failed too')
+      })
+    })
+    expect(ok).toBe(false)
+    expect([hook.busy, hook.problem]).toEqual([false, 'Zq on our side.'])
+  })
+
   it('forgets the session on a 401, then says the message', async () => {
     await mount()
     await act(async () => { await hook.run(async () => { throw unauthorised }, 'Fallback.') })
