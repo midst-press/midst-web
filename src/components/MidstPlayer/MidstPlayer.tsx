@@ -297,7 +297,9 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
   // Spacebar plays and pauses the poem on screen, wherever focus is (GitHub #51). Before this the
   // key only worked once the play button had been clicked and so held focus; a freshly loaded page
   // has nothing focused. Every poem is mounted in the carousel, so only the active player listens.
-  // A key pressed on a control keeps its own meaning: space on a focused button already clicks it.
+  // A key pressed on a control keeps its own meaning: space on a focused button already clicks it. A link is not
+  // one of those: Enter follows it and Space has no meaning there, so Space plays and pauses with a link focused,
+  // such as an arrow just clicked to come to this poem (Annelyse, GitHub #109; midst-web #403).
   const playPauseRef = useRef(playPause)
   playPauseRef.current = playPause
   useEffect(() => {
@@ -306,7 +308,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       if (event.key !== ' ' || event.repeat || event.defaultPrevented) return
       if (event.altKey || event.ctrlKey || event.metaKey) return
       const target = event.target as Element | null
-      if (target && target.closest && target.closest('button, a[href], input, textarea, select, [contenteditable="true"]')) return
+      if (target && target.closest && target.closest('button, input, textarea, select, [contenteditable="true"]')) return
       event.preventDefault() // otherwise the page scrolls
       playPauseRef.current()
     }

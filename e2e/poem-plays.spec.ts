@@ -186,6 +186,25 @@ test.describe('a published poem plays', () => {
     })
   }
 
+  // GitHub midst-web #109 (midst-web #403): the arrows at the right are links, and one clicked to come to a poem keeps
+  // focus. The spacebar must still play and pause. The bundled list puts no two fixture poems next to each other, so
+  // this focuses the arrow on a fixture poem rather than following it: what the bug needs is the focused link.
+  test('spacebar plays and pauses with an arrow to another poem focused', async ({ page }) => {
+    const { route, scope } = poems[0]
+    await page.goto(route)
+    await expect(page.locator(`${scope} .editor`)).toContainText('and again')
+    await page.locator('#poem-nav a[href]').first().focus()
+    // CONTROL -- an arrow link has focus, which is the case the bug needed.
+    expect(await page.evaluate(() => document.activeElement?.closest('#poem-nav') !== null)).toBe(true)
+    const play = page.locator(`${scope} .play-pause-button`)
+    await expect(play).not.toHaveClass(/playing/)
+
+    await page.keyboard.press('Space')
+    await expect(play, 'spacebar did not start playback').toHaveClass(/playing/)
+    await page.keyboard.press('Space')
+    await expect(play, 'spacebar did not pause playback').not.toHaveClass(/playing/)
+  })
+
   test('the route is derived from metadata, not hardcoded', () => {
     // Guards the premise of every test above: if these routes stopped matching the fixture names, the
     // suite would be testing nothing and would still be green, because the app would render its
