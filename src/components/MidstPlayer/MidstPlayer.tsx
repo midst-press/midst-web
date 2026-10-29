@@ -327,18 +327,28 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
         <EditorContent editor={editor} />
       </div>
       <div className="control-container">
-        <div className="controls" onKeyDown={event => event.stopPropagation()}>
+        {/* Keys in the controls stay here, away from the document shortcut. Space plays and pauses wherever the focus is
+            among them, and never works the control itself: a clicked control keeps focus, and Space there clicked it
+            again (Annelyse, GitHub #87, #109: "spacebar ONLY plays/pauses"; midst-web #293, #325, #407). Enter and a
+            click still work every control. */}
+        <div className="controls" onKeyDown={event => {
+          event.stopPropagation()
+          if (event.key !== ' ' || event.defaultPrevented) return
+          // The speed popup is left as it was: Space on its frame-rate slider neither plays nor changes the speed.
+          const target = event.target as Element
+          if (target.closest?.('.playback-speed-popup')) return
+          // A button clicks itself on Space's keyup unless its keydown is cancelled, so Space on a button is always
+          // cancelled, even when it then does nothing: a held key, a modifier, a poem that cannot play (Silas, review
+          // of #408). The timeline keeps its own rule: Space does nothing to a range, so those are left alone.
+          if (target.closest?.('button')) event.preventDefault()
+          if (!canPlay || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+          event.preventDefault()
+          playPause()
+        }}>
           <div className="timeline-control" ref={timelineRef}>
           <input type="range" aria-label={i18n._('player.timeline')} aria-valuetext={labelText ?? undefined} className="progress-bar"
             min={0} max={maxStep} step={1} value={Math.min(step, maxStep)}
             disabled={!canPlay}
-            onKeyDown={event => {
-              // Scrubbing leaves this range focused; its controls bar stops the document shortcut.
-              if (!canPlay || event.key !== ' ' || event.repeat || event.defaultPrevented) return
-              if (event.altKey || event.ctrlKey || event.metaKey) return
-              event.preventDefault()
-              playPause()
-            }}
             onChange={event => seekTo(Number(event.target.value))} />
             <div className="draft-markers" ref={markerRow} hidden={!showMarkers}>
               {groups.map(group => {
@@ -441,18 +451,10 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
               )}
             </div>
             {markers.length > 0 && (
-              // Shows or hides this poem's draft markers (#324). Space never works it: once it has been clicked it keeps
-              // focus, and Space there plays and pauses like everywhere else in the player (GitHub #87; midst-web #325).
-              // Enter, and a click, still switch it.
+              // Shows or hides this poem's draft markers (#324). Space plays and pauses, as everywhere in the controls.
               <button type="button" role="switch" aria-checked={showMarkers} className="control-button draft-markers-switch"
                 aria-label={i18n._('player.showDraftMarkers')} title={i18n._('player.showDraftMarkers')}
-                onClick={() => setShowMarkers(!showMarkers)}
-                onKeyDown={event => {
-                  if (event.key !== ' ') return
-                  event.preventDefault() // a button clicks itself on Space's keyup unless its keydown is cancelled
-                  if (!canPlay || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
-                  playPause()
-                }}>
+                onClick={() => setShowMarkers(!showMarkers)}>
                 {/* The editor's Bookmarks icon (Material Icons, @mui/icons-material, MIT), as the editor shows drafts. */}
                 <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path fill="currentColor" d="m19 18 2 1V3c0-1.1-.9-2-2-2H8.99C7.89 1 7 1.9 7 3h10c1.1 0 2 .9 2 2zM15 5H5c-1.1 0-2 .9-2 2v16l7-3 7 3V7c0-1.1-.9-2-2-2" />
