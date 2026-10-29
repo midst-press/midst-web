@@ -205,7 +205,7 @@ test.describe('a published poem plays', () => {
     await expect(play, 'spacebar did not pause playback').not.toHaveClass(/playing/)
   })
 
-  // GitHub midst-web #110 (midst-web #407): a clicked control keeps focus, and Space there clicked it again. Space
+  // GitHub midst-web #109, comment of 30 Oct (midst-web #407): a clicked control keeps focus, and Space there clicked it again. Space
   // plays and pauses, and the control does nothing.
   for (const label of ['Skip to start', 'Skip to end']) {
     test(`spacebar plays and pauses after ${label} is clicked`, async ({ page }) => {

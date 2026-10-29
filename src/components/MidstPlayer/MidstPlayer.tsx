@@ -329,7 +329,7 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
       <div className="control-container">
         {/* Keys in the controls stay here, away from the document shortcut. Space plays and pauses wherever the focus is
             among them, and never works the control itself: a clicked control keeps focus, and Space there clicked it
-            again (Annelyse, GitHub #87, #110: "spacebar ONLY plays/pauses"; midst-web #293, #325, #407). Enter and a
+            again (Annelyse, GitHub #87, #109: "spacebar ONLY plays/pauses"; midst-web #293, #325, #407). Enter and a
             click still work every control. */}
         <div className="controls" onKeyDown={event => {
           event.stopPropagation()

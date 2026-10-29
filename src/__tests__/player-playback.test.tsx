@@ -380,7 +380,7 @@ describe('spacebar', () => {
     link.remove()
   })
 
-  // GitHub #110 (midst-web #407): a control clicked keeps focus, and Space there used to click it again. Anywhere in the
+  // GitHub #109, comment of 30 Oct (midst-web #407): a control clicked keeps focus, and Space there used to click it again. Anywhere in the
   // controls bar, Space plays and pauses and the control does nothing (Annelyse, GitHub #87: "spacebar ONLY plays/pauses").
   describe('PB-SP-5 space with a player control focused', () => {
     it.each(['Skip to start', 'Skip to end', 'Playback speed'])('%s: plays, then pauses, and the control does nothing', label => {
