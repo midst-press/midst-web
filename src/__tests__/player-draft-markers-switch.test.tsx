@@ -110,3 +110,14 @@ test('Space on the switch plays and pauses and never switches it; Enter is left 
   // Enter is left to the button itself, which clicks it.
   expect(keyDown(switches()[0], 'Enter').defaultPrevented).toBe(false)
 })
+
+// Silas, review of #408: on a poem that cannot play, Space on the switch must still be cancelled, or the switch clicks
+// itself on keyup, as it did before #325.
+test('Space on the switch of a one-frame poem is cancelled', () => {
+  const one = { ...WITH_MARKERS, editorTimelineFrames: WITH_MARKERS.editorTimelineFrames.slice(0, 1),
+    meta: { ...WITH_MARKERS.meta, editorDraftMarkers: [{ timelineIndex: 0, name: 'zq-draft', defaultName: 'Draft 1' }] } }
+  render([one])
+  expect(switches()).toHaveLength(1)
+  expect(keyDown(switches()[0], ' ').defaultPrevented).toBe(true)
+  expect(switches()[0].getAttribute('aria-checked')).toBe('false')
+})

@@ -380,6 +380,42 @@ describe('spacebar', () => {
     link.remove()
   })
 
+  // GitHub #109, comment of 30 Oct (midst-web #407): a control clicked keeps focus, and Space there used to click it again. Anywhere in the
+  // controls bar, Space plays and pauses and the control does nothing (Annelyse, GitHub #87: "spacebar ONLY plays/pauses").
+  describe('PB-SP-5 space with a player control focused', () => {
+    it.each(['Skip to start', 'Skip to end', 'Playback speed'])('%s: plays, then pauses, and the control does nothing', label => {
+      render({ data: FIVE })
+      setRange(timeline(), 2)
+      const control = byLabel<HTMLButtonElement>(label)
+      const first = key(control)
+      expect(first.defaultPrevented).toBe(true)
+      expect(playButton().getAttribute('aria-label')).toBe('Pause')
+      key(control)
+      expect(playButton().getAttribute('aria-label')).toBe('Play')
+      expect(Number(timeline().value)).toBe(2)
+      expect(control.getAttribute('aria-expanded')).not.toBe('true')
+    })
+
+    // Silas, review of #408: a Space that does not play is still cancelled on a button, or the button clicks itself.
+    it.each([{ repeat: true }, { ctrlKey: true }, { altKey: true }, { metaKey: true }])(
+      'Skip to start with %j: cancelled, does not play and does not seek', init => {
+        render({ data: FIVE })
+        setRange(timeline(), 2)
+        const event = key(byLabel<HTMLButtonElement>('Skip to start'), init)
+        expect(event.defaultPrevented).toBe(true)
+        expect(playButton().getAttribute('aria-label')).toBe('Play')
+        expect(Number(timeline().value)).toBe(2)
+      })
+
+    it('the play button itself: one Space is one toggle', () => {
+      render({ data: FIVE })
+      setRange(timeline(), 2)
+      const event = key(playButton())
+      expect(event.defaultPrevented).toBe(true)
+      expect(playButton().getAttribute('aria-label')).toBe('Pause')
+    })
+  })
+
   describe('PB-SP-2 ignored when', () => {
     // Targets outside the component: the controls bar stops keydown propagation, so a key pressed on
     // the player's own buttons never reaches the document listener at all.
