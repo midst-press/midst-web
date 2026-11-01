@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import guideJson from '../guide/readers-guide.json'
 import { activateLocale, catalogs, i18n } from '../i18n'
@@ -11,7 +11,10 @@ const guide: Guide = guideJson
 // the site's page and docs/readers-guide.md, must say the same words.
 
 const root = join(__dirname, '../..')
-const player = readFileSync(join(root, 'src/components/MidstPlayer/MidstPlayer.tsx'), 'utf8')
+// The whole player: its controls live in MidstPlayer.tsx and the components it is made of (#389).
+const playerDir = join(root, 'src/components/MidstPlayer')
+const player = readdirSync(playerDir).filter(name => name.endsWith('.tsx')).sort()
+  .map(name => readFileSync(join(playerDir, name), 'utf8')).join('\n')
 
 // The code inside an attribute: "X" or 'X', or the expression in {...} or after 'aria-label':, up to its end.
 function attributeValues(source: string, names: string[]): string[] {
