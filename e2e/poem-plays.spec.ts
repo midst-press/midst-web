@@ -205,6 +205,26 @@ test.describe('a published poem plays', () => {
     await expect(play, 'spacebar did not pause playback').not.toHaveClass(/playing/)
   })
 
+  // GitHub midst-web #109, comment of 30 Oct (midst-web #407): a clicked control keeps focus, and Space there clicked it again. Space
+  // plays and pauses, and the control does nothing.
+  for (const label of ['Skip to start', 'Skip to end']) {
+    test(`spacebar plays and pauses after ${label} is clicked`, async ({ page }) => {
+      const { route, scope } = poems[0]
+      await page.goto(route)
+      await expect(page.locator(`${scope} .editor`)).toContainText('and again')
+      await page.locator(`${scope} [aria-label="${label}"]`).click()
+      // CONTROL -- the clicked control kept focus, which is the case the bug needed.
+      expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toBe(label)
+      const play = page.locator(`${scope} .play-pause-button`)
+      await expect(play).not.toHaveClass(/playing/)
+
+      await page.keyboard.press('Space')
+      await expect(play, 'spacebar did not start playback').toHaveClass(/playing/)
+      await page.keyboard.press('Space')
+      await expect(play, 'spacebar did not pause playback').not.toHaveClass(/playing/)
+    })
+  }
+
   test('the route is derived from metadata, not hardcoded', () => {
     // Guards the premise of every test above: if these routes stopped matching the fixture names, the
     // suite would be testing nothing and would still be green, because the app would render its

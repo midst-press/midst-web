@@ -1,3 +1,8 @@
+# 0.27.0
+
+- **Space plays and pauses whichever player button you last clicked**, including jump to start and jump to end;
+  before, Space clicked that button again (GitHub #109). The speed slider is unchanged: Space there does not play.
+
 # 0.26.0
 
 - **Space plays and pauses after moving to the next poem with the arrows.** Previously, after using the navigation
