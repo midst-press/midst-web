@@ -443,7 +443,7 @@ test('Space plays and pauses after dragging the timeline, retaining native seek 
   await expect(root.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
 })
 
-test('vertical range keyboard changes FPS without seeking; body Space remains play/pause', async ({ page }) => {
+test('vertical range keyboard changes FPS without seeking; Space on it and on the body plays and pauses', async ({ page }) => {
   await mount(page)
   const root = page.locator(player)
   await root.getByRole('slider', { name: 'Timeline' }).fill('20')
@@ -456,6 +456,12 @@ test('vertical range keyboard changes FPS without seeking; body Space remains pl
   await expect.poll(async () => Number.parseFloat(await root.locator('.playback-speed-value').innerText())).toBeGreaterThan(20)
   await expect(root.getByRole('slider', { name: 'Timeline' })).toHaveValue('20')
   await expect(root.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
+  // Space on the slider plays and pauses, and leaves the speed and the popup as they were (midst-web #410).
+  const speed = await rate.inputValue()
+  await rate.press('Space')
+  await expect(root.getByRole('button', { name: 'Pause' })).toBeVisible()
+  await expect(rate).toHaveValue(speed)
+  await expect(rate).toBeVisible()
   await rate.press('Space')
   await expect(root.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
   await root.locator('.editor').click({ position: { x: 10, y: 10 } })
