@@ -517,6 +517,22 @@ describe('speed', () => {
     expect(queryLabel('Playback frame rate')).toBeNull()
   })
 
+  // midst-web #410 (Stuart, 3 Nov, GitHub #109): Space on the frame-rate slider plays and pauses, like every other
+  // control, and leaves the speed and the popup as they were.
+  it('Space on the frame-rate slider plays and pauses, keeping the speed and the popup', () => {
+    render({ data: FIVE })
+    openSpeed()
+    const rate = byLabel<HTMLInputElement>('Playback frame rate')
+    setRange(rate, 7)
+    expect(key(rate).defaultPrevented).toBe(true)
+    expect(playButton().getAttribute('aria-label')).toBe('Pause')
+    expect(rate.value).toBe('7')
+    expect(byLabel('Playback speed').getAttribute('aria-expanded')).toBe('true')
+    key(rate)
+    expect(playButton().getAttribute('aria-label')).toBe('Play')
+    expect(queryLabel('Playback frame rate')).not.toBeNull()
+  })
+
   it('PB-SPD-2 frame rate 1 makes the period 1000 ms (first tick measured from Play)', () => {
     render({ data: FIVE })
     openSpeed()
