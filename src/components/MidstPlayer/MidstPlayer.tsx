@@ -142,9 +142,9 @@ export default function MidstPlayer({ data, activePlayer, cursorFollowing, hasSc
         <div className="controls" onKeyDown={event => {
           event.stopPropagation()
           if (event.key !== ' ' || event.defaultPrevented) return
-          // The speed popup is left as it was: Space on its frame-rate slider neither plays nor changes the speed.
+          // The speed popup's frame-rate slider too: Space there plays and pauses, the speed stays, and the popup stays
+          // open (Stuart, 3 Nov, GitHub #109; midst-web #410). Its arrow keys still change the speed.
           const target = event.target as Element
-          if (target.closest?.('.playback-speed-popup')) return
           // A button clicks itself on Space's keyup unless its keydown is cancelled, so Space on a button is always
           // cancelled, even when it then does nothing: a held key, a modifier, a poem that cannot play (Silas, review
           // of #408). The timeline keeps its own rule: Space does nothing to a range, so those are left alone.
