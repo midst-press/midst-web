@@ -1,3 +1,9 @@
+# 0.28.0
+
+- **Space plays and pauses on the speed slider too**, like every other player control; before, you had to close the
+  speed popup first (GitHub #109).
+- The player's code is split into smaller parts. Nothing is meant to look different.
+
 # 0.27.0
 
 - **Space plays and pauses whichever player button you last clicked**, including jump to start and jump to end;
