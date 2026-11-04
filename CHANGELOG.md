@@ -1,3 +1,8 @@
+# 0.29.0
+
+- **"Need Help?" in the app opens the Using Midst section of the About the App page, already open**; before, it landed on
+  the help area with both dropdowns closed (GitHub midst-editor #63).
+
 # 0.28.0
 
 - **Space plays and pauses on the speed slider too**, like every other player control; before, you had to close the
