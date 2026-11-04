@@ -1,8 +1,17 @@
-import React, { ReactElement } from 'react'
+import React, { ReactElement, useEffect, useRef } from 'react'
 import { Helmet } from 'react-helmet'
+import { useLocation } from 'react-router'
 import { BASE_SITE_PAGE_TITLE } from '../config'
 
 function TheApp(): ReactElement {
+  // "Need help?" lands on Using Midst, open (Annelyse, GitHub midst-press/midst-editor#63; midst-web #413). Opened from
+  // an effect rather than held in state, so the poet can still close it, and it opens again on each arrival at #help.
+  const { hash } = useLocation()
+  const usingMidst = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    if (hash === '#help' && usingMidst.current) usingMidst.current.open = true
+  }, [hash])
+
   return (
     <div className="app-page">
       <Helmet>
@@ -23,15 +32,16 @@ function TheApp(): ReactElement {
           <img src="http://annelysegelman.com/donotdelete/theredwheelbarrow.png" />
         </p>
 
-        {/* Help, where the editor's "Need help?" lands (/app#help, midst-editor #105). Two dropdowns, each "Under
-            construction" and nothing more, until Annelyse writes the help (GitHub midst-press/midst-editor#63; midst-web
-            #278). User-facing text other than buttons and labels is hers to write (Stuart, 21 Oct). */}
-        <div id="help" className="app-help">
+        {/* Help. The editor's "Need help?" opens /app#help (midst-editor #105), which is Using Midst (midst-web #413).
+            Two dropdowns, each "Under construction" and nothing more, until Annelyse writes the help (GitHub
+            midst-press/midst-editor#63; midst-web #278). User-facing text other than buttons and labels is hers to write
+            (Stuart, 21 Oct). */}
+        <div className="app-help">
           <details>
             <summary>Installation</summary>
             <p>Under construction</p>
           </details>
-          <details>
+          <details id="help" ref={usingMidst}>
             <summary>Using Midst</summary>
             <p>Under construction</p>
           </details>
