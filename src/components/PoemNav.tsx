@@ -1,4 +1,4 @@
-import React, { ReactElement, useEffect } from 'react'
+import React, { ReactElement, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useParams } from 'react-router'
 import { Link } from 'react-router'
@@ -47,13 +47,33 @@ function PoemNav(): ReactElement {
     }
   }, [nextPoemUrl, previousPoemUrl])
 
+  // How far down the page the title and author reach, for the player to start the poem below them (#416): a long title
+  // on a narrow window wraps onto several lines, and must never cover the poem.
+  const credit = useRef<HTMLAnchorElement>(null)
+  useEffect(() => {
+    const element = credit.current
+    if (!element) return
+    const root = document.documentElement
+    const publish = () => root.style.setProperty('--poem-credit-bottom', `${element.getBoundingClientRect().bottom}px`)
+    publish()
+    // Its size changes with the window and the title; its place changes at the header's breakpoints, with the window.
+    const observer = new ResizeObserver(publish)
+    observer.observe(element)
+    window.addEventListener('resize', publish)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', publish)
+      root.style.removeProperty('--poem-credit-bottom')
+    }
+  }, [currentPoem])
+
   // An address no published poem has: nothing to name and nowhere to move from. Rendering on regardless
   // read `author` of undefined and took the whole site down with it (#100).
   if (!currentPoem) return <></>
 
   return (
     <>
-      <a className="poem-credit">
+      <a className="poem-credit" ref={credit}>
         {/* No current poem while the published list loads, if it fails, or for a url not in it. */}
         {currentPoem &&
           <span onClick={() => dispatch(setProcessNoteOpen(!processNoteOpen))}>

@@ -183,7 +183,9 @@ h1, h2, h3, h4, h5, h6 {
   left: 170px;
   right: 170px;
   text-align: center;
-  font-size: 24px;
+  /* Scales with the window at every width, from 24px on a wide window down to 14px on a phone, with no step for a
+     long title to outgrow just above it (#416). */
+  font-size: clamp(14px, calc(10px + 1.2vw), 24px);
   color: inherit;
   text-decoration: none;
   font-style: normal;
@@ -1402,8 +1404,9 @@ background-size: contain;
     max-width: 500px;
   }
 
+  /* Below the languages button, which ends 26px down and reaches into the title's column (#416). */
   .site-header .poem-credit {
-    top: 25px;
+    top: 30px;
   }
 
   .poem-credit .author-name,
@@ -1451,10 +1454,6 @@ background-size: contain;
     margin: 0 auto 10px;
   }
 
-  .poem-credit .author-name,
-  .poem-credit .poem-title {
-    font-size: 18px;
-  }
 
   .process-note {
     position: absolute;
@@ -1511,10 +1510,6 @@ background-size: contain;
     transform: scale(1.7) translate(10px, 10px);
   }
 
-  .poem-credit .author-name,
-  .poem-credit .poem-title {
-    font-size: 16px;
-  }
 
   .site-header #mobile-nav-toggle {
     right: 10px;

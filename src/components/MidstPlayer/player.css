@@ -4,7 +4,9 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding-top: 98px;
+  /* Never less than the poem's title and author reach down the page, so a long title on a narrow window can never cover
+     the poem (#416). PoemNav sets the variable; elsewhere it is unset and the padding stays 98px. */
+  padding-top: max(98px, calc(var(--poem-credit-bottom, 0px) + 8px));
   /* The height of .control-container below. */
   padding-bottom: 120px;
 }
