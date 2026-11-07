@@ -1,3 +1,9 @@
+# 0.30.0
+
+- **A poem's title is readable at every window width and never covers the poem.** It now shrinks smoothly as the
+  window narrows, instead of in two steps, and the poem always starts below it. The small-screen notice is unchanged
+  (GitHub #118).
+
 # 0.29.0
 
 - **"Need Help?" in the app opens the Using Midst section of the About the App page, already open**; before, it landed on
