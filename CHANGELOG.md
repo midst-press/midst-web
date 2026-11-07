@@ -1,3 +1,8 @@
+# 0.31.0
+
+- **Draft Marker names are drawn above the dotted outline of the editor area**, so the line no longer shows through
+  them (GitHub #119).
+
 # 0.30.0
 
 - **A poem's title is readable at every window width and never covers the poem.** It now shrinks smoothly as the
