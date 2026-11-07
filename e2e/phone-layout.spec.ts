@@ -271,3 +271,38 @@ test('on a desktop, the poem, its markers and the newsletter bar are where they 
     button: { position: 'static', float: 'none', top: 689, height: 28, left: undefined, width: undefined },
   })
 })
+
+// GitHub midst-web #119 (#417): the dotted outline of the editor area crosses the band where the markers' names sit,
+// and was drawn over them. The outline takes no clicks, so for this check only it is made to: the topmost thing at a
+// point on its bottom edge, inside a name, is then whatever is drawn on top there.
+test('on a desktop, a draft marker name is drawn over the outline of the editor area, not under it', async ({ page }) => {
+  const player = await openPoem(page, DESKTOP)
+  const found = await player.evaluate((poem) => {
+    const outline = poem.querySelector('.scrolling-area-border') as HTMLElement | null
+    if (!outline) return { error: 'no outline on this page' }
+    const o = outline.getBoundingClientRect()
+    const edge = o.bottom - 0.5
+    // A point on the outline's bottom edge and inside a name: the name must cross the edge and lie within the
+    // outline's width. The first name sits further left than the outline starts.
+    const points = Array.from(poem.querySelectorAll('.draft-marker-name')).flatMap((n) => {
+      const r = n.getBoundingClientRect()
+      const left = Math.max(r.left, o.left + 1)
+      const right = Math.min(r.right, o.right - 1)
+      return r.top < edge && edge < r.bottom && left < right ? [(left + right) / 2] : []
+    })
+    if (points.length === 0) return { error: 'no name crosses the outline' }
+    outline.style.pointerEvents = 'auto'
+    const onTop = points.map((x) => {
+      const top = document.elementFromPoint(x, edge)
+      return top === outline ? 'the outline' : top?.closest('.draft-marker') ? 'the marker' : String(top?.className)
+    })
+    outline.style.pointerEvents = ''
+    return { onTop }
+  })
+  expect(found).toHaveProperty('onTop')
+  expect((found as { onTop: string[] }).onTop.length).toBeGreaterThan(0)
+  for (const what of (found as { onTop: string[] }).onTop) expect(what).toBe('the marker')
+  // For a person to look at: the band where the names sit, with the outline's bottom edge crossing it.
+  const band = await player.locator('.control-container').boundingBox()
+  await page.screenshot({ path: test.info().outputPath('markers-over-outline.png'), clip: { x: 0, y: band!.y, width: DESKTOP.width, height: 60 } })
+})
