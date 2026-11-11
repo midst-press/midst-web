@@ -81,7 +81,7 @@
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "jsdom": "26.1.0",
-    "monocart-coverage-reports": "2.13.2",
+    "monocart-coverage-reports": "3.2.0",
     "parcel": "2.16.4",
     "parcel-reporter-static-files-copy": "1.5.3",
     "pofile": "1.1.4",
